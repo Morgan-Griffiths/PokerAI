@@ -3,23 +3,29 @@ import random
 import math
 
 """
-need to check robustness of raise function.
 need to assign variables to hands/flops/actions, so it can tell whats working and whats not.
 Make pre and post actions robust for multiple players?
-solve for n players.
+make array of variables for action frequencies and bet/raise sizes.
+make softmax function
 For later:
 Tie the montecarlo function with AI so it can evaluate flops/turns etc.
 Ability to set up specific boards/hands and have the bot player from there.
 Hand generator, akin to PPT or OR. pass through a set of restrictions and it creates
 the hands and stores them. Can be weighted. Can be specific types
 for AI:
-    randomly initialize all variables
+capture all relevant data for heads up:
+action,betsize ratio,pot odds,position,stack size,pot,hand
+Should be able to differentiate between our action and opponents action.
+Possibly multiple variables for hand class?
+suitedness,connectedness,highcard value,paired,nut factor
+train it first on random allins. should favor
+highcard strength, suitedness, connectedness, or high pairs.
+Nut factor would be the frequency of getting a nut hand by the river?(could be flop/turns as well)
 """
 
-#player class (unused so far)
+#player class
 class Player(object):
     def __init__(self, hand, stack, action, position, bettotal, allin):
-
         self.hand = hand
         self.stack = stack
         self.action = action
@@ -580,11 +586,11 @@ deck = [[14,'s'],[13,'s'],[12,'s'],[11,'s'],[10,'s'],[9,'s'],[8,'s'],[7,'s'],[6,
 [14,'c'],[13,'c'],[12,'c'],[11,'c'],[10,'c'],[9,'c'],[8,'c'],[7,'c'],[6,'c'],[5,'c'],[4,'c'],[3,'c'],[2,'c'],
 [14,'d'],[13,'d'],[12,'d'],[11,'d'],[10,'d'],[9,'d'],[8,'d'],[7,'d'],[6,'d'],[5,'d'],[4,'d'],[3,'d'],[2,'d']]
 
-hero = pe.Hand("8s9d2c3c", None, [],[])
-villain = pe.Hand("3s4dKh7c", None, [],[])
+#hero = pe.Hand("8s9d2c3c", None, [],[])
+#villain = pe.Hand("3s4dKh7c", None, [],[])
 #board = pe.Board("ThTd6s7s5s", None)
 
-print main(deck)
+#print main(deck)
 #print montecarlo(hero,villain,deck)
 #print randomboard(deck)
 #print pe.main(hero,villain,board)
