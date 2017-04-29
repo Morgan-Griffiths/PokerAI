@@ -16,6 +16,14 @@ class Board(object):
     def __init__(self, cards, machinehand):
         self.cards = cards
         self.machinehand = machinehand
+class Rank(object):
+    def __init__(self, cards, suits, connect, highcard, nut, equity):
+        self.cards = cards
+        self.suits = suits
+        self.connect = connect
+        self.highcard = highcard
+        self.nut = nut
+        self.equity = equity
 #dictionary
 handvalues = {"A" : 14, "K" : 13, "Q" : 12, "J" : 11, "T" : 10,"9" : 9, "8" : 8,
 "7" : 7, "6" : 6, "5" :5, "4" : 4, "3" : 3, "2" : 2}
