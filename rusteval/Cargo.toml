@@ -5,6 +5,7 @@ authors = ["sleepylemur <griffithse@gmail.com>"]
 
 [dependencies]
 libc = "0.2.22"
+rand = "0.3"
 
 [lib]
 name = "rusteval"
