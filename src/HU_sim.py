@@ -1,6 +1,8 @@
 import Pokereval as pe
+import Classes as cl
 import random
 import math
+import copy
 
 """
 need to assign variables to hands/flops/actions, so it can tell whats working and whats not.
@@ -32,49 +34,6 @@ class Player(object):
         self.position = position
         self.bettotal = bettotal
         self.allin = allin
-#equity simulator
-#not used with main program
-def montecarlo(hand1,hand2,deck):
-    #initialize hands with machine readable hands
-    hand1.machinehand = pe.cardconversion(hand1.cards)
-    hand2.machinehand = pe.cardconversion(hand2.cards)
-    player1 = hand1
-    player2 = hand2
-    #combine the hands into one list
-    usedcards = player1.machinehand + player2.machinehand
-    #initialize deck, subtract hands from deck.
-    newdeck = deck
-    for i in xrange(0,len(usedcards)):
-        if usedcards[i] in newdeck:
-            newdeck.remove(usedcards[i])
-    #print "usedcards", usedcards
-    #print "deck", newdeck
-    #hand1 win, hand2 win, tie, total sims
-    results = [0,0,0,0]
-    #call the main function
-    board = randomboard(newdeck)
-    newboard = pe.Board("", "")
-    newboard.machinehand = board
-    for i in xrange(0,1000):
-        #shuffle deck
-        board = randomboard(newdeck)
-        newboard.machinehand = board
-        outcome = pe.main(hand1,hand2,newboard)
-        results[3] += 1
-        #print "board", board
-        #print "outcome", outcome
-        if outcome[0] == "Tie!":
-            results[2] += 1
-        elif outcome[0] == "hand1":
-            results[0] += 1
-        else:
-            results[1] += 1
-    #count wins and divide by total sims
-    percentage1 = results[0]*100 / results[3]
-    percentage2 = results[1]*100 / results[3]
-    print "percentage",percentage1,percentage2
-    #now need to subtract winning stack from pot and record the amount
-    return "results", results, "stacks", player1.stack, player2.stack
 
 #used for allin pre
 def randomboard(deck):
@@ -85,6 +44,7 @@ def randomboard(deck):
 
 #Used for generating flop/turn/river
 def randomFTR(deck,street):
+    print "randomFTR"
     newdeck = deck[:]
     if street == 1:
     #shuffle deck, return the top 3 cards
@@ -115,25 +75,26 @@ def randomhand(name,deck):
     return (newhand, newdeck)
 
 #main function - inits players, inits reduced deck to use in sims
-def main(deck):
+def main(deck,stacksize):
     #setting position 0 = btn, 1 = bb
     player1 = Player(None,'','U',0,0, False)
     player2 = Player(None,'','U',1,0, False)
     player1.hand = pe.Hand('', None, [],[])
     player2.hand = pe.Hand('', None, [],[])
-    newdeck = deck[:]
-    (player1.hand.cards, newdeck) = randomhand(player1, newdeck)
-    (player2.hand.cards, newdeck) = randomhand(player2, newdeck)
-    player1.hand.machinehand = player1.hand.cards
-    player2.hand.machinehand = player2.hand.cards
     #player1 wins, player2 wins, tie, total games.
     results = [0,0,0,0]
     #player1 winnings, player2 winnings.
     #Pot - bettotal = winnings on that street
     #pot + stack - initial stack = total winnings
     winnings = [0,0]
-    for i in xrange(0,1):
-        outcome, action, pot = minigame(player1,player2,newdeck)
+    for i in xrange(0,1000):
+        newdeck = deck[:]
+        (player1.hand.cards, newdeck) = randomhand(player1, newdeck)
+        (player2.hand.cards, newdeck) = randomhand(player2, newdeck)
+        player1.hand.machinehand = copy.deepcopy(player1.hand.cards)
+        player2.hand.machinehand = copy.deepcopy(player2.hand.cards)
+        print 'init hands',player1.hand.machinehand, player2.hand.machinehand
+        outcome, action, pot = minigame(player1,player2,newdeck,stacksize)
         print "outcome", outcome
         results[3] += 1
         if outcome == "Tie!":
@@ -142,18 +103,22 @@ def main(deck):
             results[0] += 1
             print "stuff1", (player1.stack, pot)
             amnt = player1.stack + pot
-            winnings[0] += (amnt - 100)
+            loss = player2.stack - stacksize
+            winnings[0] += (amnt - stacksize)
+            winnings[1] += (loss)
         else:
             results[1] += 1
             print "stuff2", (player2.stack, pot)
             amnt = player2.stack + pot
-            winnings[1] += (amnt - 100)
+            loss = player1.stack - stacksize
+            winnings[1] += (amnt - stacksize)
+            winnings[0] += (loss)
     return results, outcome, action,"pot", pot, "winnings", winnings
 
 #minigame function
-def minigame(player1,player2,deck):
-    player1.stack = 100
-    player2.stack = 100
+def minigame(player1,player2,deck,stacksize):
+    player1.stack = stacksize
+    player2.stack = stacksize
     street = 0
     bigblind = 2
     smallblind = 1
@@ -162,6 +127,8 @@ def minigame(player1,player2,deck):
     player2.stack -= bigblind
     player1.bettotal = smallblind
     player2.bettotal = bigblind
+    player1.allin = False
+    player2.allin = False
     #each sub list in action has 3 attributes. Action, Betsize(if any), ratio to pot(if any)
     #seed the blinds into action list
     action = [['SB',1,0],['BB',2,0]]
@@ -226,6 +193,7 @@ def preflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind)
     position = 1
     while i != position:
         print "enterwhile"
+        print "stacks", player1.stack,player2.stack
         #Check if player is allin
         if player1.allin == False:
             (player1.action, action, pot) = randomaction(player1,player2,action,bigblind,pot)
@@ -254,7 +222,7 @@ def preflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind)
             return "hand1", action, board, pot, newdeck, street
         if player1.allin == True and player2.allin == True:
             #finish runout and return winner etc to minigame
-            return runout(street,board,action,player1,player2,newdeck,street)
+            return runout(street,board,action,player1,player2,newdeck,pot)
     #check if both players allin
 
 #postflop
@@ -279,6 +247,9 @@ def postflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind
         board.machinehand += river
         print "+river", board.machinehand
     print "postflop"
+    print "stacks", player1.stack,player2.stack
+    print "not allin",player2.allin == False
+    print "not allin",player1.allin == False
     #first action
     (player2.action, action, pot) = postaction(player2, action, bigblind, pot)
     (player1.action, action, pot) = randomaction(player1,player2, action, bigblind, pot)
@@ -297,12 +268,17 @@ def postflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind
     position = 1
     while i != position:
         print "enterpostwhile"
+        print "stacks", player1.stack,player2.stack
         #Check if player1 is allin
+        print "not allin",player2.allin == False
+        print "not allin",player1.allin == False
         if player2.allin == False:
-            (player2.action, action, pot) = randomaction(player2,player1, action, bigblind, pot)
+            print "Player2 action"
+            (player2.action, action, pot) = randomaction(player2, player1, action, bigblind, pot)
         #Check if player2 is allin
         if player1.allin == False:
-            (player1.action, action, pot) = randomaction(player1,player2, action, bigblind, pot)
+            print "Player1 action"
+            (player1.action, action, pot) = randomaction(player1, player2, action, bigblind, pot)
         if player2.action == 'R':
             position = 0
         if player1.action == 'R':
@@ -313,6 +289,7 @@ def postflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind
         print "post player1.action", player1.action
         print "actions", action
         print "stacks", player1.stack,player2.stack
+        print "i, position",i, position
         #check if anyone folded
         if player1.action == 'F':
             print "player1 fold"
@@ -321,8 +298,12 @@ def postflop(player1,player2,street,newdeck,pot,board,action,smallblind,bigblind
             print "player2 fold"
             return "hand1", action, board, pot, newdeck, street
         if player1.allin == True and player2.allin == True:
+            print "allin"
             #finish runout and return winner etc to minigame
-            return runout(street,board,action,player1,player2,newdeck)
+            if street < 3:
+                return runout(street,board,action,player1,player2,newdeck, pot)
+            else:
+                return "Showdown", action, board, pot, newdeck, street
     return "next street", action, board, pot, newdeck, street
 
 #Action generation functions
@@ -394,6 +375,7 @@ def postaction(player,action,bigblind,pot):
 def randomaction(playerA,playerB,action,bigblind,pot):
     print "randomaction", action
     print "action", action[-1][0]
+    print "stacks", playerA.stack, playerB.stack
     if action[-1][0] == 'B':
         if playerB.stack == 0:
             a = ['F','C']
@@ -443,8 +425,7 @@ def randomaction(playerA,playerB,action,bigblind,pot):
 def call(player,choice,action,pot):
     #should add a check to see if player.stack < betsize. when introducing variable stacks and bettor gets a discount
     print "call"
-    choice = choice
-    betsize = action[-1][1]
+    betsize = copy.copy(action[-1][1])
     print "initbet", betsize
     betsize -= player.bettotal
     print "player.bettotal", player.bettotal
@@ -460,7 +441,6 @@ def call(player,choice,action,pot):
     return choice,action,pot
 def bettor(player,choice,action,bigblind,pot):
     print "bettor"
-    choice = choice
     betsize = randombet(player,bigblind,pot)
     player.bettotal += betsize
     player.stack -= betsize
@@ -473,9 +453,9 @@ def bettor(player,choice,action,bigblind,pot):
     return choice,action,pot
 def raised(player,choice,action,pot):
     print "raised"
+    print "stack", player.stack
     (raisesize, maxraise) = randomraise(player,action,pot)
-    choice = choice
-    temp = raisesize
+    temp = copy.copy(raisesize)
     player.stack -= raisesize
     ratio = float(raisesize)/maxraise
     ratio = math.ceil(ratio * 100) / 100
@@ -495,7 +475,6 @@ def raised(player,choice,action,pot):
 #adds raisesize to bettotal. Add everything to action. calc ratio
 def sbraisepre(player,choice,action,smallblind,pot):
     print "sbraisepre"
-    choice = choice
     maxraise = 5*smallblind
     minraise = 3*smallblind
     raisesize = random.randint(minraise,maxraise)
@@ -509,7 +488,6 @@ def sbraisepre(player,choice,action,smallblind,pot):
     return choice,action,pot
 def bbraisepre(player,choice,action,bigblind,pot):
     print "bbraisepre"
-    choice = choice
     maxraise = 2*bigblind
     minraise = bigblind
     raisesize = random.randint(minraise,maxraise)
@@ -539,6 +517,7 @@ def randombet(player,bigblind,pot):
 #creates a random raise size. subtracts raisesize from stack. adds raisesize to bettotal
 def randomraise(player,action,pot):
     print "randomraise"
+    print "stacks", player.stack
     #pot raise = pot+bet*3
     vilbet = action[-1][1]
     bet = vilbet - player.bettotal
@@ -559,7 +538,9 @@ def randomraise(player,action,pot):
 
 #for pre river allins. Set street to 3 before return.
 #(outcome, action, board, pot, newdeck)
-def runout(street,board,action,player1,player2,deck):
+def runout(street,board,action,player1,player2,deck,pot):
+    print "runout"
+    print (street,board,action,player1,player2,pot)
     if street == 0:
         #allin pre
         board.machinehand = randomboard(deck)
@@ -590,7 +571,6 @@ deck = [[14,'s'],[13,'s'],[12,'s'],[11,'s'],[10,'s'],[9,'s'],[8,'s'],[7,'s'],[6,
 #villain = pe.Hand("3s4dKh7c", None, [],[])
 #board = pe.Board("ThTd6s7s5s", None)
 
-#print main(deck)
-#print montecarlo(hero,villain,deck)
+print main(deck,100)
 #print randomboard(deck)
 #print pe.main(hero,villain,board)
