@@ -2,8 +2,21 @@ extern crate libc;
 extern crate rand;
 
 use rank::rank;
-use self::libc::{c_long, c_float, c_int};
+use self::libc::{c_long, c_float, c_int, c_char};
 use self::rand::distributions::{IndependentSample, Range};
+
+#[no_mangle]
+pub extern fn winner(hand1: *const [c_long; 4], hand2: *const [c_long; 4], board: *const [c_long; 5]) -> c_char {
+    let rank1 = unsafe { best_rank_w_board(*hand1, *board) };
+    let rank2 = unsafe { best_rank_w_board(*hand2, *board) };
+    if rank1 < rank2 {
+        -1
+    } else if rank1 > rank2 {
+        1
+    } else {
+        0
+    }
+}
 
 #[no_mangle]
 pub extern fn hand_vs_hand(hand1: *const [c_long; 4], hand2: *const [c_long; 4], deck: *const [c_long; 44], iterations: c_int) -> c_float {
@@ -22,6 +35,21 @@ fn run_hand_vs_hand(hand1: [c_long; 4], hand2: [c_long; 4], deck: &mut [c_long; 
         }
     }
     wins as c_float / iterations as c_float
+}
+
+fn best_rank_w_board(hand: [c_long; 4], board: [c_long; 5]) -> i32 {
+    let mut cur_rank: i32 = 0xFFFF;
+    for hi in 0..6 {
+        let hc = [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)][hi];
+        for bi in 0..10 {
+            let bc = [(0,1,2),(0,1,3),(0,1,4),(0,2,3),(0,2,4),(0,3,4),(1,2,3),(1,2,4),(1,3,4),(2,3,4)][bi];
+            let new_rank = rank(hand[hc.0], hand[hc.1], board[bc.0], board[bc.1], board[bc.2]);
+            if new_rank < cur_rank {
+                cur_rank = new_rank;
+            }
+        }
+    }
+    cur_rank
 }
 
 fn best_rank(hand: [c_long; 4], deck: &mut [c_long; 44]) -> i32 {
