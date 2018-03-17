@@ -16,6 +16,78 @@ kuhn_deck = ("A","K","Q")
 
 BET = 1
 CHECK = 0
+actions = ['check','bet']
+A = [0,1]
+NUM_ACTIONS = global 2
+
+class Player(object):
+    def __init__(self, choice, action_vector, regret_vector):
+        self.choice = choice
+        self.action_vector = action_vector
+        self.regret_vector = regret_vector
+
+class GameTree(object):
+    def __init__(self,deck,max_bets):
+        self.deck = deck
+        self.max_bets = max_bets
+        self.actions = [0,1]
+
+        def get_node(info_set):
+
+
+
+class Node(object):
+    def __init__(self,info_set):
+        self.info_set = None
+        self.regret = np.zeros(2)
+        self.strategy = np.zeros(2)
+        self.strategySum = np.zeros(2)
+
+        def regret(self,action):
+
+
+        def get_strategy(self,weight):
+            normalizing_sum = 0
+            for i in xrange(0,NUM_ACTIONS):
+                if regretSum[i] > 0:
+                    strategy[i] = regretSum[i]
+                else:
+                    strategy[i] = 0
+                normalizing_sum += strategy[i]
+            for x in xrange(0,NUM_ACTIONS):
+                if normalizing_sum > 0:
+                    strategy[x] = strategy[x]/normalizing_sum
+                else:
+                    strategy[x] = 1 / NUM_ACTIONS
+
+        def get_AvgStrategy(self):
+
+        def get_infoset(self,info_set):
+            if info_set == None:
+                node = Node(info_set)
+                nodeMap.append(Node)
+
+class ChanceNode(Node):
+    def __init__(self,info_set):
+        Node.__init__(self,info_set)
+
+class TerminalNode(Node):
+    def __init__(self,info_set):
+        Node.__init__(self,info_set)
+
+        def payoff(hand1,hand2,info_set):
+
+
+
+def cfr(h,i,t,policy_1,policy_2):
+    if h == terminal:
+        return payoff(h)
+    elif h == chanceNode:
+        sample outcome a ~ sigma_chance (h,a)
+        return cfr(h,i,t,policy_1,policy_2)
+    I = info_set(h)
+    v = 0
+
 
 def showdown(handA,handB):
     if handA > handB:
@@ -23,62 +95,10 @@ def showdown(handA,handB):
     else:
         return handB
 
-class GameRules(object):
-    def __init__(self,ante,players,deck):
-        self.ante = ante
-        self.players = players
-        self.deck = deck
+def
 
-class GameTree(object):
-    def __init__(self,info_set,rules,root):
-        self.info_set = {}
-        self.rules = deepcopy(rules)
-        self.root = None
+def utility(handA,handB,deck):
 
-    def build(self):
-        players_in = True * self.rules.players
-        pot = [self.rules.ante] * self.rules.players
-        bets = [0] * self.rules.players
-        bet_history = ""
-        self.root = build_rounds(self, )
-
-    def build_rounds(self):
-
-    def deal_holecards(self):
-    deal cards - build those nodes, update info_set
-
-    def add_node(self):
-
-class Node(object):
-    def __init__(self,parent,holecards,bet_history):
-        self.holecards = deepcopy(holecards)
-        self.children = children
-
-        if parent:
-            self.parent = parent
-            self.parent.add_child(self)
-
-    def add_child(self,child):
-        if self.children = None:
-            self.children = [child]
-        else:
-            children.append(child)
-
-
-class ChanceNode(node):
-    def __init__(self,parent,holecards,bet_history):
-        Node.__init__(self,parent,holecards,bet_history):
-
-class HolecardNode(node):
-    def __init__(self,parent,holecards,bet_history):
-        Node.__init__(self,parent,holecards,bet_history):
-
-class ActionNode(node):
-    def __init__(self,parent,holecards,bet_history):
-        Node.__init__(self,parent,holecards,bet_history):
-
-class TerminalNode(node)
-    def __init__(self,parent,holecards,bet_history):
-        Node.__init__(self,parent,holecards,bet_history):
-
-        #account for showdown and win/loss
+regret_table = np.zeros
+strategy_table = np.zeros((2,2))
+profile = 0

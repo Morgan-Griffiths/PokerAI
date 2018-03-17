@@ -24,11 +24,38 @@ class Rank(object):
         self.highcard = highcard
         self.nut = nut
         self.equity = equity
+class Information_set(object):
+    def __init__(self):
+        self.vilhand = None
+        self.vilhand_generic = None
+        self.perspective = None
+        """
+        self.header = header
+        self.position_stacks = position_stacks
+        self.hand_sorted = hand_sorted
+        self.hand_generic = hand_generic
+        self.actions_full = actions_full
+        self.actions_pre = actions_pre
+        self.actions_flop = actions_flop
+        self.actions_turn = actions_turn
+        self.actions_river = actions_river
+        self.board = board
+        self.generic_board = generic_board
+        self.outcome = outcome
+        """
+class Player_load(object):
+    def __init__(self, stack, position):
+        self.stack = stack
+        self.position = position
+        self.street_bet_total = 0
+        self.allin = False
+        self.winnings = 0
+        self.bet_total = 0
 #dictionary
 handvalues = {"A" : 14, "K" : 13, "Q" : 12, "J" : 11, "T" : 10,"9" : 9, "8" : 8,
 "7" : 7, "6" : 6, "5" :5, "4" : 4, "3" : 3, "2" : 2}
 
-primevalues = {'14' : 41, '13' : 37, '12' : 31, '11' : 29, '10' : 23, '9' : 19, '8' : 17, '7' : 13, 
+primevalues = {'14' : 41, '13' : 37, '12' : 31, '11' : 29, '10' : 23, '9' : 19, '8' : 17, '7' : 13,
 '6' : 11, '5' : 7, '4' : 5, '3' : 3, '2' : 2}
 
 DECK = [[14,'s'],[13,'s'],[12,'s'],[11,'s'],[10,'s'],[9,'s'],[8,'s'],[7,'s'],[6,'s'],[5,'s'],[4,'s'],[3,'s'],[2,'s'],

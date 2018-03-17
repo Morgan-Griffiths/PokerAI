@@ -8,6 +8,7 @@ import pickle
 import itertools as it
 import os.path
 import copy
+import cardlib as cb
 
 """
 need to get rid of the duplicates. Need to finish connectedness and equity functions.
@@ -90,8 +91,59 @@ def highcard(hand):
     return total
 
 #returns allin vs random hand. uses evan calculator
-def equity(hand):
-    return equity
+def equity(hand,deck):
+    coded_hand = encode(hand)
+    coded_deck = encode(deck)
+    #win lose tie
+    results = [0,0,0]
+    for i in xrange(0,3):
+        random.shuffle(coded_deck)
+        vilhand = coded_deck[:4]
+        board = coded_deck[4:9]
+        print "hand,vil,board","\n",coded_hand,"\n",vilhand,"\n",board
+        outcome = cb.winner(coded_hand,vilhand,board)
+        print "outcome", outcome
+        if outcome > 0:
+            results[0] += outcome
+        elif outcome == 0:
+            results[2] += outcome
+        else:
+            results[1] += outcome
+    print "results", results
+    return results
+
+def decode(hand):
+    newhand = [cb.decode(c) for c in hand]
+    return newhand
+def encode(hand):
+    newhand = [cb.encode(c) for c in hand]
+    return newhand
+
+def board_simplify(cards,suit_replace):
+    suits = map(lambda x:x[1],cards)
+    newsuits = [suit_replace.get(x) for x in suits]
+    #print "list",suits,newsuits,suit_replace, len(suit_replace)
+    #if suit is new, should replace based on last generic suit iterating from a until d
+    #if len(suit_replace) == 3 then d. if == 2 than c,d. if == 1 than b,c,d, if == 4 than do nothing
+    unused = suit_values.get(len(suit_replace))
+    #print 'unused', unused
+    #print len(unused)
+    for r in xrange(0,len(newsuits)):
+        #print 'r', r
+        if newsuits[r] == None:
+            newsuits[r] = unused[0]
+            suit_replace.update({suits[r] : newsuits[r]})
+            #print 'hi',suit_replace
+            unused = suit_values.get(len(suit_replace))
+            newsuits = [suit_replace.get(x) for x in suits]
+    board = copy.deepcopy(cards)
+    #print 'board', board
+    for x in xrange(0,len(board)):
+        #print suit_replace.get(board[x][1])
+        board[x][1] = suit_replace.get(board[x][1])
+    return board,suit_replace
+
+suit_values = {4:[],3:['d'],2:['c','d'],1:['b','c','d']}
 
 #returns the salient aspects of the hand. Removes the explicit suits
 #should = 16432 hands. Without suits = 1820 hands
@@ -281,13 +333,11 @@ deck = [[14,'s'],[13,'s'],[12,'s'],[11,'s'],[10,'s'],[9,'s'],[8,'s'],[7,'s'],[6,
 [14,'c'],[13,'c'],[12,'c'],[11,'c'],[10,'c'],[9,'c'],[8,'c'],[7,'c'],[6,'c'],[5,'c'],[4,'c'],[3,'c'],[2,'c'],
 [14,'d'],[13,'d'],[12,'d'],[11,'d'],[10,'d'],[9,'d'],[8,'d'],[7,'d'],[6,'d'],[5,'d'],[4,'d'],[3,'d'],[2,'d']]
 
-testhand = [[[14,'s'],[12,'c'],[6,'s'],[2,'c']],[[14,'c'],[12,'s'],[6,'c'],[2,'s']],[[14,'h'],[12,'h'],[6,'s'],[2,'s']],[[14,'s'],[12,'s'],[6,'h'],[2,'h']],[[14,'s'],[12,'c'],[6,'c'],[2,'s']],[[14,'s'],[12,'c'],[6,'s'],[2,'c']]]
+testhand = [[5,'s'],[5,'c'],[7,'c'],[7,'s']]
 anothertest = [[14,'s'],[14,'c'],[14,'d'],[14,'h']]
 a = [[[14, 'c'], [13, 's'], [13, 'd'], [11, 'd']],[[14, 'c'], [13, 'd'], [9, 's'], [9, 'd']],[[14, 'c'], [14, 's'], [12, 'a'], [10, 'a']]]
 trips = [[[14, 's'], [14, 'h'], [14, 'c'], [14, 'd']], [[14, 's'], [14, 'h'], [14, 'c'], [13, 'c']], [[14, 's'], [14, 'h'], [14, 'c'], [13, 'd']], [[14, 's'], [14, 'h'], [14, 'd'], [13, 'd']], [[14, 's'], [14, 'c'], [14, 'd'], [13, 'd']], [[14, 'h'], [14, 'c'], [14, 'd'], [13, 'd']], [[14, 's'], [14, 'h'], [14, 'c'], [12, 'c']], [[14, 's'], [14, 'h'], [14, 'c'], [12, 'd']], [[14, 's'], [14, 'h'], [14, 'd'], [12, 'd']], [[14, 's'], [14, 'c'], [14, 'd'], [12, 'd']], [[14, 'h'], [14, 'c'], [14, 'd'], [12, 'd']]]
 
-#save_path = openr"~/Users/Shuza/Code/PokerAI/src/handattributes.pickle")
-os.chdir(r"/Users/Shuza/Code/PokerAI/src")
 
 #l = makeclasslist(deck)
 #reallist = removeduplicates(l)
@@ -399,6 +449,10 @@ def howmany(hands):
                 counter[x][1] += 1
                 break
     return counter
+
+#save_path = openr"~/Users/Shuza/Code/PokerAI/src/handattributes.pickle")
+os.chdir(r"/Users/Shuza/Code/PokerAI/src")
+
 #should = 16432 hands. Without suits = 1820 hands
 def shortenfile():
     a = openpickle()
@@ -421,8 +475,25 @@ def shortenfile():
     makefile(m)
     #for x in xrange(0,5000):
     #    print q[x].hand
+"""
+random.shuffle(deck)
+newhand = deck[:4]
+nextdeck = deck[4:]
+#print equity(newhand,nextdeck)
 
-shortenfile()
+hand1 = [[8, 'd'], [5, 'c'], [11, 'h'], [2, 'h']]
+hand2 = [[6, 'd'], [14, 'c'], [10, 's'], [13, 's']]
+board = [[8, 's'], [7, 'c'], [5, 'h'], [9, 'h'], [4, 'c']]
+code1 = [16787479, 270853, 268442665, 1057803]
+code2 = [135427, 134236966, 529159, 67119647]
+code3 = [4212241, 98306, 33564957, 164099, 134253350]
+decoded_1 = sorted(decode(code1))
+decoded_2 = sorted(decode(code2))
+decoded_3 = sorted(decode(code3))
+print decoded_1,'\n',decoded_2,'\n',decoded_3
+print cb.winner(code1,code2,code3)
+"""
+#shortenfile()
 
 #l = makeclasslist(deck)
 #print len(l)
