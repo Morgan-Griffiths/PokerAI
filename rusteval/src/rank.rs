@@ -17,18 +17,18 @@ pub fn rank(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_int {
     // don't have 5 different cards, so search final table
     let product = ((a & 0xFF) * (b & 0xFF) * (c & 0xFF) * (d & 0xFF) * (e & 0xFF)) as i32;
     let mut start = 0;
-    let mut end = tables::CARD_PRODUCTS.len();
+    let mut end = tables::CARD_PRODUCTS.len() - 1;
     let mut guess = end / 2;
     while end > start {
         let found = tables::CARD_PRODUCTS[guess];
         if found == product {
             return tables::PRODUCT_RANKS[guess] as c_int;
         } else if product > found {
-            start = guess;
+            start = guess + 1;
         } else {
-            end = guess;
+            end = guess - 1;
         }
-        guess = (end - start) / 2 + start;
+        guess = (end + start) / 2;
     }
     return 0;
 }
