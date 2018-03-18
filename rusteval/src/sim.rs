@@ -24,6 +24,11 @@ pub extern fn hand_vs_hand(hand1: *const [c_long; 4], hand2: *const [c_long; 4],
     unsafe { run_hand_vs_hand(*hand1, *hand2, &mut deck_copy, iterations) }
 }
 
+#[no_mangle]
+pub extern fn hand_with_board_rank(hand: *const [c_long; 4], board: *const [c_long; 5]) -> c_int {
+    unsafe { best_rank_w_board(*hand, *board) }
+}
+
 fn run_hand_vs_hand(hand1: [c_long; 4], hand2: [c_long; 4], deck: &mut [c_long; 44], iterations: c_int) -> c_float {
     let mut wins = 0;
     for _ in 0..iterations {

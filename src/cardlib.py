@@ -1,6 +1,6 @@
 import ctypes
 
-lib = ctypes.cdll.LoadLibrary("/Users/Shuza/Code/PokerAI/rusteval/target/release/librusteval.dylib")
+lib = ctypes.cdll.LoadLibrary("./rusteval/target/release/librusteval.dylib")
 
 # takes [2,'s'] and returns the cactus kev encoding for that card
 def encode(card):
@@ -18,6 +18,10 @@ def decode(encoded):
 def winner(hand1, hand2, board):
     return lib.winner(long_array(hand1), long_array(hand2), long_array(board))
 
+# takes a 4 card hand and a 5 card board and returns the best rank of the 60 possible combinations
+def hand_rank(hand, board):
+    return lib.hand_with_board_rank(long_array(hand), long_array(board))
+
 # for converting an array to a c array for passing to rust
 def long_array(arr):
     return (ctypes.c_long * len(arr))(*arr)
@@ -25,11 +29,12 @@ def long_array(arr):
 
 # example usage:
 
-# a = [encode(c) for c in [[3,'h'],[3,'s'],[14,'s'],[6,'h']]]
-# b = [encode(c) for c in [[2,'h'],[3,'c'],[14,'h'],[6,'c']]]
-# board = [encode(c) for c in [[4,'c'],[5,'s'],[8,'d'],[11,'d'], [12,'c']]]
-#
-# print a, [decode(c) for c in a]
-# print b, [decode(c) for c in b]
-# print board, [decode(c) for c in board]
-# print winner(a,b,board)
+h3 = [[7, 's'], [5, 'c'], [14, 'h'], [10, 'h']]
+h4 = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's']]
+board2 = [[10, 'c'], [2, 'h'], [4, 'c'], [13, 'c'], [4, 'h']]
+en_h3 = [encode(c) for c in h3]
+en_h4 = [encode(c) for c in h4]
+en_board2 = [encode(c) for c in board2]
+print(en_h3,en_h4,en_board2)
+print(winner(en_h3,en_h4,en_board2))
+print(hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))

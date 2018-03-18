@@ -3,7 +3,6 @@ extern crate libc;
 use self::libc::{c_long, c_int};
 use tables;
 
-#[no_mangle]
 pub fn rank(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_int {
     let distinct_index = ((a | b | c | d | e) >> 16) as usize;
     // check if we have a flush
@@ -19,7 +18,7 @@ pub fn rank(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_int {
     let mut start = 0;
     let mut end = tables::CARD_PRODUCTS.len() - 1;
     let mut guess = end / 2;
-    while end > start {
+    while end >= start {
         let found = tables::CARD_PRODUCTS[guess];
         if found == product {
             return tables::PRODUCT_RANKS[guess] as c_int;
@@ -30,10 +29,9 @@ pub fn rank(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_int {
         }
         guess = (end + start) / 2;
     }
-    return 0;
+    panic!("couldn't find {} in CARD_PRODUCTS", product);
 }
 
-#[no_mangle]
 pub fn flush_lookup(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_long {
     // check flush
     match a & b & c & d & e & 0xF000 {
@@ -42,7 +40,6 @@ pub fn flush_lookup(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_
     }
 }
 
-#[no_mangle]
 pub fn prime_lookup(a: c_long, b: c_long, c: c_long, d: c_long, e: c_long) -> c_long {
     (a & 0xFF) * (b & 0xFF) * (c & 0xFF) * (d & 0xFF) * (e & 0xFF)
 }
