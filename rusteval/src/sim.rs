@@ -2,11 +2,11 @@ extern crate libc;
 extern crate rand;
 
 use rank::rank;
-use self::libc::{c_long, c_float, c_int, c_char};
+use self::libc::{c_long, c_float, c_int};
 use self::rand::distributions::{IndependentSample, Range};
 
 #[no_mangle]
-pub extern fn winner(hand1: *const [c_long; 4], hand2: *const [c_long; 4], board: *const [c_long; 5]) -> c_char {
+pub extern fn winner(hand1: *const [c_long; 4], hand2: *const [c_long; 4], board: *const [c_long; 5]) -> c_int {
     let rank1 = unsafe { best_rank_w_board(*hand1, *board) };
     let rank2 = unsafe { best_rank_w_board(*hand2, *board) };
     if rank1 < rank2 {
