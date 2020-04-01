@@ -322,9 +322,9 @@ def makefile(classlist):
         pickle.dump(classlist, handle, protocol = pickle.HIGHEST_PROTOCOL)
 
 
-def openpickle():
+def openpickle(path):
     #to read file
-    with open('handattributes.pickle', 'rb') as handle:
+    with open(path, 'rb') as handle:
         b = pickle.load(handle)
     return b
 
@@ -465,7 +465,7 @@ def shortenfile():
     u = removeduplicates(b)
     u.sort(key = lambda x: (x.suits))
     u.sort(cmp=compare,reverse = True)
-    for x in xrange(0,len(u)):
+    for x in range(0,len(u)):
         u[x].hand.sort(key = lambda x: x[1],reverse = True)
     q = removeduplicates(u)
     x =  howmany(q)
