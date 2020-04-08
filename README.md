@@ -1,6 +1,6 @@
 # PokerAI
 
-A combination of poker environment simulator and a bitwise Omaha hand winner evaluator written in Rust.
+A combination of poker environment simulator and a bitwise Omaha hand winner evaluator written in Rust. 
 
 ## To build the Omaha Evaluator
 
@@ -11,4 +11,4 @@ cargo build --release
 ```
 (you should have rust installed ofc. `brew install rust` if you don't have it yet.)
 
-## Source code is contained with in SRC
+## Source code is contained within src
