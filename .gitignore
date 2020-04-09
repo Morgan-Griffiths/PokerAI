@@ -1,6 +1,12 @@
 *.pyc
-.DS_Store
-target
-Pickle
 *.log
+*.npy
+*.png
+*.lock
+.DS_Store
+rusteval/
+Pickle
 ../src/Poker_MDP.py
+poker/data/
+poker/assets/
+poker/checkpoints/
