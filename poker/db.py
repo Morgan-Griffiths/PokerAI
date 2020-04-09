@@ -70,9 +70,7 @@ class MongoDB(object):
         return inputs
 
     @staticmethod
-    def return_frequency(inputs:list,params:dict):
-        interval = params['interval']
-        num_features = params['num_features']
+    def return_frequency(inputs:list,interval:int,num_features:int):
         assert(isinstance(inputs,list))
         assert(isinstance(inputs[0],np.ndarray))
         assert(len(inputs[0]) > interval)
@@ -113,7 +111,11 @@ class MongoDB(object):
         R = hands.shape[0]
         hands = hands.reshape(R,1)
         actions = actions.reshape(R,1)
-        unique_hands = np.lib.arraysetops.unique(hands)
+        unique_hands,hand_counts = np.lib.arraysetops.unique(hands,return_counts=True)
+        unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)
+        num_features = len(action_counts)
+        print('unique_hands and counts',unique_hands,hand_counts)
+        print('unique_actions and counts',unique_actions,action_counts)
         return_data = []
         N = 0
         for hand_type in unique_hands:
@@ -122,8 +124,8 @@ class MongoDB(object):
             N = max(N,actions[mask].shape[0])
         if pad == True:
             return_data = MongoDB.pad_inputs(return_data,N)
-        return_data = MongoDB.return_frequency(return_data,params)
-        return return_data,unique_hands
+        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        return return_data,unique_hands,unique_actions
 
     def byActions(self,params:dict,pad=True,action_only=False):
         data = self.get_data(params)

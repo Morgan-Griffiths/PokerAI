@@ -86,6 +86,15 @@ class History(object):
         if len(self.history) > 0:
             return self.history[-1].action.item()
         return None
+
+    @property
+    def penultimate_action(self):
+        if len(self.history) > 1:
+            return self.history[-2].action.item()
+        return None
+
+    def __len__(self):
+        return len(self.history)
     
     def reset(self):
         self.history = []
@@ -222,7 +231,7 @@ class Players(object):
                     'action_probs':self.action_probs[position],
                     'rewards':self.rewards[position]
                 }
-                assert(len(self.rewards[position]) == len(self.actions[position]))
+                assert(self.rewards[position][0].size(0) == len(self.actions[position]))
             else:
                 if position not in del_positions:
                     del_positions.add(position)
@@ -254,24 +263,39 @@ class Players(object):
         return self.poker_positions[-1]
     
 class Rules(object):
-    def __init__(self,params):
-        self.game = params['game']
+    def __init__(self,params,game):
+        self.game = game
         if self.game == 'kuhn':
-            self.unopened_action = params['unopened_action']
-            self.over = self.kuhn
-            self.action_dict = {0:'check',1:'bet',2:'call',3:'fold'}
-            self.betsize_dict = {0:0,1:1,2:1,3:0}
-            self.max_players = 2
-            self.bets_per_street = 1
-            self.raises_per_street = 0
-            self.action_space = len(self.action_dict.keys())
+            self.load_rules(params)
         else:
             raise ValueError('Game type not supported')
+
+    def return_mask(self,state):
+        return self.mask_dict[state[0,self.action_index].long().item()]
             
-    def load_rules(self):
-        pass
+    def load_rules(self,params):
+        self.unopened_action = params['unopened_action']
+        self.action_dict = params['action_dict']
+        self.betsize_dict = params['betsize_dict']
+        self.mask_dict = params['mask_dict']
+        self.bets_per_street = params['bets_per_street']
+        self.raises_per_street = params['raises_per_street']
+        self.db_mapping = params['mapping']
+        self.action_index = params['action_index'] # Indexes into game_state. Important for masking actions
+        self.state_index = params['state_index']
+        self.action_space = len(self.action_dict.keys())
+        self.over = self.kuhn1street if self.bets_per_street == 1 else self.kuhn2street
+
+    def kuhn2street(self,env):
+        done = False
+        if env.history.last_action == 3 or env.history.last_action == 2:
+            done = True
+        if len(env.history) > 1:
+            if env.history.last_action == 0 and env.history.penultimate_action == 0:
+                done = True
+        return done
         
-    def kuhn(self,env):
+    def kuhn1street(self,env):
         done = False
         if env.history.last_action == 3 or env.history.last_action == 2 or env.history.last_action == 0:
             done = True

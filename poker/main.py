@@ -1,9 +1,8 @@
 from train import train
 from config import Config
 from environment import Poker
-from agents.agent import Agent,Priority_DQN
+from agents.agent import Agent,Priority_DQN,return_agent
 from db import MongoDB
-from models.utils import return_agent
 
 if __name__ == "__main__":
     import argparse
@@ -27,12 +26,18 @@ if __name__ == "__main__":
                         default=False,
                         metavar="boolean",
                         help='cleans database')
+    parser.add_argument('--epochs',
+                        default=1000,
+                        metavar="int",
+                        help='Number of training epochs')
 
     args = parser.parse_args()
 
     print(f'args {args}')
 
-    config = Config()
+    env_type = 'simple'
+
+    config = Config(env_type)
     config.agent = args.agent
     config.params['game'] = args.env
 
@@ -44,12 +49,12 @@ if __name__ == "__main__":
     for position in position_dict[params['state_params']['n_players']]:
         training_data[position] = []
         
-    training_params = {
-        'epochs':1000,
-        'action_index':1,
-        'training_data':training_data,
-        'training_round':0
-    }
+    training_params = config.training_params
+    training_params['epochs'] = int(args.epochs)
+    training_params['training_data'] = training_data
+    training_params['agent_name'] = args.agent
+    # Change pot size to see how it effects betting and calling
+    # params['state_params']['pot'] = 5
 
     env = Poker(params)
 
@@ -61,12 +66,9 @@ if __name__ == "__main__":
 
     agent = return_agent(config.agent,nS,nO,nA,seed,agent_params)
     action_data = train(env,agent,training_params)
-    mapping = {'state':{'previous_action':1,'hand':0},
-        'observation':{'previous_action':1,'hand':0},
-        }
 
     mongo = MongoDB()
     if args.clean:
         print('Cleaning db')
         mongo.clean_db()
-    mongo.store_data(action_data,mapping,training_params['training_round'])
+    mongo.store_data(action_data,env.db_mapping,training_params['training_round'])

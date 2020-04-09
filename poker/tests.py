@@ -12,10 +12,9 @@ class TestEnv(unittest.TestCase):
         self.config = Config()
         self.params = self.config.params
         logs = torch.randn(4)
-        torch_action_dict = {'check':torch.tensor(0),'bet':torch.tensor(1),'call':torch.tensor(2),'fold':torch.tensor(3)}
-        self.actions = [[(torch_action_dict['bet'],logs),(torch_action_dict['call'],logs)],
-                [(torch_action_dict['check'],logs)],
-                [(torch_action_dict['bet'],logs),(torch_action_dict['fold'],logs)]]
+        actions = ['Check','Bet','Call','Fold','Raise']
+        torch_action_dict = {a:b.unsqueeze(0) for a,b in zip(actions,torch.arange(5))}
+        self.actions = [[(torch_action_dict[act],logs) for act in actions]]
         self.scenario_verification = {
             0:{
                 'pot':2,
@@ -76,7 +75,7 @@ class TestEnv(unittest.TestCase):
         for i in range(len(self.actions)):
             print(f'Scenario {i}')
             env.load_scenario(scenarios[i][0])
-            print('env.pot.value',env.pot.value)
+            print('env.pot.value',env.pot.value,self.scenario_verification[i]['pot'])
             assert(env.pot.value == self.scenario_verification[i]['pot'])
             player = env.players.get_player('SB')
             print('player.stack',player.stack,self.scenario_verification[i]['stack'])

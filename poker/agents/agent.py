@@ -1,12 +1,23 @@
-from models.networks import Baseline,Dueling_QNetwork
+from models.networks import Baseline,Dueling_QNetwork,CardClassification
 from models.buffers import PriorityReplayBuffer
 from torch.autograd import Variable as V
+import torch.nn.functional as F
 import random
 import torch
+import os
 import numpy as np
 from torch import optim
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def return_agent(agent_type,nS,nO,nA,seed,params):
+    if agent_type == 'baseline':
+        agent = Agent(nS,nO,nA,seed,params)
+    elif agent_type == 'dqn':
+        agent = Priority_DQN(nS,nO,nA,seed,params)
+    else:
+        raise ValueError(f'Agent not supported {agent_type}')
+    return agent
 
 class Agent(object):
     def __init__(self,nS,nO,nA,seed,params):
@@ -39,6 +50,16 @@ class Agent(object):
         self.optimizer.zero_grad()
         policy_loss.backward()
         self.optimizer.step()
+
+    def load_weights(self,path):
+        self.network.load_state_dict(torch.load(path))
+        self.network.eval()
+
+    def save_weights(self,path):
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        torch.save(self.network.state_dict(), path)
         
 """
 DQN with Priority Replay, DDQN, and Dueling DQN.
@@ -152,3 +173,43 @@ class Priority_DQN(object):
     def update_target(self):
         for local_param,target_param in zip(self.qnetwork_local.parameters(),self.qnetwork_target.parameters()):
             target_param.data.copy_(self.tau*local_param.data + (1-self.tau)*target_param.data)
+
+"""
+Understanding cards
+"""
+
+class CardAgent(object):
+    def __init__(self,nS,seed,params):
+        self.nS = nS
+        self.seed = seed
+        self.params = params
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.network = CardClassification(seed,nS).to(device)
+        self.optimizer = optim.Adam(self.network.parameters(),lr=self.params['learning_rate'])
+
+    def __call__(self,x):
+        out = self.network(x)
+        return out
+
+    def predict(self,x):
+        self.network.eval()
+        out = self.network(x)
+        self.network.train()
+        return out
+
+    def backward(self,preds,targets):
+        loss = F.smooth_l1_loss(preds,targets).sum()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
+    def load_weights(self,path):
+        self.network.load_state_dict(torch.load(path))
+        self.network.eval()
+
+    def save_weights(self,path):
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        torch.save(self.network.state_dict(), path)

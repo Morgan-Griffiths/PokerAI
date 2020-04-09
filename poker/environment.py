@@ -13,7 +13,7 @@ class Poker(object):
         params['state_params']['suits'] = self.suits
         self.state_params = params['state_params']
         self.evaluator = Evaluator(self.game)
-        self.rules = Rules(params)
+        self.rules = Rules(self.params['rule_params'],self.game)
         # State attributes
         self.stacksize = self.state_params['stacksize']
         self.n_players = self.state_params['n_players']
@@ -120,17 +120,9 @@ class Poker(object):
         Current player's hand. Previous action
         """
         current_hand = torch.tensor([self.players.current_hand.rank])
-        if action == 0:
-            state = torch.Tensor([0])
-        elif action == 1:
-            state = torch.Tensor([1])
-        elif action == 2 or action == 3:
-            state = torch.Tensor([-1])
-        elif action == None:
-            state = torch.Tensor([self.rules.unopened_action])
-        else:
-            raise ValueError(f'Action type {action} not supported')
-        state = torch.cat((current_hand.float(),state)).unsqueeze(0)
+        if not isinstance(action,torch.Tensor):
+            action = torch.Tensor([self.rules.unopened_action])
+        state = torch.cat((current_hand.float(),action.float())).unsqueeze(0)
         obs = state
         return state,obs
     
@@ -150,12 +142,18 @@ class Poker(object):
                 raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(-1,1)
                 raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,1)
                 raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(-1,1)
-                # print('rewards',raw_ml[position]['rewards'].size())
-                # print('actions',raw_ml[position]['actions'].size())
-        # pad if necessary
-
         return raw_ml
     
+    def action_mask(self,state):
+        return self.rules.return_mask(state)
+
+    @property
+    def db_mapping(self):
+        """
+        Required for inserting the data into mongodb properly
+        """
+        return self.rules.db_mapping
+
     @property
     def game_over(self):
         return self.rules.over(self)

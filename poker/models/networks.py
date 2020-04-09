@@ -107,3 +107,39 @@ class Dueling_QNetwork(nn.Module):
         v = v.expand_as(a)
         q = v + a - a.mean(1,keepdim=True).expand_as(a)
         return q
+
+
+class CardClassification(nn.Module):
+    def __init__(self,seed,state_space,hidden_dims=(64,32),activation_fc=F.relu):
+        super(CardClassification,self).__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(seed)
+        # Input is (1,13,2) -> (1,13,64)
+        self.conv1 = nn.Conv1d(13, 64, kernel_size=2, stride=1)
+        self.bn1 = nn.BatchNorm1d(64)
+        # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+        self.value_output = nn.Linear(hidden_dims[-1],1)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        # print(x.size())
+        x = self.activation_fc(self.bn1(self.conv1(x)))
+        # x = self.activation_fc(self.bn2(self.conv2(x)))
+        # x = self.activation_fc(self.bn3(self.conv3(x)))
+        # Flatten layer but retain number of samples
+        # print(x.size())
+        x = x.view(x.shape[0],x.shape[1])# * x.shape[2] * x.shape[3] * x.shape[4])
+        for hidden_layer in self.hidden_layers:
+            x = self.activation_fc(hidden_layer(x))
+        v = torch.tanh(self.value_output(x))
+        # print(v.size())
+        return v
+        
