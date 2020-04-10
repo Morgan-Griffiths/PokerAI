@@ -41,7 +41,7 @@ Solution:
 - A should bet entirely
 
 - _Baseline performance_
-![Graph](/poker/assets/Actions probabilities for SB.png)
+![Graph](/poker/assets/Actions\ probabilities\ for\ SB.png)
 
 *BB*
 Q fold always
