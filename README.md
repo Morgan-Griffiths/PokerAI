@@ -44,7 +44,7 @@ There are a number of environments, each increasing in complexity.
 
 _Baseline performance_
 
-![Graph](/Actions probabilities for BB.png)
+![Graph](Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -53,7 +53,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](/Actions probabilities for BB.png)
+![Graph](Action_probabilities_for_BB.png)
 
 ## Complex Kuhn
 
@@ -74,7 +74,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](/Complex Actions probabilities for SB.png)
+![Graph](Complex_Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -83,7 +83,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](/Complex Actions probabilities for BB.png)
+![Graph](Complex_Action_probabilities_for_BB.png)
 
 ## Decoding cards
 
