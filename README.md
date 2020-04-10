@@ -41,7 +41,7 @@ K should check entirely
 A should bet entirely
 
 Baseline performance
-![Graph](poker/assets/Actions probabilities for SB.png)
+![Graph](/poker/assets/Actions probabilities for SB.png)
 
 BB
 Q fold always
@@ -49,7 +49,7 @@ K facing bet, should call occasionally
 A call always
 
 Baseline performance
-![Graph](poker/assets/Actions probabilities for BB.png)
+![Graph](/poker/assets/Actions probabilities for BB.png)
 
 ## Complex Kuhn
 
@@ -69,7 +69,7 @@ K should check entirely
 A should bet entirely
 
 Baseline performance
-![Graph](poker/assets/Complex Actions probabilities for BB.png)
+![Graph](/poker/assets/Complex Actions probabilities for BB.png)
 
 BB
 Q fold always
@@ -77,7 +77,7 @@ K facing bet, should call occasionally
 A Raise always
 
 Baseline performance
-![Graph](poker/assets/Complex Actions probabilities for BB.png)
+![Graph](/poker/assets/Complex Actions probabilities for BB.png)
 
 ## Decoding cards
 
