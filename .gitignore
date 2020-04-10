@@ -5,7 +5,6 @@
 *.lock
 .DS_Store
 rusteval/
-Pickle
 ../src/Poker_MDP.py
 poker/data/
 poker/assets/
