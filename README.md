@@ -43,6 +43,7 @@ There are a number of environments, each increasing in complexity.
 - A should bet entirely
 
 _Baseline performance_
+
 ![Graph](/poker/assets/Actions\ probabilities\ for\ SB.png)
 
 *BB*
@@ -51,6 +52,7 @@ _Baseline performance_
 - A call always
 
 _Baseline performance_
+
 ![Graph](/poker/assets/Actions probabilities for BB.png)
 
 ## Complex Kuhn
@@ -71,6 +73,7 @@ _Baseline performance_
 - A should bet entirely
 
 _Baseline performance_
+
 ![Graph](poker/assets/Complex Actions probabilities for SB.png)
 
 *BB*
@@ -79,6 +82,7 @@ _Baseline performance_
 - A Raise always
 
 _Baseline performance_
+
 ![Graph](poker/assets/Complex Actions probabilities for BB.png)
 
 ## Decoding cards
