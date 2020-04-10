@@ -11,8 +11,6 @@ cargo build --release
 ```
 (you should have rust installed ofc. `brew install rust` if you don't have it yet.)
 
-## Source code is contained within src
-
 # Poker Environments
 
 There are a number of environments, each increasing in complexity.
@@ -69,7 +67,7 @@ Solution:
 - A should bet entirely
 
 - _Baseline performance_
-![Graph](/poker/assets/Complex Actions probabilities for BB.png)
+![Graph](poker/assets/Complex Actions probabilities for SB.png)
 
 *BB*
 - Q fold always
@@ -77,7 +75,7 @@ Solution:
 - A Raise always
 
 - _Baseline performance_
-![Graph](/poker/assets/Complex Actions probabilities for BB.png)
+![Graph](poker/assets/Complex Actions probabilities for BB.png)
 
 ## Decoding cards
 
