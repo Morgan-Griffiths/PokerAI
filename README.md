@@ -11,6 +11,10 @@ cargo build --release
 ```
 (you should have rust installed ofc. `brew install rust` if you don't have it yet.)
 
+# Abstract
+
+A series of poker environments that cover each of the individual complexities of poker, allowing one to test networks and learning architectures quickly and easily starting from the simpliest env all the way to real world poker. The goal is a single API that interfaces with the training architecture for the agent such that you can scale the complexity as needed. Asserting that the learning algorithm learns at all stages.
+
 # Poker Environments
 
 There are a number of environments, each increasing in complexity.
@@ -31,22 +35,22 @@ There are a number of environments, each increasing in complexity.
 *BB Options:* _facing bet only_
 - Call,fold
 
-Solution:
+#### Solution:
 
 *SB*
 - Q should mostly fold/check (equal actions). bet occasionally
 - K should check entirely
 - A should bet entirely
 
-- _Baseline performance_
+_Baseline performance_
 ![Graph](/poker/assets/Actions\ probabilities\ for\ SB.png)
 
 *BB*
-Q fold always
-K facing bet, should call occasionally
-A call always
+- Q fold always
+- K facing bet, should call occasionally
+- A call always
 
-- _Baseline performance_
+_Baseline performance_
 ![Graph](/poker/assets/Actions probabilities for BB.png)
 
 ## Complex Kuhn
@@ -59,14 +63,14 @@ A call always
 - Bet,Check facing Check
 - Call,Raise,Fold facing Bet
 
-Solution:
+#### Solution:
 
 *SB*
 - Q should mostly fold/check (equal actions). bet occasionally
 - K should check entirely
 - A should bet entirely
 
-- _Baseline performance_
+_Baseline performance_
 ![Graph](poker/assets/Complex Actions probabilities for SB.png)
 
 *BB*
@@ -74,7 +78,7 @@ Solution:
 - K facing bet, should call occasionally
 - A Raise always
 
-- _Baseline performance_
+_Baseline performance_
 ![Graph](poker/assets/Complex Actions probabilities for BB.png)
 
 ## Decoding cards
