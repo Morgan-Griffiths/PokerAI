@@ -44,7 +44,7 @@ There are a number of environments, each increasing in complexity.
 
 _Baseline performance_
 
-![Graph](./poker/assets/Actions probabilities for BB.png)
+![Graph](/Actions probabilities for BB.png)
 
 *BB*
 - Q fold always
@@ -53,7 +53,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](../poker/assets/Actions probabilities for BB.png)
+![Graph](/Actions probabilities for BB.png)
 
 ## Complex Kuhn
 
@@ -74,7 +74,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](poker/assets/Complex Actions probabilities for SB.png)
+![Graph](/Complex Actions probabilities for SB.png)
 
 *BB*
 - Q fold always
@@ -83,7 +83,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](poker/assets/Complex Actions probabilities for BB.png)
+![Graph](/Complex Actions probabilities for BB.png)
 
 ## Decoding cards
 
