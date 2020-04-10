@@ -27,23 +27,23 @@ There are a number of environments, each increasing in complexity.
 
 ## Simple Kuhn
 
-SB Options:
-Check,bet,fold
+*SB Options:*
+- Check,bet,fold
 
-BB Options: *facing bet only*
-Call,fold
+*BB Options:* _facing bet only_
+- Call,fold
 
 Solution:
 
-SB 
-Q should mostly fold/check (equal actions). bet occasionally
-K should check entirely
-A should bet entirely
+*SB*
+- Q should mostly fold/check (equal actions). bet occasionally
+- K should check entirely
+- A should bet entirely
 
 - _Baseline performance_
 ![Graph](/poker/assets/Actions probabilities for SB.png)
 
-BB
+*BB*
 Q fold always
 K facing bet, should call occasionally
 A call always
@@ -53,28 +53,28 @@ A call always
 
 ## Complex Kuhn
 
-SB Options:
-Check,Bet
-Call,Fold facing raise
+*SB Options:*
+- Check,Bet
+- Call,Fold facing raise
 
-BB Options:
-Bet,Check facing Check
-Call,Raise,Fold facing Bet
+*BB Options:*
+- Bet,Check facing Check
+- Call,Raise,Fold facing Bet
 
 Solution:
 
-SB 
-Q should mostly fold/check (equal actions). bet occasionally
-K should check entirely
-A should bet entirely
+*SB*
+- Q should mostly fold/check (equal actions). bet occasionally
+- K should check entirely
+- A should bet entirely
 
 - _Baseline performance_
 ![Graph](/poker/assets/Complex Actions probabilities for BB.png)
 
-BB
-Q fold always
-K facing bet, should call occasionally
-A Raise always
+*BB*
+- Q fold always
+- K facing bet, should call occasionally
+- A Raise always
 
 - _Baseline performance_
 ![Graph](/poker/assets/Complex Actions probabilities for BB.png)
