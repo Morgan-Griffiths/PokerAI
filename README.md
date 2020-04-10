@@ -40,10 +40,14 @@ Q should mostly fold/check (equal actions). bet occasionally
 K should check entirely
 A should bet entirely
 
+![Graph](poker/assets/Actions probabilities for SB.png)
+
 BB
 Q fold always
 K facing bet, should call occasionally
 A call always
+
+![Graph](poker/assets/Actions probabilities for BB.png)
 
 ## Complex Kuhn
 
@@ -62,24 +66,59 @@ Q should mostly fold/check (equal actions). bet occasionally
 K should check entirely
 A should bet entirely
 
+![Graph](poker/assets/Complex Actions probabilities for BB.png)
+
 BB
 Q fold always
 K facing bet, should call occasionally
 A Raise always
 
+![Graph](poker/assets/Complex Actions probabilities for BB.png)
+
 ## Decoding cards
 
-- Predicting hand outcomes given two hands and a board.
-- Predicting hand outcomes given partial or no board and two hands
-- Predicting outcomes given hand and board
+Initial test: 
+- 13 cards in a row
+- try with the board obscured.
+
+2nd test:
+- 9 cards without villain hand
+- 4 cards without board and villain.
+
+3rd test:
+- 60 combinations of 2 cards of heros hand and 3 of board + the same for villain
+- Hero only
+- Hero combinations with mystery board cards
 
 ### Networks
 
-- Multiheaded attention?
-- Convnets
+Layer that takes 5 cards and outputs a strength signal?
+process the hand, process the hand + board
+process hand, process board, add together
+Test group has all hand strengths
+Test individual hand cases [high card,pair,two pair,3 of a kind,straight,flush,FH,quads,straight flush]
+
+- Convnet + Multiheaded attention? Attention could select a particular hand of interest
+- Convnet + FC
+- Embedding + FC
+
+### How to deal with Hole Cards with varying amounts of information about the board
+
+- Mask inputs
+- Run convolutions/fc on hidden state. Encode cards first and then pass into fc.
 
 ## Added betsize
 
+Additional levels to network that outputs a analog value, which is a % of pot. 
+
 ## Multiple streets
 
+Dealing with histories. Record only actions and game situations? or include board and hands.
+
 ## Full game
+
+Possibilities:
+MuZero-esque. Dynamics Model (samples outcomes), Villain model (predicts opponents actions), Predicting next card.
+- Transformer/LSTM
+- Hidden dynamics with optional recursion.
+
