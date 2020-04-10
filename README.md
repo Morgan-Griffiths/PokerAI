@@ -44,7 +44,7 @@ There are a number of environments, each increasing in complexity.
 
 _Baseline performance_
 
-![Graph](/Users/morgan/Code/PokerAI/poker/assets/Actions probabilities for BB.png)
+![Graph](PokerAI/poker/assets/Actions probabilities for BB.png)
 
 *BB*
 - Q fold always
