@@ -70,7 +70,7 @@ def plot_data(title:str,data:list,labels:list,path='assets/'):
         plt.plot(epochs,data_group,colors[i],label=labels[i])
     plt.title(title)
     plt.xlabel('Epochs')
-    plt.ylabel('Frequency')
+    plt.ylabel('Loss')
     plt.legend()
     plt.savefig(f'{path+title}.png',bbox_inches='tight')
     plt.close()
@@ -167,12 +167,13 @@ if __name__ == "__main__":
     # actions = mongo.byActions(query,action_only=True)
     # rewards = mongo.byRewards(query)
     # actions,hands = mongo.actionByHand(query)
+    game_type = 'Complex'
     # SB
     data = mongo.get_data(query,projection)
     actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
     hand_labels = [f'Hand {hand_dict[hand]}' for hand in unique_hands]
     action_labels = [action_dict[act] for act in unique_actions]
-    plot_frequencies(f'Actions probabilities for {query["position"]}',actions,hand_labels,action_labels)
+    plot_frequencies(f'{game_type}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
 
     # BB
     query['position'] = 'BB'
@@ -180,5 +181,5 @@ if __name__ == "__main__":
     actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
     hand_labels = [f'Hand {hand_dict[hand]}' for hand in unique_hands]
     action_labels = [action_dict[act] for act in unique_actions]
-    plot_frequencies(f'Actions probabilities for {query["position"]}',actions,hand_labels,action_labels)
+    plot_frequencies(f'{game_type}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])

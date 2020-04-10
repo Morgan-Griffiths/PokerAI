@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     print(f'args {args}')
 
-    env_type = 'simple'
+    env_type = 'complex'
 
     config = Config(env_type)
     config.agent = args.agent

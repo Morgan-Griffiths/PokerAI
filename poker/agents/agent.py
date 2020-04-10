@@ -179,12 +179,15 @@ Understanding cards
 """
 
 class CardAgent(object):
-    def __init__(self,nS,seed,params):
-        self.nS = nS
-        self.seed = seed
+    def __init__(self,params):
         self.params = params
+        self.network_params = params['network_params']
+        self.agent_name = params['save_path']
+        self.save_dir = params['save_dir']
+        self.save_path = os.path.join(params['save_dir'],params['save_path'])
+        self.load_path = os.path.join(params['save_dir'],params['load_path'])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.network = CardClassification(seed,nS).to(device)
+        self.network = params['network'](params['network_params']).to(device)
         self.optimizer = optim.Adam(self.network.parameters(),lr=self.params['learning_rate'])
 
     def __call__(self,x):
@@ -204,11 +207,15 @@ class CardAgent(object):
         self.optimizer.step()
         return loss.item()
 
-    def load_weights(self,path):
+    def load_weights(self,path=None):
+        if path == None:
+            path = self.load_path
         self.network.load_state_dict(torch.load(path))
         self.network.eval()
 
-    def save_weights(self,path):
+    def save_weights(self,path=None):
+        if path == None:
+            path = self.save_path
         directory = os.path.dirname(path)
         if not os.path.exists(directory):
             os.mkdir(directory)

@@ -3,6 +3,7 @@ from collections import deque
 from random import shuffle
 import torch
 import numpy as np
+from cardlib import winner,encode,decode
 
 action_dict = {0:'check',1:'bet',2:'call',3:'fold',4:'raise',5:'unopened'}
 position_dict = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
@@ -305,6 +306,10 @@ def eval_kuhn(hands):
     ranks = [card.rank for card in hands]
     return np.argmax(ranks)
 
+def eval_omaha_hi(cards):
+    ranks = [card.rank for card in hands]
+    pass
+
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
@@ -313,7 +318,7 @@ class Evaluator(object):
         elif self.game == 'holdem':
             pass
         elif self.game == 'omaha hi':
-            pass
+            self.evaluate = eval_omaha_hi
         else:
             raise ValueError('Game type not supported')
         

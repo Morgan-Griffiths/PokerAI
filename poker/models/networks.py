@@ -61,7 +61,6 @@ class Baseline(nn.Module):
         action_probs = F.softmax(action_logits,dim=-1)
         action_probs = action_probs * mask
         action_probs /= torch.sum(action_probs)
-#         print('action_probs',action_probs)
         m = Categorical(action_probs)
         action = m.sample()
         return action,m.log_prob(action)
@@ -108,16 +107,64 @@ class Dueling_QNetwork(nn.Module):
         q = v + a - a.mean(1,keepdim=True).expand_as(a)
         return q
 
-
+# Conv + FC
 class CardClassification(nn.Module):
-    def __init__(self,seed,state_space,hidden_dims=(64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
         super(CardClassification,self).__init__()
+        self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
-        self.seed = torch.manual_seed(seed)
+        self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
-        self.conv1 = nn.Conv1d(13, 64, kernel_size=2, stride=1)
-        self.bn1 = nn.BatchNorm1d(64)
+        self.hidden_conv_layers = nn.ModuleList()
+        self.hidden_bn_layers = nn.ModuleList()
+        for i in range(params['conv_layers']):
+            self.conv = nn.Conv1d(params['channels'][i], 64, kernel_size=params['kernel'][i], stride=1)
+            self.hidden_conv_layers.append(self.conv)
+            if params['batchnorm'] == True:
+                self.bn = nn.BatchNorm1d(64)
+                self.hidden_bn_layers.append(self.bn)
+            # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+        self.value_output = nn.Linear(hidden_dims[-1],1)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        if self.params['permute'] == True:
+            x = x.permute(0,2,1)
+        for i,layer in enumerate(self.hidden_conv_layers):
+            # print(x.size())
+            if len(self.hidden_bn_layers):
+                x = self.activation_fc(self.hidden_bn_layers[i](layer(x)))
+            else:
+                x = self.activation_fc(layer(x))
+        # x = self.activation_fc(self.bn2(self.conv2(x)))
+        # x = self.activation_fc(self.bn3(self.conv3(x)))
+        # Flatten layer but retain number of samples
+        x = x.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
+        for hidden_layer in self.hidden_layers:
+            x = self.activation_fc(hidden_layer(x))
+        v = torch.tanh(self.value_output(x))
+        return v
+        
+# Emb + fc
+class CardClassificationV2(nn.Module):
+    def __init__(self,params,hidden_dims=(44,64,572),activation_fc=F.relu):
+        super(CardClassificationV2,self).__init__()
+        self.params = params
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (1,13,2) -> (1,13,64)
+        self.rank_emb = Embedder(15,32)
+        self.suit_emb = Embedder(4,12)
         # Output shape is (1,64,9,4,4)
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
@@ -130,16 +177,56 @@ class CardClassification(nn.Module):
         if not isinstance(state,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32,device = self.device)
             # x = x.unsqueeze(0)
-        # print(x.size())
-        x = self.activation_fc(self.bn1(self.conv1(x)))
-        # x = self.activation_fc(self.bn2(self.conv2(x)))
-        # x = self.activation_fc(self.bn3(self.conv3(x)))
+        M = x.size(0)
+        ranks = self.rank_emb(state[:,:,0].long())
+        suits = self.suit_emb(state[:,:,1].long())
+        embs = torch.cat((ranks,suits),dim=-1)
+        x = embs
         # Flatten layer but retain number of samples
-        # print(x.size())
-        x = x.view(x.shape[0],x.shape[1])# * x.shape[2] * x.shape[3] * x.shape[4])
+        for hidden_layer in self.hidden_layers:
+            x = self.activation_fc(hidden_layer(x))
+        x = embs.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
+        v = torch.tanh(self.value_output(x))
+        return v
+
+# Conv + multiheaded attention
+class CardClassificationV3(nn.Module):
+    def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
+        super(CardClassificationV3,self).__init__()
+        self.params = params
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (1,13,2) -> (1,13,64)
+        self.hidden_conv_layers = nn.ModuleList()
+        self.hidden_bn_layers = nn.ModuleList()
+        for i in range(params['conv_layers']):
+            self.conv = nn.Conv1d(2, 64, kernel_size=13, stride=1)
+            self.hidden_conv_layers.append(self.conv)
+            if params['batchnorm'] == True:
+                self.bn = nn.BatchNorm1d(64)
+                self.hidden_bn_layers.append(self.bn)
+            # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+        self.value_output = nn.Linear(hidden_dims[-1],1)
+
+    def forward(self,state):
+        # Split input into the 60 combinations for both hero+villain
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        for i,layer in enumerate(self.hidden_conv_layers):
+            if len(self.hidden_bn_layers):
+                x = self.activation_fc(self.hidden_bn_layers[i](layer(x)))
+            else:
+                x = self.activation_fc(layer(x))
+        x = x.view(M,-1)
         for hidden_layer in self.hidden_layers:
             x = self.activation_fc(hidden_layer(x))
         v = torch.tanh(self.value_output(x))
-        # print(v.size())
         return v
-        
