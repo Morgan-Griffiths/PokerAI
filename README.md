@@ -87,26 +87,32 @@ _Baseline performance_
 
 ## Decoding cards
 
-Initial test: 
+Tests: 
 - 13 cards in a row
 - try with the board obscured.
-
-2nd test:
 - 9 cards without villain hand
 - 4 cards without board and villain.
-
-3rd test:
 - 60 combinations of 2 cards of heros hand and 3 of board + the same for villain
-- Hero only
 - Hero combinations with mystery board cards
+
+Predicting hand type:
+- high card
+- pair
+- two pair
+- 3 of a kind
+- straight
+- flush
+- FH
+- quads
+- straight flush
+
+Final test group has all hand strengths
 
 ### Networks
 
 Layer that takes 5 cards and outputs a strength signal?
 process the hand, process the hand + board
 process hand, process board, add together
-Test group has all hand strengths
-Test individual hand cases [high card,pair,two pair,3 of a kind,straight,flush,FH,quads,straight flush]
 
 - Convnet + Multiheaded attention? Attention could select a particular hand of interest
 - Convnet + FC
@@ -119,11 +125,17 @@ Test individual hand cases [high card,pair,two pair,3 of a kind,straight,flush,F
 
 ## Added betsize
 
+The important part about betsizing is that if i break actions into categories and then within those categories you can choose sizing. Improper sizing will result in the category not being chosen as often. Conversely, if i use a critic, the critic must be able to take an action an a betsize. Ideally you update both against the betsize and the action not just the action category. Additionally its important to be able to have mixed strategies. So either gaussian or descrete categorical output for betsize is also preferred. such that different categories can be reinforced. 
+
 Additional levels to network that outputs a analog value, which is a % of pot. 
+
+Will test initially two sizes 0.5p and 1p along with check,fold etc. All as a categorical output with the action space descretized. Then scale up to something like 100 descretized.
 
 ## Multiple streets
 
 Dealing with histories. Record only actions and game situations? or include board and hands.
+- Transformer
+- LSTM
 
 ## Full game
 

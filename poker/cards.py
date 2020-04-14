@@ -1,25 +1,41 @@
-
-from cardlib import encode,decode,winner
-from visualize import plot_data
-from random import shuffle
-import numpy as np
-from torch import optim
-from collections import deque
-import torch
 import torch.nn.functional as F
+import torch
+import numpy as np
 import timeit
-from models.networks import CardClassification,CardClassificationV2,CardClassificationV3
-from agents.agent import CardAgent
 import os
 import copy
+from torch import optim
+from random import shuffle
+from collections import deque
+from itertools import combinations
 
+from visualize import plot_data
+from cardlib import encode,decode,winner,hand_rank
+from models.networks import *
+from agents.agent import CardAgent
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
+from data_loader import return_dataloader
+from utils import torch_where
 
 """
 Creating a hand dataset for training and evaluating networks.
 Full deck
 Omaha
 """
+
+hand_type_dict = {
+            0:'Straight_flush',
+            1:'Four_of_a_kind',
+            2:'Full_house',
+            3:'Flush',
+            4:'Straight',
+            5:'Three_of_a_kind',
+            6:'Two_pair',
+            7:'One_pair',
+            8:'High_card'
+        }
+
+hand_type_file_dict = {'Hand_type_'+v:k for k,v in hand_type_dict.items()}
 
 class CardDataset(object):
     def __init__(self,params):
@@ -35,15 +51,6 @@ class CardDataset(object):
             hand1 = encoded_cards[:4]
             hand2 = encoded_cards[4:8]
             board = encoded_cards[8:]
-            # print('raw',hand1,hand2,board)
-            # hand1 = convert_numpy_to_rust(hand1)
-            # hand2 = convert_numpy_to_rust(hand2)
-            # board = convert_numpy_to_rust(board)
-            # print(f'converted \nhand1 {rust_cards[:4]}, \nhand2 {rust_cards[4:8]}, \nboard {rust_cards[8:]}')
-            # en_h1 = [encode(c) for c in hand1]
-            # en_h2 = [encode(c) for c in hand2]
-            # en_board = [encode(c) for c in board]
-            # print('encoded',en_h1,en_h2,en_board)
             result = winner(hand1,hand2,board)
             if encoding == '2d':
                 cards2d = convert_numpy_to_2d(cards)
@@ -55,6 +62,72 @@ class CardDataset(object):
         X = np.stack(X)
         y = np.stack(y)[:,None]
         return X,y
+
+    def build_hand_classes(self):
+        """
+        |Hand Value|Unique|Distinct|
+        |Straight Flush |40      |10|
+        |Four of a Kind |624     |156|
+        |Full Houses    |3744    |156|
+        |Flush          |5108    |1277|
+        |Straight       |10200   |10|
+        |Three of a Kind|54912   |858|
+        |Two Pair       |123552  |858|
+        |One Pair       |1098240 |2860|
+        |High Card      |1302540 |1277|
+        |TOTAL          |2598960 |7462|
+        """
+        
+        hand_strengths = {i:deque(maxlen=1000) for i in range(1,10)}
+        for _ in range(600000):
+            cards = np.random.choice(self.deck,13,replace=False)
+            rust_cards = convert_numpy_to_rust(cards)
+            numpy_cards = convert_numpy_to_2d(cards)
+            hand1 = rust_cards[:4]
+            hand2 = rust_cards[4:8]
+            board = rust_cards[8:]
+            en_hand1 = [encode(c) for c in hand1]
+            en_hand2 = [encode(c) for c in hand2]
+            en_board = [encode(c) for c in board]
+            rank = hand_rank(en_hand1,en_board)
+            hand_type = CardDataset.find_strength(rank)
+            hand_strengths[hand_type].append(numpy_cards[:4]+numpy_cards[8:])
+            rank = hand_rank(en_hand2,en_board)
+            hand_type = CardDataset.find_strength(rank)
+            hand_strengths[hand_type].append(numpy_cards[4:8]+numpy_cards[8:])
+        [print(len(hand_strengths[i])) for i in range(1,10)]
+        for i in range(1,10):
+            np.save(f'data/hand_types/Hand_type_{hand_type_dict[i]}',hand_strengths[i])
+
+    @staticmethod
+    def find_strength(strength):
+        # 7462-6185 High card
+        # 6185-3325 Pair
+        # 3325-2467 2Pair
+        # 2467-1609 Trips
+        # 1609-1599  Stright
+        # 1599-322 Flush
+        # 322-166  FH
+        # 166-10 Quads
+        # 10-0 Str8 flush
+        if strength > 6185:
+            return 8
+        if strength > 3325:
+            return 7
+        if strength > 2467:
+            return 6
+        if strength > 1609:
+            return 5
+        if strength > 1599:
+            return 4
+        if strength > 322:
+            return 3
+        if strength > 166:
+            return 2
+        if strength > 10:
+            return 1
+        return 0
+
 
     @staticmethod
     def to_torch(inputs:list):
@@ -70,32 +143,39 @@ class CardDataset(object):
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
 
-def load_data():
-    trainX = np.load('data/trainX.npy')
-    trainY = np.load('data/trainY.npy')
-    valX = np.load('data/valX.npy')
-    valY = np.load('data/valY.npy')
+def unpack_nparrays(shape,batch,data):
+    X = np.zeros(shape)
+    Y = np.zeros(shape[0])
+    i = 0
+    j = 0
+    for k,v in data.items():
+        Y[i*batch:(i+1)*batch] = hand_type_file_dict[k]
+        for hand in v:
+            X[j] = np.stack(hand)
+            j += 1
+        i += 1
+    print(np.lib.arraysetops.unique(Y,return_counts=True))
+    return torch.tensor(X),torch.tensor(Y).long()
 
-    #to torch
-    trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
-
-    data = {
-        'trainX':trainX,
-        'trainY':trainY,
-        'valX':valX,
-        'valY':valY,
-    }
-    
-    print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
+def load_data(dir_path='data/predict_winner'):
+    data = {}
+    for f in os.listdir(dir_path):
+        if f != '.DS_store':
+            name = os.path.splitext(f)[0]
+            data[name] = torch.Tensor(np.load(os.path.join(dir_path,f)))
+    # for k,v in data.items(): 
+    #     print(f'{k}: {v.size()}')
     return data
 
-def save_data(params):
+def save_data(params,dir_path='data/predict_winner'):
     dataset = CardDataset(params)
     trainX,trainY,valX,valY = dataset.generate_dataset(params)
-    np.save('data/trainX',trainX)
-    np.save('data/trainY',trainY)
-    np.save('data/valX',valX)
-    np.save('data/valY',valY)
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+    np.save('data/predict_winner/trainX',trainX)
+    np.save('data/predict_winner/trainY',trainY)
+    np.save('data/predict_winner/valX',valX)
+    np.save('data/predict_winner/valY',valY)
 
 def train_network(data,agent,params):
     train_means,val_means = [],[]
@@ -115,7 +195,7 @@ def train_network(data,agent,params):
     agent.save_weights()
     return {'train_scores':train_means,'val_scores':val_means,'name':agent.agent_name}
 
-def compare_networks(agent_params:list,training_params:dict):
+def multi_train(agent_params:list,training_params:dict):
     data = load_data()
     scores = []
     for agent_param in agent_params:
@@ -133,35 +213,15 @@ def graph_networks(results:list):
         name = result['name']
         plot_data(name,[train_loss,val_loss],labels)
 
-if __name__ == "__main__":
-    params = {
-        'training_set_size':50000,
-        'val_set_size':10000,
-        'encoding':'2d'
-    }
-    agent_params = {
-        'learning_rate':2e-3,
-        'network':CardClassification,
-        'save_dir':'checkpoints',
-        'save_path':'Conv(kernel2)',
-        'load_path':'Conv(kernel2)'
-    }
-    network_params = {
-        'seed':346,
-        'state_space':(13,2),
-        'channels':13,
-        'kernel':2,
-        'batchnorm':True,
-        'conv_layers':1,
-    }
-    training_params = {
-        'episodes':5
-    }
-    agent_params['network_params'] = network_params
-    save_data = False
-    if save_data == True:
-        save_data(params)
+def return_handtype_dict(X:torch.tensor,y:torch.tensor):
+    type_dict = {}
+    for key in hand_type_dict.keys():
+        # print('key',key)
+        # print('torch_where(y==key,y)',torch_where(y==key,y))
+        type_dict[key] = torch_where(y==key,y)
+    return type_dict
 
+def evaluate_random_hands(dataset_params,agent_params,training_params):
     Agent_paths = ['Conv(kernel2)',
                 'Conv(kernel2)_layer3',
                 'Conv(kernel13)',
@@ -188,6 +248,162 @@ if __name__ == "__main__":
         agent_params['save_path'] = Agent_paths[i]
         agent_params['load_path'] = Agent_paths[i]
         agent_param_list.append(agent_params)
-
-    results = compare_networks(agent_param_list,training_params)
+    results = multi_train(agent_param_list,training_params)
     graph_networks(results)
+
+def unspool(X):
+    # Size of (M,9,2)
+    M = X.size(0)
+    hand = X[:,:4,:].permute(1,0,2)
+    hand_combos = combinations(hand,2)
+    board = X[:,4:,:].permute(1,0,2)
+    board_combos = list(combinations(board,3))
+    combined = torch.zeros(M,60,5,2)
+    i = 0
+    for hcombo in hand_combos:
+        for bcombo in board_combos:
+            combined[:,i,:,:] = torch.cat((torch.stack(hcombo),torch.stack(bcombo)),dim=0).permute(1,0,2)
+            i += 1
+    return combined
+
+def evaluate_handtypes(dataset_params,agent_params,training_params):
+    # Load data
+    train_shape = (45000,9,2)
+    train_batch = 5000
+    test_shape = (9000,9,2)
+    test_batch = 1000
+    train_data = load_data('data/hand_types/train')
+    trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
+    val_data = load_data('data/hand_types/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
+
+    y_handtype_indexes = return_handtype_dict(valX,valY)
+    trainloader = return_dataloader(trainX,trainY)
+    # Loop over all network choices
+    for net_idx,network in enumerate(training_params['networks']):
+        print(f'Training {network.__name__} network')
+        net = network(agent_params['network_params'])
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(net.parameters(), lr=0.003)
+        scores = []
+        val_scores = []
+        score_window = deque(maxlen=100)
+        val_window = deque(maxlen=100)
+        for epoch in range(20):
+            for i, data in enumerate(trainloader, 1):
+                # get the inputs; data is a list of [inputs, targets]
+                inputs, targets = data.values()
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                # unspool hand into 60,5 combos
+                if training_params['five_card_conversion'][net_idx] == True:
+                    inputs = unspool(inputs)
+                outputs = net(inputs)
+                # print(type(targets),targets)
+                # print(outputs.size(),targets.size())
+                loss = criterion(outputs, targets)
+                loss.backward()
+                optimizer.step()
+
+                score_window.append(loss.item())
+                scores.append(np.mean(score_window))
+                net.eval()
+                if training_params['five_card_conversion'][net_idx] == True:
+                    val_inputs = unspool(valX)
+                else:
+                    val_inputs = valX
+                val_preds = net(val_inputs)
+                val_loss = criterion(val_preds, valY)
+                val_window.append(val_loss.item())
+                val_scores.append(np.mean(val_window))
+                net.train()
+            print(f'Episode {epoch} loss {np.mean(score_window)}')
+        # Save graphs
+        loss_data = [scores,val_scores]
+        loss_labels = ['Training_loss','Validation_loss']
+        plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
+        # check each hand type
+        net.eval()
+        for handtype in y_handtype_indexes.keys():
+            mask = y_handtype_indexes[handtype]
+            if training_params['five_card_conversion'][net_idx] == True:
+                inputs = unspool(valX[mask])
+            else:
+                inputs = valX[mask]
+            val_preds = net(inputs)
+            val_loss = criterion(val_preds, valY[mask])
+            print(f'test performance on {hand_type_dict[handtype]}: {val_loss}')
+        net.train()
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=
+        """
+        Visualize training runs\n\n
+        """)
+
+    parser.add_argument('--datatype',
+                        default='handtype',
+                        metavar="[handtype,random]",
+                        help='Which dataset to train on')
+    parser.add_argument('--build',
+                        default=False,
+                        metavar="Bool",
+                        help='To build a dataset or not')
+    parser.add_argument('--train',
+                        default=True,
+                        metavar="Bool",
+                        help='To train on a dataset or not')
+
+    args = parser.parse_args()
+
+    dataset_params = {
+        'training_set_size':50000,
+        'val_set_size':10000,
+        'encoding':'2d',
+        'handtype_dir':'poker/data/hand_types',
+        'predict_winner_dir':'poker/data/hand_types'
+    }
+    agent_params = {
+        'learning_rate':2e-3,
+        'network':CardClassification,
+        'save_dir':'checkpoints',
+        'save_path':'Conv(kernel2)',
+        'load_path':'Conv(kernel2)'
+    }
+    network_params = {
+        'seed':346,
+        'state_space':(13,2),
+        'nA':9,
+        'channels':13,
+        'kernel':2,
+        'batchnorm':True,
+        'conv_layers':1,
+    }
+    training_params = {
+        'episodes':5,
+        'networks':[HandClassificationV4],#HandClassification,HandClassificationV2,HandClassificationV3,],#,
+        'five_card_conversion':[True],#[False,False,True]
+    }
+    agent_params['network_params'] = network_params
+    
+
+    # load_data('data/hand_types')
+    if bool(args.build) == True:
+        if args.datatype == 'handtype':
+            dataset = CardDataset(dataset_params)
+            dataset.build_hand_classes()
+        elif args.datatype == 'random':
+            save_data(dataset_params)
+        else:
+            raise ValueError(f'Datatype not recognized {args.datatype}')
+    elif args.train == True:
+        print(f'Evaluating networks on {args.datatype}')
+        if args.datatype == 'random':
+            evaluate_random_hands(dataset_params,agent_params,training_params)
+        elif args.datatype == 'handtype':
+            evaluate_handtypes(dataset_params,agent_params,training_params)
+        else:
+            raise ValueError(f'{args.datatype} datatype not understood')

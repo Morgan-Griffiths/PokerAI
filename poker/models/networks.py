@@ -21,6 +21,100 @@ class Embedder(nn.Module):
     def forward(self,x):
         return self.embed(x)
 
+class WideAttention(nn.Module):
+    def __init__(self,n_heads,d_model):
+        super(WideAttention,self).__init__()
+        self.n_heads = n_heads
+        self.d_model = d_model
+        self.key = nn.Linear(d_model,d_model*n_heads,bias=False)
+        self.query = nn.Linear(d_model,d_model*n_heads,bias=False)
+        self.value = nn.Linear(d_model,d_model*n_heads,bias=False)
+        self.unify_heads = nn.Linear(d_model*n_heads,d_model)
+        
+    def forward(self,x):
+        b,t,k = x.size()
+        h = self.n_heads
+        query = self.query(x).view(b,t,h,k)
+        key = self.key(x).view(b,t,h,k)
+        value = self.value(x).view(b,t,h,k)
+        
+        query = query.transpose(1,2).contiguous().view(b*h,t,k)
+        key = key.transpose(1,2).contiguous().view(b*h,t,k)
+        value = value.transpose(1,2).contiguous().view(b*h,t,k)
+        
+        query = query / (k**1/4)
+        key = key / (k**1/4)
+        
+        dot = torch.bmm(query,key.transpose(-2,-1))
+        dot = F.softmax(dot,dim=-1)
+        out = torch.bmm(dot,value).view(b,h,t,k)
+        out = out.transpose(1,2).contiguous().view(b,t,h*k)
+        return self.unify_heads(out)
+
+class SelfAttention(nn.Module):
+    def __init__(self, k, heads=8):
+        super().__init__()
+        self.k, self.heads = k, heads
+        # These compute the queries, keys and values for all 
+        # heads (as a single concatenated vector)
+        self.tokeys    = nn.Linear(k, k * heads, bias=False)
+        self.toqueries = nn.Linear(k, k * heads, bias=False)
+        self.tovalues  = nn.Linear(k, k * heads, bias=False)
+
+        # This unifies the outputs of the different heads into 
+        # a single k-vector
+        self.unifyheads = nn.Linear(heads * k, k)
+
+    def forward(self, x):
+        b, t, k = x.size()
+        h = self.heads
+
+        queries = self.toqueries(x).view(b, t, h, k)
+        keys    = self.tokeys(x)   .view(b, t, h, k)
+        values  = self.tovalues(x) .view(b, t, h, k)
+
+        # - fold heads into the batch dimension
+        keys = keys.transpose(1, 2).contiguous().view(b * h, t, k)
+        queries = queries.transpose(1, 2).contiguous().view(b * h, t, k)
+        values = values.transpose(1, 2).contiguous().view(b * h, t)
+        queries = queries / (k ** (1/4))
+        keys    = keys / (k ** (1/4))
+
+        # - get dot product of queries and keys, and scale
+        dot = torch.bmm(queries, keys.transpose(1, 2))
+        # - dot has size (b*h, t, t) containing raw weights
+
+        dot = F.softmax(dot, dim=2) 
+        # - dot now contains row-wise normalized weights
+        # apply the self attention to the values
+        out = torch.bmm(dot, values).view(b, h, t, k)
+
+        # swap h, t back, unify heads
+        out = out.transpose(1, 2).contiguous().view(b, t, h * k)
+        return self.unifyheads(out)
+
+class TransformerBlock(nn.Module):
+    def __init__(self, k, heads):
+        super().__init__()
+        
+        self.attention = SelfAttention(k,heads=heads)
+        
+        self.norm1 = nn.LayerNorm(k)
+        self.norm2 = nn.LayerNorm(k)
+        
+        self.ff = nn.Sequential(
+            nn.Linear(k,4*k),
+            nn.ReLU,
+            nn.Linear(4*k,k)
+        )
+        
+    def forward(self,x):
+        attended = self.attention(x)
+        x = self.norm1(attended + x)
+        
+        feedforward = self.ff(x)
+        return self.norm2(feedforward + x)
+
 class Baseline(nn.Module):
     def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super(Baseline,self).__init__()
@@ -230,3 +324,172 @@ class CardClassificationV3(nn.Module):
             x = self.activation_fc(hidden_layer(x))
         v = torch.tanh(self.value_output(x))
         return v
+
+################################################
+#           Hand type categorization           #
+################################################
+
+# Emb + fc
+class HandClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(44,64,64),activation_fc=F.relu):
+        super(HandClassification,self).__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        
+        self.rank_emb = Embedder(15,32)
+        self.suit_emb = Embedder(4,12)
+        self.public_rank_emb = Embedder(15,32)
+        self.public_suit_emb = Embedder(4,12)
+        
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(9))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(576,self.nA)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        hand = x[:,:4,:].long()
+        ranks = self.rank_emb(hand[:,:,0])
+        suits = self.suit_emb(hand[:,:,1])
+        hand_embs = torch.cat((ranks,suits),dim=-1)
+        board = x[:,4:,:].long()
+        board_ranks = self.public_rank_emb(board[:,:,0])
+        board_suits = self.public_suit_emb(board[:,:,1])
+        board_embs = torch.cat((board_ranks,board_suits),dim=-1)
+        x = torch.cat((hand_embs,board_embs),dim=1)
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        return self.categorical_output(x)
+
+# Emb + fc
+class HandClassificationV2(nn.Module):
+    def __init__(self,params,hidden_dims=(44,64,64),activation_fc=F.relu):
+        super(HandClassificationV2,self).__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        
+        self.rank_emb = Embedder(15,32)
+        self.suit_emb = Embedder(4,12)
+        
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(9))
+        self.categorical_output = nn.Linear(576,self.nA)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        ranks = self.rank_emb(state[:,:,0].long())
+        suits = self.suit_emb(state[:,:,1].long())
+        x = torch.cat((ranks,suits),dim=-1)
+        # Flatten layer but retain number of samples
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        action_logits = self.categorical_output(x)
+        return action_logits
+
+"""
+Comparing unspooling the hand into a (60,5) vector 
+"""
+class HandClassificationV3(nn.Module):
+    def __init__(self,params,hidden_dims=(44,32,32),activation_fc=F.relu):
+        super(HandClassificationV3,self).__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (1,13,2) -> (1,13,64)
+        self.rank_emb = Embedder(15,32)
+        self.suit_emb = Embedder(4,12)
+        # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm2d(60))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(9600,self.nA)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        ranks = self.rank_emb(x[:,:,:,0].long())
+        suits = self.suit_emb(x[:,:,:,1].long())
+        x = torch.cat((ranks,suits),dim=-1)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        # Flatten layer but retain number of samples
+        x = x.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
+        x = self.dropout(x)
+        return self.categorical_output(x)
+
+
+"""
+Takes a (60,5) vector, Uses an attention mechanism to select the hand it thinks is most likely.
+"""
+class HandClassificationV4(nn.Module):
+    def __init__(self,params,hidden_dims=(44,32,32),activation_fc=F.relu):
+        super(HandClassificationV4,self).__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (1,13,2) -> (1,13,64)
+        self.rank_emb = Embedder(15,32)
+        self.suit_emb = Embedder(4,12)
+        # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i+1]))
+        self.attention = WideAttention(2,160)
+        self.categorical_output = nn.Linear(9600,self.nA)
+
+    def forward(self,state):
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        ranks = self.rank_emb(x[:,:,:,0].long())
+        suits = self.suit_emb(x[:,:,:,1].long())
+        x = torch.cat((ranks,suits),dim=-1)
+        for hidden_layer in self.hidden_layers:
+            x = self.activation_fc(hidden_layer(x))
+        # Flatten layer but retain number of samples
+        b,m,t,k = x.size()
+        x = x.view(b,m,t*k)
+        x = self.attention(x)
+        x = x.view(M,-1)    
+        return self.categorical_output(x)

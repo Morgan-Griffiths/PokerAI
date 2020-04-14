@@ -66,7 +66,6 @@ def monitor_ndfrequencies(hand,log_probs,index):
 def plot_data(title:str,data:list,labels:list,path='assets/'):
     epochs = range(1,len(data[0])+1)
     for i,data_group in enumerate(data):
-        print(data_group,i)
         plt.plot(epochs,data_group,colors[i],label=labels[i])
     plt.title(title)
     plt.xlabel('Epochs')

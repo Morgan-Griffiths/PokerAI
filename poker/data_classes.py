@@ -1,8 +1,9 @@
 import pickle
-from collections import deque
-from random import shuffle
 import torch
 import numpy as np
+from collections import deque
+from random import shuffle
+
 from cardlib import winner,encode,decode
 
 action_dict = {0:'check',1:'bet',2:'call',3:'fold',4:'raise',5:'unopened'}
