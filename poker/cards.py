@@ -377,6 +377,8 @@ if __name__ == "__main__":
         """
         Train and evaluate networks on card representations\n\n
         use ```python cards.py --examine True``` to check handtype probabilities
+        use ```python cards.py --datatype random``` to train on predicting winners
+        use ```python cards.py``` to train on predicting handtypes
         """)
 
     parser.add_argument('-d','--datatype',
@@ -402,7 +404,7 @@ if __name__ == "__main__":
                         default=1000,type=int)
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
-                        default='data/hand_types/train',type=str)
+                        default='data/hand_types/test',type=str)
 
     args = parser.parse_args()
 
