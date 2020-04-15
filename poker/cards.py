@@ -216,9 +216,13 @@ def graph_networks(results:list):
 def return_handtype_dict(X:torch.tensor,y:torch.tensor):
     type_dict = {}
     for key in hand_type_dict.keys():
-        # print('key',key)
-        # print('torch_where(y==key,y)',torch_where(y==key,y))
-        type_dict[key] = torch_where(y==key,y)
+        if key == 0:
+            mask = torch.zeros_like(y)
+            mask[(y == 0).nonzero().unsqueeze(0)] = 1
+            type_dict[key] = mask
+        else:
+            type_dict[key] = torch_where(y==key,y)
+        assert(torch.max(type_dict[key]).item() == 1)
     return type_dict
 
 def evaluate_random_hands(dataset_params,agent_params,training_params):
@@ -334,6 +338,39 @@ def evaluate_handtypes(dataset_params,agent_params,training_params):
             val_loss = criterion(val_preds, valY[mask])
             print(f'test performance on {hand_type_dict[handtype]}: {val_loss}')
         net.train()
+        torch.save(net.state_dict(), f'checkpoints/hand_categorization/{network.__name__}')
+
+def check_network(params):
+    examine_params = params['examine_params']
+    net = examine_params['network'](params['network_params'])
+    net.load_state_dict(torch.load(examine_params['load_path']))
+    net.eval()
+    test_shape = (9000,9,2)
+    test_batch = 1000
+    val_data = load_data('data/hand_types/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
+    y_handtype_indexes = return_handtype_dict(valX,valY)
+    print(y_handtype_indexes)
+    while 1:
+        human_input = input('Enter in a handtype from 0-8')
+        while not human_input.isdigit():
+            print('Improper input, must be digit')
+            human_input = input('Enter in a handtype from 0-8')
+        handtype = int(human_input)
+        type_index = y_handtype_indexes[handtype]
+        indicies = (type_index != 0).nonzero()
+        rand_hand = torch.randint(torch.min(indicies),torch.max(indicies),(1,))
+        print(f'Evaluating on: {valX[rand_hand]}')
+        out = net(valX[rand_hand])
+        print(f'Network output: {F.softmax(out)}')
+        print(f'Actual category: {valY[rand_hand]}')
+
+def compute_baseline():
+    test_shape = (9000,9,2)
+    test_batch = 1000
+    val_data = load_data('data/hand_types/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
+
 
 if __name__ == "__main__":
     import argparse
@@ -356,9 +393,17 @@ if __name__ == "__main__":
                         default=True,
                         metavar="Bool",
                         help='To train on a dataset or not')
+    parser.add_argument('--examine',
+                        default=False,
+                        metavar="Bool",
+                        help='To train on a dataset or not')
 
     args = parser.parse_args()
 
+    examine_params = {
+        'network':HandClassificationV2,
+        'load_path':os.path.join('checkpoints/hand_categorization','HandClassificationV2')
+    }
     dataset_params = {
         'training_set_size':50000,
         'val_set_size':10000,
@@ -384,26 +429,28 @@ if __name__ == "__main__":
     }
     training_params = {
         'episodes':5,
-        'networks':[HandClassificationV4],#HandClassification,HandClassificationV2,HandClassificationV3,],#,
-        'five_card_conversion':[True],#[False,False,True]
+        'networks':[HandClassificationV2],#HandClassification,HandClassificationV2,HandClassificationV3,HandClassificationV4],#,
+        'five_card_conversion':[False]#,False],#[,True]
     }
     agent_params['network_params'] = network_params
+    agent_params['examine_params'] = examine_params
     
-
-    # load_data('data/hand_types')
-    if bool(args.build) == True:
-        if args.datatype == 'handtype':
-            dataset = CardDataset(dataset_params)
-            dataset.build_hand_classes()
-        elif args.datatype == 'random':
-            save_data(dataset_params)
-        else:
-            raise ValueError(f'Datatype not recognized {args.datatype}')
-    elif args.train == True:
-        print(f'Evaluating networks on {args.datatype}')
-        if args.datatype == 'random':
-            evaluate_random_hands(dataset_params,agent_params,training_params)
-        elif args.datatype == 'handtype':
-            evaluate_handtypes(dataset_params,agent_params,training_params)
-        else:
-            raise ValueError(f'{args.datatype} datatype not understood')
+    if bool(args.examine) == True:
+        check_network(agent_params)
+    else:
+        if bool(args.build) == True:
+            if args.datatype == 'handtype':
+                dataset = CardDataset(dataset_params)
+                dataset.build_hand_classes()
+            elif args.datatype == 'random':
+                save_data(dataset_params)
+            else:
+                raise ValueError(f'Datatype not recognized {args.datatype}')
+        elif args.train == True:
+            print(f'Evaluating networks on {args.datatype}')
+            if args.datatype == 'random':
+                evaluate_random_hands(dataset_params,agent_params,training_params)
+            elif args.datatype == 'handtype':
+                evaluate_handtypes(dataset_params,agent_params,training_params)
+            else:
+                raise ValueError(f'{args.datatype} datatype not understood')

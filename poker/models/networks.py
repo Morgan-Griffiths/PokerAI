@@ -376,7 +376,7 @@ class HandClassification(nn.Module):
 
 # Emb + fc
 class HandClassificationV2(nn.Module):
-    def __init__(self,params,hidden_dims=(44,64,64),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(64,64,32),activation_fc=F.leaky_relu):
         super(HandClassificationV2,self).__init__()
         self.params = params
         self.nA = params['nA']
@@ -385,28 +385,35 @@ class HandClassificationV2(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
-        
+        self.suit_emb = Embedder(4,32)
+        self.pos_emb = nn.Embedding(9, 32)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(9))
-        self.categorical_output = nn.Linear(576,self.nA)
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(288,self.nA)
 
-    def forward(self,state):
-        x = state
-        if not isinstance(state,torch.Tensor):
+    def forward(self,x):
+        if not isinstance(x,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32,device = self.device)
             # x = x.unsqueeze(0)
-        M = x.size(0)
-        ranks = self.rank_emb(state[:,:,0].long())
-        suits = self.suit_emb(state[:,:,1].long())
+        # generate position embeddings
+        # print(positions.size())
+        ranks = self.rank_emb(x[:,:,0].long())
+        suits = self.suit_emb(x[:,:,1].long())
+
+        b, t, k = ranks.size()
+        positions = torch.arange(t)
+        positions = self.pos_emb(positions)[None, :, :].expand(b, t, k)
+        ranks += positions
+        suits += positions
         x = torch.cat((ranks,suits),dim=-1)
         # Flatten layer but retain number of samples
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
-        x = x.view(M,-1)
+        x = x.view(b,-1)
         x = self.dropout(x)
         action_logits = self.categorical_output(x)
         return action_logits
@@ -436,6 +443,7 @@ class HandClassificationV3(nn.Module):
         self.categorical_output = nn.Linear(9600,self.nA)
 
     def forward(self,state):
+        # Input is M,60,5,2
         x = state
         if not isinstance(state,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32,device = self.device)
@@ -445,10 +453,11 @@ class HandClassificationV3(nn.Module):
         suits = self.suit_emb(x[:,:,:,1].long())
         x = torch.cat((ranks,suits),dim=-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+            x = self.activation_fc(hidden_layer(x))
+            # x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
         # Flatten layer but retain number of samples
         x = x.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
-        x = self.dropout(x)
+        # x = self.dropout(x)
         return self.categorical_output(x)
 
 
