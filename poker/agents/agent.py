@@ -1,12 +1,14 @@
-from models.networks import Baseline,Dueling_QNetwork,CardClassification
-from models.buffers import PriorityReplayBuffer
-from torch.autograd import Variable as V
-import torch.nn.functional as F
+
+import os
 import random
 import torch
-import os
 import numpy as np
+import torch.nn.functional as F
+from torch.autograd import Variable as V
 from torch import optim
+
+from models.networks import Baseline,Dueling_QNetwork,CardClassification
+from models.buffers import PriorityReplayBuffer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

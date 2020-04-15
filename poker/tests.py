@@ -1,9 +1,10 @@
-from config import Config
-from environment import Poker
-from data_classes import Card
 import torch
 import unittest
 import numpy as np
+
+from config import Config
+from environment import Poker
+from data_classes import Card
 
 
 class TestEnv(unittest.TestCase):

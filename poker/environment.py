@@ -1,7 +1,8 @@
-from data_classes import Rules,Evaluator,Pot,GameTurn,Deck,Players,History
 import torch
 import pickle
 import copy
+
+from data_classes import Rules,Evaluator,Pot,GameTurn,Deck,Players,History
 
 class Poker(object):
     def __init__(self,params):

@@ -1,7 +1,6 @@
 import torch.nn.functional as F
 import torch
 import numpy as np
-import timeit
 import os
 import copy
 from torch import optim
@@ -278,65 +277,74 @@ def evaluate_handtypes(dataset_params,agent_params,training_params):
     trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
     val_data = load_data('data/hand_types/test')
     valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
-
     y_handtype_indexes = return_handtype_dict(valX,valY)
     trainloader = return_dataloader(trainX,trainY)
+    data_dict = {
+        'trainloader':trainloader,
+        'valX':valX,
+        'valY':valY,
+        'y_handtype_indexes':y_handtype_indexes
+    }
     # Loop over all network choices
     for net_idx,network in enumerate(training_params['networks']):
-        print(f'Training {network.__name__} network')
-        net = network(agent_params['network_params'])
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(net.parameters(), lr=0.003)
-        scores = []
-        val_scores = []
-        score_window = deque(maxlen=100)
-        val_window = deque(maxlen=100)
-        for epoch in range(20):
-            for i, data in enumerate(trainloader, 1):
-                # get the inputs; data is a list of [inputs, targets]
-                inputs, targets = data.values()
-                # zero the parameter gradients
-                optimizer.zero_grad()
-                # unspool hand into 60,5 combos
-                if training_params['five_card_conversion'][net_idx] == True:
-                    inputs = unspool(inputs)
-                outputs = net(inputs)
-                # print(type(targets),targets)
-                # print(outputs.size(),targets.size())
-                loss = criterion(outputs, targets)
-                loss.backward()
-                optimizer.step()
+        training_params['five_card_conversion'] = training_params['conversion_list'][net_idx]
+        train_classification(data_dict,network,agent_params,training_params)
 
-                score_window.append(loss.item())
-                scores.append(np.mean(score_window))
-                net.eval()
-                if training_params['five_card_conversion'][net_idx] == True:
-                    val_inputs = unspool(valX)
-                else:
-                    val_inputs = valX
-                val_preds = net(val_inputs)
-                val_loss = criterion(val_preds, valY)
-                val_window.append(val_loss.item())
-                val_scores.append(np.mean(val_window))
-                net.train()
-            print(f'Episode {epoch} loss {np.mean(score_window)}')
-        # Save graphs
-        loss_data = [scores,val_scores]
-        loss_labels = ['Training_loss','Validation_loss']
-        plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
-        # check each hand type
-        net.eval()
-        for handtype in y_handtype_indexes.keys():
-            mask = y_handtype_indexes[handtype]
-            if training_params['five_card_conversion'][net_idx] == True:
-                inputs = unspool(valX[mask])
+def train_classification(data_dict,network,agent_params,training_params):
+    print(f'Training {network.__name__} network')
+    net = network(agent_params['network_params'])
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(net.parameters(), lr=0.003)
+    scores = []
+    val_scores = []
+    score_window = deque(maxlen=100)
+    val_window = deque(maxlen=100)
+    for epoch in range(training_params['epochs']):
+        for i, data in enumerate(data_dict['trainloader'], 1):
+            # get the inputs; data is a list of [inputs, targets]
+            inputs, targets = data.values()
+            # zero the parameter gradients
+            optimizer.zero_grad()
+            # unspool hand into 60,5 combos
+            if training_params['five_card_conversion'] == True:
+                inputs = unspool(inputs)
+            outputs = net(inputs)
+            # print(type(targets),targets)
+            # print(outputs.size(),targets.size())
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+
+            score_window.append(loss.item())
+            scores.append(np.mean(score_window))
+            net.eval()
+            if training_params['five_card_conversion'] == True:
+                val_inputs = unspool(data_dict['valX'])
             else:
-                inputs = valX[mask]
-            val_preds = net(inputs)
-            val_loss = criterion(val_preds, valY[mask])
-            print(f'test performance on {hand_type_dict[handtype]}: {val_loss}')
-        net.train()
-        torch.save(net.state_dict(), f'checkpoints/hand_categorization/{network.__name__}')
+                val_inputs = data_dict['valX']
+            val_preds = net(val_inputs)
+            val_loss = criterion(val_preds, data_dict['valY'])
+            val_window.append(val_loss.item())
+            val_scores.append(np.mean(val_window))
+            net.train()
+        print(f'Episode {epoch} loss {np.mean(score_window)}')
+    # Save graphs
+    loss_data = [scores,val_scores]
+    loss_labels = ['Training_loss','Validation_loss']
+    plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
+    # check each hand type
+    net.eval()
+    for handtype in data_dict['y_handtype_indexes'].keys():
+        mask = data_dict['y_handtype_indexes'][handtype]
+        if training_params['five_card_conversion'] == True:
+            inputs = unspool(data_dict['valX'][mask])
+        else:
+            inputs = data_dict['valX'][mask]
+        val_preds = net(inputs)
+        val_loss = criterion(val_preds, data_dict['valY'][mask])
+        print(f'test performance on {hand_type_dict[handtype]}: {val_loss}')
+    net.train()
+    torch.save(net.state_dict(), f'checkpoints/hand_categorization/{network.__name__}')
 
 def check_network(params):
     examine_params = params['examine_params']
@@ -361,13 +369,6 @@ def check_network(params):
         out = net(valX[rand_hand])
         print(f'Network output: {F.softmax(out)}')
         print(f'Actual category: {valY[rand_hand]}')
-
-def compute_baseline():
-    test_shape = (9000,9,2)
-    test_batch = 1000
-    val_data = load_data('data/hand_types/test')
-    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
-
 
 if __name__ == "__main__":
     import argparse
@@ -442,9 +443,10 @@ if __name__ == "__main__":
         'conv_layers':1,
     }
     training_params = {
-        'episodes':5,
+        'epochs':5,
         'networks':[HandClassificationV2],#HandClassification,HandClassificationV2,HandClassificationV3,HandClassificationV4],#,
-        'five_card_conversion':[False]#,False],#[,True]
+        'five_card_conversion':False,
+        'conversion_list':[False]#,False],#[,True]
     }
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params

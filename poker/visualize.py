@@ -1,5 +1,6 @@
 
 import matplotlib.pyplot as plt
+
 from db import MongoDB
 
 hand_dict = {0:'?',1:'Q',2:'K',3:'A'}
