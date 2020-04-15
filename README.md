@@ -2,6 +2,13 @@
 
 A combination of poker environment simulator and a bitwise Omaha hand winner evaluator written in Rust. 
 
+## Requirements
+
+There are two requirement files, one for pip and one for conda.
+```pip install pip_requirements.txt```
+or 
+```conda create --name <env> --file conda_requirements.txt```
+
 ## To build the Omaha Evaluator
 
 to build rust code, cd into rusteval and run
@@ -9,7 +16,7 @@ to build rust code, cd into rusteval and run
 ```
 cargo build --release
 ```
-(you should have rust installed ofc. `brew install rust` if you don't have it yet.)
+(`brew install rust` if you don't have it.)
 
 # Abstract
 
@@ -85,17 +92,25 @@ _Baseline performance_
 
 ![Graph](Complex_Action_probabilities_for_BB.png)
 
-## Decoding cards
+# Decoding cards
 
-Tests: 
-- 13 cards in a row
-- try with the board obscured.
-- 9 cards without villain hand
-- 4 cards without board and villain.
-- 60 combinations of 2 cards of heros hand and 3 of board + the same for villain
-- Hero combinations with mystery board cards
+In omaha each hand has 4 cards. The final board has 5. Each player must use two cards from their hand and 3 from the board.
 
-Predicting hand type:
+## Data Representation
+
+#### Predicting the winner given 13 cards
+- Each rank is represented by a integer from 2-14 (2-A)
+- Each suit is represented by a integer from 1-4 (s,h,c,d)
+- A hand is (4,2)
+- two hands and the board horizontally stacked is (13,2)
+- Input will be (b,13,2)
+- The target is -1,0 or 1 (2nd player wins, tie, first player wins)
+#### Predicting handtype given 9 cards
+Same as above except:
+- Input will be (b,9,2)
+- Optionally the input can be (b,60,5,2) by changing "five_card_conversion" to true
+
+### Predicting hand type:
 - high card
 - pair
 - two pair

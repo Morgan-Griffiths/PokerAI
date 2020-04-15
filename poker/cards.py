@@ -63,7 +63,7 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_hand_classes(self):
+    def build_hand_classes(self,params):
         """
         |Hand Value|Unique|Distinct|
         |Straight Flush |40      |10|
@@ -78,7 +78,7 @@ class CardDataset(object):
         |TOTAL          |2598960 |7462|
         """
         
-        hand_strengths = {i:deque(maxlen=1000) for i in range(1,10)}
+        hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(1,10)}
         for _ in range(600000):
             cards = np.random.choice(self.deck,13,replace=False)
             rust_cards = convert_numpy_to_rust(cards)
@@ -97,7 +97,7 @@ class CardDataset(object):
             hand_strengths[hand_type].append(numpy_cards[4:8]+numpy_cards[8:])
         [print(len(hand_strengths[i])) for i in range(1,10)]
         for i in range(1,10):
-            np.save(f'data/hand_types/Hand_type_{hand_type_dict[i]}',hand_strengths[i])
+            np.save(os.path.join(params['save_path'],f'Hand_type_{hand_type_dict[i]}'),hand_strengths[i])
 
     @staticmethod
     def find_strength(strength):
@@ -154,7 +154,7 @@ def unpack_nparrays(shape,batch,data):
             X[j] = np.stack(hand)
             j += 1
         i += 1
-    print(np.lib.arraysetops.unique(Y,return_counts=True))
+    print('Numpy data uniques and counts ',np.lib.arraysetops.unique(Y,return_counts=True))
     return torch.tensor(X),torch.tensor(Y).long()
 
 def load_data(dir_path='data/predict_winner'):
@@ -163,8 +163,6 @@ def load_data(dir_path='data/predict_winner'):
         if f != '.DS_store':
             name = os.path.splitext(f)[0]
             data[name] = torch.Tensor(np.load(os.path.join(dir_path,f)))
-    # for k,v in data.items(): 
-    #     print(f'{k}: {v.size()}')
     return data
 
 def save_data(params,dir_path='data/predict_winner'):
@@ -350,7 +348,6 @@ def check_network(params):
     val_data = load_data('data/hand_types/test')
     valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
     y_handtype_indexes = return_handtype_dict(valX,valY)
-    print(y_handtype_indexes)
     while 1:
         human_input = input('Enter in a handtype from 0-8')
         while not human_input.isdigit():
@@ -378,27 +375,38 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=
         """
-        Visualize training runs\n\n
+        Train and evaluate networks on card representations\n\n
+        use ```python cards.py --examine True``` to check handtype probabilities
         """)
 
-    parser.add_argument('--datatype',
-                        default='handtype',
+    parser.add_argument('-d','--datatype',
+                        default='handtype',type=str,
                         metavar="[handtype,random]",
-                        help='Which dataset to train on')
-    parser.add_argument('--build',
-                        default=False,
-                        metavar="Bool",
+                        help='Which dataset to train or build')
+    parser.add_argument('-b','--build',
+                        dest='build',
+                        default=False,type=bool,
                         help='To build a dataset or not')
-    parser.add_argument('--train',
-                        default=True,
-                        metavar="Bool",
+    parser.add_argument('-t','--train',
+                        default=True,type=bool,
                         help='To train on a dataset or not')
     parser.add_argument('--examine',
-                        default=False,
-                        metavar="Bool",
+                        default=False,type=bool,
                         help='To train on a dataset or not')
+    parser.add_argument('-bi','--builditerations',
+                        dest='build_iterations',
+                        help='Number of building iterations',
+                        default=600000,type=int)
+    parser.add_argument('-m','--maxlen',
+                        help='maxlen of data deques for building data',
+                        default=1000,type=int)
+    parser.add_argument('-O','--datapath',
+                        help='Local path to save data',
+                        default='data/hand_types/train',type=str)
 
     args = parser.parse_args()
+
+    print('OPTIONS',args)
 
     examine_params = {
         'network':HandClassificationV2,
@@ -408,8 +416,12 @@ if __name__ == "__main__":
         'training_set_size':50000,
         'val_set_size':10000,
         'encoding':'2d',
-        'handtype_dir':'poker/data/hand_types',
-        'predict_winner_dir':'poker/data/hand_types'
+        'handtype_dir':'data/hand_types',
+        'predict_winner_dir':'data/predict_winner',
+        'maxlen':args.maxlen,
+        'iterations':args.build_iterations,
+        'save_path':args.datapath
+
     }
     agent_params = {
         'learning_rate':2e-3,
@@ -435,13 +447,13 @@ if __name__ == "__main__":
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
     
-    if bool(args.examine) == True:
+    if args.examine == True:
         check_network(agent_params)
     else:
-        if bool(args.build) == True:
+        if args.build == True:
             if args.datatype == 'handtype':
                 dataset = CardDataset(dataset_params)
-                dataset.build_hand_classes()
+                dataset.build_hand_classes(dataset_params)
             elif args.datatype == 'random':
                 save_data(dataset_params)
             else:
