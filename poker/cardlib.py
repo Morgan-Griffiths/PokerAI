@@ -26,10 +26,14 @@ def hand_rank(hand, board):
 def long_array(arr):
     return (ctypes.c_long * len(arr))(*arr)
 
+def rank(hand):
+    return lib.rank(*hand)
 
 # example usage:
 
 def test():
+    hand = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's'],[5,'c']]
+    hand_en = [encode(c) for c in hand]
     h3 = [[7, 's'], [5, 'c'], [14, 'h'], [10, 'h']]
     h4 = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's']]
     board2 = [[10, 'c'], [2, 'h'], [4, 'c'], [13, 'c'], [4, 'h']]
@@ -39,3 +43,7 @@ def test():
     print(en_h3,en_h4,en_board2)
     print(winner(en_h3,en_h4,en_board2))
     print(hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
+    print(rank(hand_en))
+
+if __name__ == "__main__":
+    test()

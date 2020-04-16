@@ -18,8 +18,7 @@ def return_handtype_dict(X:torch.tensor,y:torch.tensor):
             type_dict[key] = torch_where(y==key,y)
         assert(torch.max(type_dict[key]).item() == 1)
     return type_dict
-
-
+    
 def load_data(dir_path='data/predict_winner'):
     data = {}
     for f in os.listdir(dir_path):
