@@ -503,3 +503,47 @@ class HandClassificationV4(nn.Module):
         x = self.attention(x)
         x = x.view(M,-1)    
         return self.categorical_output(x)
+
+
+################################################
+#           fivecard categorization            #
+################################################
+
+class FiveCardClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(44,32,32),activation_fc=F.relu):
+        super(HandClassificationV3,self).__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (1,84,84,3) -> (1,3,1,84,84)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=(5, 5), stride=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        # Output shape is (1,64,9,4,4)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm2d(60))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(9600,self.nA)
+
+    def forward(self,state):
+        # Input is M,60,5,2
+        x = state
+        if not isinstance(state,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32,device = self.device)
+            # x = x.unsqueeze(0)
+        M = x.size(0)
+        ranks = self.rank_emb(x[:,:,:,0].long())
+        suits = self.suit_emb(x[:,:,:,1].long())
+        x = torch.cat((ranks,suits),dim=-1)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(hidden_layer(x))
+            # x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        # Flatten layer but retain number of samples
+        x = x.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
+        # x = self.dropout(x)
+        return self.categorical_output(x)

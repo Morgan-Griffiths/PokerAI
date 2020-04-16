@@ -7,6 +7,7 @@ class Modes(object):
 class DataTypes(object):
     HANDTYPE = 'handtype'
     RANDOM = 'random'
+    FIVECARD = 'fivecard'
 
 class Globals(object):
     HAND_TYPE_DICT = {

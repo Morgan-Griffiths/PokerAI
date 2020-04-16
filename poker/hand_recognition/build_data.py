@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 from collections import deque
+import os
 
-from cardlib import encode,decode,winner,hand_rank
+import hand_recognition.datatypes as dt
+from cardlib import encode,decode,winner,hand_rank,rank
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
 
 class CardDataset(object):
@@ -14,8 +16,12 @@ class CardDataset(object):
         """
         Hands in test set may or may not match hands in training set.
         """
-        trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
-        valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
+        if params['datatype'] == dt.DataTypes.HANDTYPE:
+            trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
+            valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
+        if params['datatype'] == dt.DataTypes.FIVECARD:
+            trainX,trainY = self.build_5card(params['training_set_size'],params['encoding'])
+            valX,valY = self.build_5card(params['val_set_size'],params['encoding'])
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -40,6 +46,26 @@ class CardDataset(object):
                 X.append(cards)
             y.append(result)
             # print('result',result)
+        X = np.stack(X)
+        y = np.stack(y)[:,None]
+        return X,y
+
+    def build_5card(self,iterations,encoding):
+        """
+        Generates X = (i,5,2) y = [-1,0,1]
+        """
+        X,y = [],[]
+        for i in range(iterations):
+            cards = np.random.choice(self.deck,5,replace=False)
+            rust_cards = convert_numpy_to_rust(cards)
+            encoded_cards = [encode(c) for c in rust_cards]
+            category = CardDataset.find_strength(rank(encoded_cards))
+            if encoding == '2d':
+                cards2d = convert_numpy_to_2d(cards)
+                X.append(cards2d)
+            else:
+                X.append(cards)
+            y.append(category)
         X = np.stack(X)
         y = np.stack(y)[:,None]
         return X,y
@@ -78,7 +104,7 @@ class CardDataset(object):
             hand_strengths[hand_type].append(numpy_cards[4:8]+numpy_cards[8:])
         [print(len(hand_strengths[i])) for i in range(0,9)]
         for i in range(0,9):
-            np.save(os.path.join(params['save_path'],f'Hand_type_{HAND_TYPE_DICT[i]}'),hand_strengths[i])
+            np.save(os.path.join(params['save_path'],f'Hand_type_{dt.DataType.HAND_TYPE_DICT[i]}'),hand_strengths[i])
 
     @staticmethod
     def find_strength(strength):

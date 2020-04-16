@@ -148,6 +148,8 @@ def train_classification(data_dict,network,agent_params,training_params):
             # unspool hand into 60,5 combos
             if training_params['five_card_conversion'] == True:
                 inputs = unspool(inputs)
+            if training_params['one_hot'] == True:
+                inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
             # print(type(targets),targets)
             # print(outputs.size(),targets.size())
@@ -158,10 +160,11 @@ def train_classification(data_dict,network,agent_params,training_params):
             score_window.append(loss.item())
             scores.append(np.mean(score_window))
             net.eval()
+            val_inputs = data_dict['valX']
             if training_params['five_card_conversion'] == True:
-                val_inputs = unspool(data_dict['valX'])
-            else:
-                val_inputs = data_dict['valX']
+                val_inputs = unspool(val_inputs)
+            if training_params['one_hot'] == True:
+                inputs = torch.nn.functional.one_hot(val_inputs)
             val_preds = net(val_inputs)
             val_loss = criterion(val_preds, data_dict['valY'])
             val_window.append(val_loss.item())
@@ -176,10 +179,11 @@ def train_classification(data_dict,network,agent_params,training_params):
     net.eval()
     for handtype in data_dict['y_handtype_indexes'].keys():
         mask = data_dict['y_handtype_indexes'][handtype]
+        inputs = data_dict['valX'][mask]
         if training_params['five_card_conversion'] == True:
-            inputs = unspool(data_dict['valX'][mask])
-        else:
-            inputs = data_dict['valX'][mask]
+            inputs = unspool(inputs)
+        if training_params['one_hot'] == True:
+            inputs = torch.nn.functional.one_hot(inputs)
         val_preds = net(inputs)
         val_loss = criterion(val_preds, data_dict['valY'][mask])
         print(f'test performance on {dt.Globals.HAND_TYPE_DICT[handtype]}: {val_loss}')
@@ -210,6 +214,26 @@ def check_network(params):
         print(f'Network output: {F.softmax(out)}')
         print(f'Actual category: {valY[rand_hand]}')
 
+def evaluate_fivecard(dataset_params,agent_params,training_params):
+    # Load data
+    train_shape = (50000,5,2)
+    train_batch = 5000
+    test_shape = (10000,5,2)
+    test_batch = 1000
+    train_data = load_data('data/hand_types/train')
+    trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
+    val_data = load_data('data/hand_types/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
+    y_handtype_indexes = return_handtype_dict(valX,valY)
+    trainloader = return_dataloader(trainX,trainY)
+    data_dict = {
+        'trainloader':trainloader,
+        'valX':valX,
+        'valY':valY,
+        'y_handtype_indexes':y_handtype_indexes
+    }
+    
+    train_classification(data_dict,network,agent_params,training_params)
 
 if __name__ == "__main__":
     import argparse
@@ -225,7 +249,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar=f"[{dt.DataTypes.HANDTYPE},{dt.DataTypes.RANDOM}]",
+                        metavar=f"[{dt.DataTypes.HANDTYPE},{dt.DataTypes.RANDOM},{dt.DataTypes.FIVECARD}]",
                         help='Which dataset to train or build')
     parser.add_argument('-bi','--builditerations',
                         dest='build_iterations',
@@ -254,12 +278,10 @@ if __name__ == "__main__":
         'training_set_size':50000,
         'val_set_size':10000,
         'encoding':'2d',
-        'handtype_dir':'data/hand_types',
-        'predict_winner_dir':'data/predict_winner',
         'maxlen':args.maxlen,
         'iterations':args.build_iterations,
-        'save_path':args.datapath
-
+        'save_path':args.datapath,
+        'datatype':args.datatype
     }
     agent_params = {
         'learning_rate':2e-3,
@@ -281,30 +303,35 @@ if __name__ == "__main__":
         'epochs':5,
         'networks':[HandClassificationV2],#HandClassification,HandClassificationV2,HandClassificationV3,HandClassificationV4],#,
         'five_card_conversion':False,
-        'conversion_list':[False]#,False],#[,True]
+        'one_hot':False,
+        'conversion_list':[False],#,False],#[,True],
+        'onehot_list':[False]#,False],#[,True]
     }
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
 
-    # assert(args.mode in Modes)
     if args.mode == dt.Modes.EXAMINE:
         check_network(agent_params)
     elif args.mode == dt.Modes.BUILD:
+        print(f'Building {args.datatype} dataset')
+        dataset = CardDataset(dataset_params)
         if args.datatype == dt.DataTypes.HANDTYPE:
-            dataset = CardDataset(dataset_params)
             dataset.build_hand_classes(dataset_params)
-        elif args.datatype == dt.DataTypes.RANDOM:
-            dataset = CardDataset(dataset_params)
+        elif args.datatype == dt.DataTypes.RANDOM or args.datatype == dt.DataTypes.FIVECARD:
             trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
             save_data(trainX,trainY,valX,valY,dataset_params)
         else:
-            raise ValueError(f'Datatype not recognized {args.datatype}')
+            raise ValueError(f'{args.datatype} datatype not understood')
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating networks on {args.datatype}')
         if args.datatype == dt.DataTypes.HANDTYPE:
             evaluate_handtypes(dataset_params,agent_params,training_params)
         elif args.datatype == dt.DataTypes.RANDOM:
             evaluate_random_hands(dataset_params,agent_params,training_params)
+        elif args.datatype == dt.DataTypes.FIVECARD:
+            evaluate_fivecard(dataset_params,agent_params,training_params)
         else:
             raise ValueError(f'{args.datatype} datatype not understood')
+    else:
+        raise ValueError(f'{args.mode} Mode not understood')
     
