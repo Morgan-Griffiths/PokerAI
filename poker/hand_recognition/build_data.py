@@ -16,7 +16,7 @@ class CardDataset(object):
         """
         Hands in test set may or may not match hands in training set.
         """
-        if params['datatype'] == dt.DataTypes.HANDTYPE:
+        if params['datatype'] == dt.DataTypes.RANDOM:
             trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
             valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
         if params['datatype'] == dt.DataTypes.FIVECARD:

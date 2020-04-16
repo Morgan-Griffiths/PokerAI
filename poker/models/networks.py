@@ -517,7 +517,11 @@ class FiveCardClassification(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
-        # Input is (1,84,84,3) -> (1,3,1,84,84)
+
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,4))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,12))
+
+        # Input is (b,5,2) -> (b,5,12)
         self.conv1 = nn.Conv2d(3, 64, kernel_size=(5, 5), stride=1)
         self.bn1 = nn.BatchNorm2d(64)
         # Output shape is (1,64,9,4,4)
