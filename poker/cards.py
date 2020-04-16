@@ -15,6 +15,7 @@ from agents.agent import CardAgent
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
 from data_loader import return_dataloader
 from utils import torch_where
+import datatypes as dt
 
 """
 Creating a hand dataset for training and evaluating networks.
@@ -370,6 +371,7 @@ def check_network(params):
         print(f'Network output: {F.softmax(out)}')
         print(f'Actual category: {valY[rand_hand]}')
 
+
 if __name__ == "__main__":
     import argparse
 
@@ -384,18 +386,8 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar="[handtype,random]",
+                        metavar=f"[{dt.Modes.HANDTYPE},{dt.Modes.RANDOM}]",
                         help='Which dataset to train or build')
-    parser.add_argument('-b','--build',
-                        dest='build',
-                        default=False,type=bool,
-                        help='To build a dataset or not')
-    parser.add_argument('-t','--train',
-                        default=True,type=bool,
-                        help='To train on a dataset or not')
-    parser.add_argument('--examine',
-                        default=False,type=bool,
-                        help='To train on a dataset or not')
     parser.add_argument('-bi','--builditerations',
                         dest='build_iterations',
                         help='Number of building iterations',
@@ -403,6 +395,10 @@ if __name__ == "__main__":
     parser.add_argument('-m','--maxlen',
                         help='maxlen of data deques for building data',
                         default=1000,type=int)
+    parser.add_argument('-M','--mode',
+                        metavar=f"[{dt.Modes.TRAIN},{dt.Modes.BUILD},{dt.Modes.EXAMINE}]",
+                        help='Local path to save data',
+                        default='train',type=str)
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
                         default='data/hand_types/test',type=str)
@@ -450,23 +446,24 @@ if __name__ == "__main__":
     }
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
-    
-    if args.examine == True:
+
+    # assert(args.mode in Modes)
+    if args.mode == dt.Modes.EXAMINE:
         check_network(agent_params)
-    else:
-        if args.build == True:
-            if args.datatype == 'handtype':
-                dataset = CardDataset(dataset_params)
-                dataset.build_hand_classes(dataset_params)
-            elif args.datatype == 'random':
-                save_data(dataset_params)
-            else:
-                raise ValueError(f'Datatype not recognized {args.datatype}')
-        elif args.train == True:
-            print(f'Evaluating networks on {args.datatype}')
-            if args.datatype == 'random':
-                evaluate_random_hands(dataset_params,agent_params,training_params)
-            elif args.datatype == 'handtype':
-                evaluate_handtypes(dataset_params,agent_params,training_params)
-            else:
-                raise ValueError(f'{args.datatype} datatype not understood')
+    elif args.mode == dt.Modes.BUILD:
+        if args.datatype == dt.DataTypes.HANDTYPE:
+            dataset = CardDataset(dataset_params)
+            dataset.build_hand_classes(dataset_params)
+        elif args.datatype == dt.DataTypes.RANDOM:
+            save_data(dataset_params)
+        else:
+            raise ValueError(f'Datatype not recognized {args.datatype}')
+    elif args.mode == dt.Modes.TRAIN:
+        print(f'Evaluating networks on {args.datatype}')
+        if args.datatype == dt.DataTypes.HANDTYPE:
+            evaluate_handtypes(dataset_params,agent_params,training_params)
+        elif args.datatype == dt.DataTypes.RANDOM:
+            evaluate_random_hands(dataset_params,agent_params,training_params)
+        else:
+            raise ValueError(f'{args.datatype} datatype not understood')
+    
