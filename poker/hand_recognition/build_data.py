@@ -1,13 +1,29 @@
 import numpy as np
 import torch
+from collections import deque
 
+from cardlib import encode,decode,winner,hand_rank
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
 
 class CardDataset(object):
     def __init__(self,params):
         self.deck = np.arange(52)
         self.params = params
 
+    def generate_dataset(self,params):
+        """
+        Hands in test set may or may not match hands in training set.
+        """
+        trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
+        valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
+        trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
+        print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
+        return trainX,trainY,valX,valY
+
     def generate_hands(self,iterations,encoding):
+        """
+        Generates X = (i,13,2) y = [-1,0,1]
+        """
         X,y = [],[]
         for i in range(iterations):
             cards = np.random.choice(self.deck,13,replace=False)
@@ -43,7 +59,7 @@ class CardDataset(object):
         |TOTAL          |2598960 |7462|
         """
         
-        hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(1,10)}
+        hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(0,9)}
         for _ in range(600000):
             cards = np.random.choice(self.deck,13,replace=False)
             rust_cards = convert_numpy_to_rust(cards)
@@ -60,7 +76,7 @@ class CardDataset(object):
             rank = hand_rank(en_hand2,en_board)
             hand_type = CardDataset.find_strength(rank)
             hand_strengths[hand_type].append(numpy_cards[4:8]+numpy_cards[8:])
-        [print(len(hand_strengths[i])) for i in range(1,10)]
+        [print(len(hand_strengths[i])) for i in range(0,9)]
         for i in range(1,10):
             np.save(os.path.join(params['save_path'],f'Hand_type_{HAND_TYPE_DICT[i]}'),hand_strengths[i])
 
@@ -97,13 +113,3 @@ class CardDataset(object):
     @staticmethod
     def to_torch(inputs:list):
         return [torch.Tensor(x) for x in inputs]
-
-    def generate_dataset(self,params):
-        """
-        Hands in test set may or may not match hands in training set.
-        """
-        trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
-        valX,valY = self.generate_hands(params['test_set_size'],params['encoding'])
-        trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
-        print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
-        return trainX,trainY,valX,valY

@@ -10,13 +10,12 @@ from collections import deque
 from itertools import combinations
 
 from visualize import plot_data
-from cardlib import encode,decode,winner,hand_rank
 from models.networks import *
 from agents.agent import CardAgent
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
 from data_loader import return_dataloader
 import hand_recognition.datatypes as dt
 from hand_recognition.data_utils import unpack_nparrays,load_data,save_data,return_handtype_dict
+from hand_recognition.build_data import CardDataset
 
 """
 Creating a hand dataset for training and evaluating networks.
@@ -295,7 +294,9 @@ if __name__ == "__main__":
             dataset = CardDataset(dataset_params)
             dataset.build_hand_classes(dataset_params)
         elif args.datatype == dt.DataTypes.RANDOM:
-            save_data(dataset_params)
+            dataset = CardDataset(dataset_params)
+            trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
+            save_data(trainX,trainY,valX,valY,dataset_params)
         else:
             raise ValueError(f'Datatype not recognized {args.datatype}')
     elif args.mode == dt.Modes.TRAIN:

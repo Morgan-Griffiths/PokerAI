@@ -3,6 +3,7 @@ import numpy as np
 import os
 
 import hand_recognition.datatypes as dt
+from hand_recognition.build_data import CardDataset
 from utils import torch_where
 
 
@@ -27,15 +28,13 @@ def load_data(dir_path='data/predict_winner'):
             data[name] = torch.Tensor(np.load(os.path.join(dir_path,f)))
     return data
 
-def save_data(params,dir_path='data/predict_winner'):
-    dataset = CardDataset(params)
-    trainX,trainY,valX,valY = dataset.generate_dataset(params)
-    if not os.path.isdir(dir_path):
-        os.makedirs(dir_path)
-    np.save('data/predict_winner/trainX',trainX)
-    np.save('data/predict_winner/trainY',trainY)
-    np.save('data/predict_winner/valX',valX)
-    np.save('data/predict_winner/valY',valY)
+def save_data(trainX,trainY,valX,valY,params):
+    if not os.path.isdir(params['save_path']):
+        os.makedirs(params['save_path'])
+    np.save(f"{params['save_path']}/trainX",trainX)
+    np.save(f"{params['save_path']}/trainY",trainY)
+    np.save(f"{params['save_path']}/valX",valX)
+    np.save(f"{params['save_path']}/valY",valY)
 
 def unpack_nparrays(shape,batch,data):
     X = np.zeros(shape)
