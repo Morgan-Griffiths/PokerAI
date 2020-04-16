@@ -534,15 +534,15 @@ class FiveCardClassification(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.categorical_output = nn.Linear(9600,self.nA)
 
-    def forward(self,state):
-        # Input is M,60,5,2
-        x = state
-        if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32,device = self.device)
-            # x = x.unsqueeze(0)
+    def forward(self,x):
+        # Input is M,5,2
+        assert(isinstance(state,torch.Tensor))
         M = x.size(0)
-        ranks = self.rank_emb(x[:,:,:,0].long())
-        suits = self.suit_emb(x[:,:,:,1].long())
+        ranks = x[:,:,0]
+        suits = x[:,:,1]
+
+        hot_ranks = self.one_hot_ranks(ranks)
+        hot_suits = self.one_hot_suits(suits)
         x = torch.cat((ranks,suits),dim=-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))

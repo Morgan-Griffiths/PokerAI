@@ -232,7 +232,6 @@ def evaluate_fivecard(dataset_params,agent_params,training_params):
         'valY':valY,
         'y_handtype_indexes':y_handtype_indexes
     }
-    
     train_classification(data_dict,network,agent_params,training_params)
 
 if __name__ == "__main__":
