@@ -104,7 +104,7 @@ class CardDataset(object):
             hand_strengths[hand_type].append(numpy_cards[4:8]+numpy_cards[8:])
         [print(len(hand_strengths[i])) for i in range(0,9)]
         for i in range(0,9):
-            np.save(os.path.join(params['save_path'],f'Hand_type_{dt.DataType.HAND_TYPE_DICT[i]}'),hand_strengths[i])
+            np.save(os.path.join(params['save_path'],f'Hand_type_{dt.DataTypes.HAND_TYPE_DICT[i]}'),hand_strengths[i])
 
     @staticmethod
     def find_strength(strength):
