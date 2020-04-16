@@ -4,7 +4,7 @@
 *.png
 *.lock
 .DS_Store
-rusteval/
+rusteval/target
 ../src/Poker_MDP.py
 poker/data/
 poker/assets/
