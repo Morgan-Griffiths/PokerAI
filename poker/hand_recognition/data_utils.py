@@ -10,6 +10,7 @@ from utils import torch_where
 def return_handtype_dict(X:torch.tensor,y:torch.tensor):
     type_dict = {}
     for key in dt.Globals.HAND_TYPE_DICT.keys():
+        # print('key',key)
         if key == 0:
             mask = torch.zeros_like(y)
             mask[(y == 0).nonzero().unsqueeze(0)] = 1
@@ -18,7 +19,7 @@ def return_handtype_dict(X:torch.tensor,y:torch.tensor):
             type_dict[key] = torch_where(y==key,y)
         assert(torch.max(type_dict[key]).item() == 1)
     return type_dict
-    
+
 def load_data(dir_path='data/predict_winner'):
     data = {}
     for f in os.listdir(dir_path):
@@ -36,6 +37,10 @@ def save_data(trainX,trainY,valX,valY,params):
     np.save(f"{params['save_path']}/valY",valY)
 
 def unpack_nparrays(shape,batch,data):
+    """
+    Takes numpy array data in the form of X inputs and file names, 
+    and builds the Y targets given the filenames
+    """
     X = np.zeros(shape)
     Y = np.zeros(shape[0])
     i = 0

@@ -151,8 +151,8 @@ def train_classification(data_dict,network,agent_params,training_params):
             if training_params['one_hot'] == True:
                 inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
-            # print(type(targets),targets)
-            # print(outputs.size(),targets.size())
+            # print(type(targets),targets,targets.size())
+            # print(outputs,outputs.size())
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
@@ -190,14 +190,71 @@ def train_classification(data_dict,network,agent_params,training_params):
     net.train()
     torch.save(net.state_dict(), f'checkpoints/hand_categorization/{network.__name__}')
 
+
+def evaluate_fivecard(dataset_params,agent_params,training_params):
+    # Load data
+    train_shape = (50000,5,2)
+    train_batch = 5000
+    test_shape = (10000,5,2)
+    test_batch = 1000
+    fivecard_data = load_data('data/fivecard')
+    print(fivecard_data.keys())
+    valX,valY,trainX,trainY = fivecard_data.values()
+    trainY = trainY.squeeze(-1).long()
+    valY = valY.squeeze(-1).long()
+    print(trainX.size(),trainY.size(),valX.size(),valY.size())
+    print(np.unique(trainY,return_counts=True),np.unique(valY,return_counts=True))
+    y_handtype_indexes = return_handtype_dict(valX,valY)
+    trainloader = return_dataloader(trainX,trainY)
+    data_dict = {
+        'trainloader':trainloader,
+        'valX':valX,
+        'valY':valY,
+        'y_handtype_indexes':y_handtype_indexes
+    }
+    network = FiveCardClassification
+    train_classification(data_dict,network,agent_params,training_params)
+
+def compute_baseline():
+    """
+    predicts most common class always for a baseline comparison.
+    """
+    print('Computing baseline, predict most common case')
+    fivecard_data = load_data('data/fivecard')
+    valX,valY,trainX,trainY = fivecard_data.values()
+    trainY = trainY.squeeze(-1).long()
+    print('valX,valY,trainX,trainY',trainX.size(),trainY.size())
+    trainloader = return_dataloader(trainX,trainY)
+    uniques,counts = np.unique(trainY,return_counts=True)
+    print(uniques,counts)
+    most_common_category = np.argmax(counts)
+    print('most_common_category',most_common_category)
+    criterion =  nn.MultiLabelSoftMarginLoss()
+    score_window = deque(maxlen=100)
+    scores = []
+    num_categories = len(counts)
+    pred = torch.zeros(num_categories)
+    pred[most_common_category] = 1
+    for i, data in enumerate(trainloader, 1): 
+        inputs,targets = data.values()
+        M = inputs.size(0)
+        predictions = pred.repeat(M).view(M,num_categories).float()
+        labels = torch.zeros((M,num_categories))
+        labels[targets] = 1
+        loss = criterion(predictions,labels)
+        score_window.append(loss.sum())
+        scores.append(np.mean(score_window))
+    # print('baseline',scores)
+    print('baseline',np.mean(score_window))
+
 def check_network(params):
     examine_params = params['examine_params']
     net = examine_params['network'](params['network_params'])
     net.load_state_dict(torch.load(examine_params['load_path']))
     net.eval()
-    test_shape = (9000,9,2)
+    test_shape = (9000,5,2)#(9000,9,2)
     test_batch = 1000
-    val_data = load_data('data/hand_types/test')
+    val_data = load_data('data/fivecard')
     valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
     y_handtype_indexes = return_handtype_dict(valX,valY)
     while 1:
@@ -211,28 +268,8 @@ def check_network(params):
         rand_hand = torch.randint(torch.min(indicies),torch.max(indicies),(1,))
         print(f'Evaluating on: {valX[rand_hand]}')
         out = net(valX[rand_hand])
-        print(f'Network output: {F.softmax(out)}')
+        print(f'Network output: {F.softmax(out,dim=-1)}')
         print(f'Actual category: {valY[rand_hand]}')
-
-def evaluate_fivecard(dataset_params,agent_params,training_params):
-    # Load data
-    train_shape = (50000,5,2)
-    train_batch = 5000
-    test_shape = (10000,5,2)
-    test_batch = 1000
-    train_data = load_data('data/hand_types/train')
-    trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
-    val_data = load_data('data/hand_types/test')
-    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
-    y_handtype_indexes = return_handtype_dict(valX,valY)
-    trainloader = return_dataloader(trainX,trainY)
-    data_dict = {
-        'trainloader':trainloader,
-        'valX':valX,
-        'valY':valY,
-        'y_handtype_indexes':y_handtype_indexes
-    }
-    train_classification(data_dict,network,agent_params,training_params)
 
 if __name__ == "__main__":
     import argparse
@@ -264,18 +301,24 @@ if __name__ == "__main__":
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
                         default='data/hand_types/test',type=str)
+    parser.add_argument('--trainsize',
+                        help='Size of train set',
+                        default=50000,type=int)
+    parser.add_argument('--valsize',
+                        help='Size of test set',
+                        default=10000,type=int)
 
     args = parser.parse_args()
 
     print('OPTIONS',args)
 
     examine_params = {
-        'network':HandClassificationV2,
-        'load_path':os.path.join('checkpoints/hand_categorization','HandClassificationV2')
+        'network':FiveCardClassification,
+        'load_path':os.path.join('checkpoints/hand_categorization','FiveCardClassification')
     }
     dataset_params = {
-        'training_set_size':50000,
-        'val_set_size':10000,
+        'training_set_size':args.trainsize,
+        'val_set_size':args.valsize,
         'encoding':'2d',
         'maxlen':args.maxlen,
         'iterations':args.build_iterations,
@@ -299,7 +342,7 @@ if __name__ == "__main__":
         'conv_layers':1,
     }
     training_params = {
-        'epochs':5,
+        'epochs':3,
         'networks':[HandClassificationV2],#HandClassification,HandClassificationV2,HandClassificationV3,HandClassificationV4],#,
         'five_card_conversion':False,
         'one_hot':False,
@@ -309,14 +352,20 @@ if __name__ == "__main__":
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
 
+    # dataset = CardDataset(dataset_params)
+    # while 1:
+    #     handtype = input('Enter in int 0-8 to pick handtype')
+    #     hand = dataset.create_handtypes(int(handtype))
+    #     print(f'Hand {hand}, Category {handtype}')
+    # compute_baseline()
     if args.mode == dt.Modes.EXAMINE:
         check_network(agent_params)
     elif args.mode == dt.Modes.BUILD:
         print(f'Building {args.datatype} dataset')
         dataset = CardDataset(dataset_params)
-        if args.datatype == dt.DataTypes.HANDTYPE:
+        if args.datatype == dt.DataTypes.HANDTYPE or args.datatype == dt.DataTypes.FIVECARD:
             dataset.build_hand_classes(dataset_params)
-        elif args.datatype == dt.DataTypes.RANDOM or args.datatype == dt.DataTypes.FIVECARD:
+        elif args.datatype == dt.DataTypes.RANDOM:
             trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
             save_data(trainX,trainY,valX,valY,dataset_params)
         else:

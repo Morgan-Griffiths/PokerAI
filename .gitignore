@@ -3,6 +3,7 @@
 *.npy
 *.png
 *.lock
+.vscode/
 .DS_Store
 rusteval/target
 ../src/Poker_MDP.py

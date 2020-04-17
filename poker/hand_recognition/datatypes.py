@@ -22,3 +22,11 @@ class Globals(object):
                 8:'High_card'
             }
     HAND_TYPE_FILE_DICT = {'Hand_type_'+v:k for k,v in HAND_TYPE_DICT.items()}
+
+class RANKS(object):
+    HIGH = 14
+    LOW = 2
+
+class SUITS(object):
+    HIGH = 4
+    LOW = 0
