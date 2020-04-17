@@ -510,7 +510,7 @@ class HandClassificationV4(nn.Module):
 ################################################
 
 class FiveCardClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(386,64,64),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(64,64,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -525,16 +525,16 @@ class FiveCardClassification(nn.Module):
         self.conv1 = nn.Conv1d(5, 64, kernel_size=5, stride=1)
         self.bn1 = nn.BatchNorm1d(64)
         # Output shape is (b,64,9) or (b,64,11) 
-        self.rank_output = nn.Linear(11,6)
-        self.flushfc = nn.Linear(5,2)
+        self.rank_output = nn.Linear(11,64)
+        self.flushfc = nn.Linear(5,1)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
             self.hidden_layers.append(hidden_layer)
-            self.bn_layers.append(nn.BatchNorm2d(hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i]))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(hidden_dims[-1],self.nA)
+        self.categorical_output = nn.Linear(2049,self.nA)
 
     def forward(self,x):
         # Input is M,5,2
@@ -547,10 +547,13 @@ class FiveCardClassification(nn.Module):
         r = self.activation_fc(self.rank_output(r))
         s = self.activation_fc(self.flushfc(suits))
         # hot_suits = self.one_hot_suits(suits)
+        # print(s.size(),r.size())
+        # r = r.view(M,-1)
+        # print(x.size())
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            r = self.activation_fc(hidden_layer(r))
+            # r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
         r = r.view(M,-1)
         x = torch.cat((s,r),dim=-1)
-        for i,hidden_layer in enumerate(self.hidden_layers):
-            # x = self.activation_fc(hidden_layer(x))
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
-        x = self.dropout(x)
+        x = self.dropout(x) 
         return self.categorical_output(x)

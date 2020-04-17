@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from collections import deque
 import os
+from random import shuffle
 
 import hand_recognition.datatypes as dt
 from cardlib import encode,decode,winner,hand_rank,rank
@@ -12,6 +13,7 @@ class CardDataset(object):
         self.deck = np.arange(52)
         self.suit_types = np.arange(dt.SUITS.LOW,dt.SUITS.HIGH)
         self.rank_types = np.arange(dt.RANKS.LOW,dt.RANKS.HIGH)
+        self.fivecard_indicies = np.arange(5)
         self.params = params
 
     def generate_dataset(self,params):
@@ -47,7 +49,6 @@ class CardDataset(object):
             else:
                 X.append(cards)
             y.append(result)
-            # print('result',result)
         X = np.stack(X)
         y = np.stack(y)[:,None]
         return X,y
@@ -88,13 +89,10 @@ class CardDataset(object):
         """
         
         hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(0,9)}
-        lengths = np.zeros(9)
-        # while np.sum(lengths) < 9 * params['maxlen']:
-
-        for _ in range(600000):
-            cards = np.random.choice(self.deck,13,replace=False)
-            rust_cards = convert_numpy_to_rust(cards)
-            if params['datatype'] == dt.DataTypes.HANDTYPE:
+        if params['datatype'] == dt.DataTypes.HANDTYPE:
+            for _ in range(600000):
+                cards = np.random.choice(self.deck,13,replace=False)
+                rust_cards = convert_numpy_to_rust(cards)
                 numpy_cards = convert_numpy_to_2d(cards)
                 hand1 = rust_cards[:4]
                 hand2 = rust_cards[4:8]
@@ -110,12 +108,12 @@ class CardDataset(object):
                 card_rank = hand_rank(en_hand2,en_board)
                 category = CardDataset.find_strength(card_rank)
                 hand_strengths[category].append(numpy_cards[4:8]+numpy_cards[8:])
-            else:
-                encoded_cards = [encode(c) for c in rust_cards]
-                category = CardDataset.find_strength(rank(encoded_cards))
-                cards2d = convert_numpy_to_2d(cards)
-                hand_strengths[category].append(cards2d)
-
+        elif params['datatype'] == dt.DataTypes.FIVECARD:
+            for category in dt.Globals.HAND_TYPE_DICT.keys():
+                for _ in range(params['maxlen']):
+                    hand_strengths[category].append(self.create_handtypes(category))
+        else:
+            raise ValueError(f"{params['datatype']} datatype not understood")
         [print(len(hand_strengths[i])) for i in range(0,9)]
         for i in range(0,9):
             np.save(os.path.join(params['save_path'],f'Hand_type_{dt.Globals.HAND_TYPE_DICT[i]}'),hand_strengths[i])
@@ -132,8 +130,9 @@ class CardDataset(object):
             7: self.one_pair,
             8: self.high_card
         }
-        return switcher[category]()
-
+        np.random.shuffle(self.fivecard_indicies)
+        return np.transpose(switcher[category]()[:,self.fivecard_indicies])
+         
     def straight_flush(self):
         # Pick a number from 13 - 5
         top = np.random.randint(dt.RANKS.LOW+5,dt.RANKS.HIGH)
@@ -159,14 +158,13 @@ class CardDataset(object):
         pair_suits = np.random.choice(self.suit_types,2,replace=False)
         ranks = np.hstack((trips,pair))
         suits = np.hstack((trip_suits,pair_suits))
-        print(ranks.shape,suits.shape)
         hand = np.stack((ranks,suits))
         return hand
 
     def flush(self):
         ranks4 = np.random.choice(self.rank_types,4,replace=False)
         if np.max(ranks4) - np.min(ranks4) == 4:
-            untouchables = set((ranks4,np.max(ranks4)+1,np.min(ranks4)-1)) & set(self.rank_types)
+            untouchables = set(ranks4) & set((np.max(ranks4)+1,np.min(ranks4)-1)) & set(self.rank_types)
             possible = set(self.rank_types) - set(untouchables)
         else:
             possible = set(self.rank_types) - set(ranks4)
@@ -181,7 +179,7 @@ class CardDataset(object):
         straight = np.arange(top-5,top)
         suits = np.random.choice(self.suit_types,5,replace=True)
         if len(set(suits)) == 1:
-            other_suit = np.random.choice(set(range(4)).difference(set(suits)))
+            other_suit = np.random.choice(list(set(self.suit_types).difference(set(suits))))
             suits[np.random.choice(np.arange(5))] = other_suit
         hand = np.stack((straight,np.full(5,suits)))
         return hand

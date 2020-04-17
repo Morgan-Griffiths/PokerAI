@@ -52,4 +52,4 @@ def unpack_nparrays(shape,batch,data):
             j += 1
         i += 1
     print('Numpy data uniques and counts ',np.lib.arraysetops.unique(Y,return_counts=True))
-    return torch.tensor(X),torch.tensor(Y).long()
+    return torch.tensor(X).float(),torch.tensor(Y).long()

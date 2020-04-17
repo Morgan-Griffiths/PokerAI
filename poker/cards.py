@@ -193,19 +193,18 @@ def train_classification(data_dict,network,agent_params,training_params):
 
 def evaluate_fivecard(dataset_params,agent_params,training_params):
     # Load data
-    train_shape = (50000,5,2)
+    train_shape = (45000,5,2)
     train_batch = 5000
-    test_shape = (10000,5,2)
-    test_batch = 1000
-    fivecard_data = load_data('data/fivecard')
-    print(fivecard_data.keys())
-    valX,valY,trainX,trainY = fivecard_data.values()
-    trainY = trainY.squeeze(-1).long()
-    valY = valY.squeeze(-1).long()
-    print(trainX.size(),trainY.size(),valX.size(),valY.size())
-    print(np.unique(trainY,return_counts=True),np.unique(valY,return_counts=True))
+    test_shape = (45000,5,2)
+    test_batch = 5000
+    train_data = load_data('data/fivecard/test')
+    trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
+    val_data = load_data('data/fivecard/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
     y_handtype_indexes = return_handtype_dict(valX,valY)
     trainloader = return_dataloader(trainX,trainY)
+    print(trainX.size(),trainY.size(),valX.size(),valY.size())
+    print(np.unique(trainY,return_counts=True),np.unique(valY,return_counts=True))
     data_dict = {
         'trainloader':trainloader,
         'valX':valX,
@@ -220,10 +219,15 @@ def compute_baseline():
     predicts most common class always for a baseline comparison.
     """
     print('Computing baseline, predict most common case')
-    fivecard_data = load_data('data/fivecard')
-    valX,valY,trainX,trainY = fivecard_data.values()
-    trainY = trainY.squeeze(-1).long()
-    print('valX,valY,trainX,trainY',trainX.size(),trainY.size())
+    train_shape = (45000,5,2)
+    train_batch = 5000
+    test_shape = (45000,5,2)
+    test_batch = 5000
+    train_data = load_data('data/fivecard/test')
+    trainX,trainY = unpack_nparrays(train_shape,train_batch,train_data)
+    val_data = load_data('data/fivecard/test')
+    valX,valY = unpack_nparrays(test_shape,test_batch,val_data)
+    y_handtype_indexes = return_handtype_dict(valX,valY)
     trainloader = return_dataloader(trainX,trainY)
     uniques,counts = np.unique(trainY,return_counts=True)
     print(uniques,counts)
@@ -352,6 +356,7 @@ if __name__ == "__main__":
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
 
+    # Check hand generation
     # dataset = CardDataset(dataset_params)
     # while 1:
     #     handtype = input('Enter in int 0-8 to pick handtype')
