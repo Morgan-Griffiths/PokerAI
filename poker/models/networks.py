@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from models.buffers import PriorityReplayBuffer,PriorityTree
+import hand_recognition.datatypes as dt
 
 def hidden_init(layer):
     fan_in = layer.weight.data.size()[0]
@@ -510,7 +511,7 @@ class HandClassificationV4(nn.Module):
 ################################################
 
 class FiveCardClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(64,64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(32,32,16),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -518,23 +519,27 @@ class FiveCardClassification(nn.Module):
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
 
-        # self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,4))
-        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,15))
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
+        # Input is (b,5,2) -> (b,5,4)
+        self.suit_conv = nn.Conv1d(5, 64, kernel_size=1, stride=1)
+        self.suit_bn = nn.BatchNorm1d(64)
+        # Output shape is (b,64,1) 
         # Input is (b,5,2) -> (b,5,13) or (b,5,15)
-        self.conv1 = nn.Conv1d(5, 64, kernel_size=5, stride=1)
-        self.bn1 = nn.BatchNorm1d(64)
+        self.rank_conv = nn.Conv1d(5, 64, kernel_size=5, stride=1)
+        self.rank_bn = nn.BatchNorm1d(64)
         # Output shape is (b,64,9) or (b,64,11) 
-        self.rank_output = nn.Linear(11,64)
-        self.flushfc = nn.Linear(5,1)
+        self.rank_output = nn.Linear(10,32)
+        self.suit_output = nn.Linear(4,12)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
             self.hidden_layers.append(hidden_layer)
-            self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i]))
+            self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(2049,self.nA)
+        self.categorical_output = nn.Linear(1792,self.nA)
 
     def forward(self,x):
         # Input is M,5,2
@@ -543,17 +548,18 @@ class FiveCardClassification(nn.Module):
         ranks = x[:,:,0]
         suits = x[:,:,1]
         hot_ranks = self.one_hot_ranks[ranks.long()]
-        r = self.activation_fc(self.bn1(self.conv1(hot_ranks.float())))
+        hot_suits = self.one_hot_suits[suits.long()]
+
+        s = self.activation_fc(self.suit_bn(self.suit_conv(hot_suits.float())))
+        s = self.activation_fc(self.suit_output(s))
+
+        r = self.activation_fc(self.rank_bn(self.rank_conv(hot_ranks.float())))
         r = self.activation_fc(self.rank_output(r))
-        s = self.activation_fc(self.flushfc(suits))
-        # hot_suits = self.one_hot_suits(suits)
-        # print(s.size(),r.size())
-        # r = r.view(M,-1)
-        # print(x.size())
         for i,hidden_layer in enumerate(self.hidden_layers):
-            r = self.activation_fc(hidden_layer(r))
-            # r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
+            # r = self.activation_fc(hidden_layer(r))
+            r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
         r = r.view(M,-1)
+        s = s.view(M,-1)
         x = torch.cat((s,r),dim=-1)
-        x = self.dropout(x) 
+        # x = self.dropout(x) 
         return self.categorical_output(x)
