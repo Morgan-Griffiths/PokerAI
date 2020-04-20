@@ -68,6 +68,7 @@ fn holdem_best_rank_w_board(hand: [c_long; 2], board: [c_long; 5]) -> i32 {
         if new_rank < cur_rank {
             cur_rank = new_rank;
         }
+    }
     for hi in 0..2 {
         for bi in 0..5 {
             let bc = [(0,1,2,3),(0,1,2,4),(0,1,3,4),(0,2,3,4),(1,2,3,4)][bi];
