@@ -42,6 +42,30 @@ fn run_hand_vs_hand(hand1: [c_long; 4], hand2: [c_long; 4], deck: &mut [c_long; 
     wins as c_float / iterations as c_float
 }
 
+fn holdem_best_rank_w_board(hand: [c_long; 2], board: [c_long; 5]) -> i32 {
+    let mut cur_rank: i32 = 0xFFFF;
+    for bi in 0..10 {
+        let bc = [(0,1,2),(0,1,3),(0,1,4),(0,2,3),(0,2,4),(0,3,4),(1,2,3),(1,2,4),(1,3,4),(2,3,4)][bi];
+        let new_rank = rank(hand[0], hand[1], board[bc.0], board[bc.1], board[bc.2]);
+        if new_rank < cur_rank {
+            cur_rank = new_rank;
+        }
+    for hi in 0..2 {
+        for bi in 0..5 {
+            let bc = [(0,1,2,3),(0,1,2,4),(0,1,3,4),(0,2,3,4),(1,2,3,4)][bi];
+            let new_rank = rank(hand[hi], board[bc.0], board[bc.1], board[bc.2], board[bc.3]);
+            if new_rank < cur_rank {
+                cur_rank = new_rank;
+            }
+        }
+    }
+    let new_rank = rank(board[0], board[1], board[2], board[3], board[4]);
+    if new_rank < cur_rank {
+        cur_rank = new_rank;
+    }
+    cur_rank
+}
+
 fn best_rank_w_board(hand: [c_long; 4], board: [c_long; 5]) -> i32 {
     let mut cur_rank: i32 = 0xFFFF;
     for hi in 0..6 {
