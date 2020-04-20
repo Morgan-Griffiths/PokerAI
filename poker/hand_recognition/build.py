@@ -6,13 +6,15 @@ from random import shuffle
 
 import hand_recognition.datatypes as dt
 from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
 
 class CardDataset(object):
     def __init__(self,params):
         self.deck = np.arange(52)
         self.suit_types = np.arange(dt.SUITS.LOW,dt.SUITS.HIGH)
         self.rank_types = np.arange(dt.RANKS.LOW,dt.RANKS.HIGH)
+        self.alphabet_suits = ['s','h','d','c']
+        self.suit_dict = {suit:alpha for suit,alpha in zip(self.suit_types,self.alphabet_suits)}
         self.fivecard_indicies = np.arange(5)
         self.params = params
 
@@ -23,9 +25,9 @@ class CardDataset(object):
         if params['datatype'] == dt.DataTypes.RANDOM:
             trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
             valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
-        if params['datatype'] == dt.DataTypes.FIVECARD:
-            trainX,trainY = self.build_5card(params['training_set_size'],params['encoding'])
-            valX,valY = self.build_5card(params['val_set_size'],params['encoding'])
+        if params['datatype'] == dt.DataTypes.TENCARD:
+            trainX,trainY = self.build_10card(params['training_set_size'],params['encoding'])
+            valX,valY = self.build_10card(params['val_set_size'],params['encoding'])
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -53,22 +55,27 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_5card(self,iterations,encoding):
+    def build_10card(self,iterations,encoding):
         """
-        Generates X = (i,5,2) y = [-1,0,1]
+        Generates X = (i,10,2) y = [-1,0,1]
         """
         X,y = [],[]
         for i in range(iterations):
-            cards = np.random.choice(self.deck,5,replace=False)
-            rust_cards = convert_numpy_to_rust(cards)
-            encoded_cards = [encode(c) for c in rust_cards]
-            category = CardDataset.find_strength(rank(encoded_cards))
-            if encoding == '2d':
-                cards2d = convert_numpy_to_2d(cards)
-                X.append(cards2d)
+            category = np.random.choice(np.arange(9))
+            hand1 = self.create_handtypes(category)
+            hand2 = self.create_handtypes(category)
+            encoded_hand1 = [encode(c) for c in hand1]
+            encoded_hand2 = [encode(c) for c in hand2]
+            hand1_rank = rank(encoded_hand1)
+            hand2_rank = rank(encoded_hand2)
+            if hand1_rank > hand2_rank:
+                winner = 1
+            elif hand1_rank < hand2_rank:
+                winner = -1
             else:
-                X.append(cards)
-            y.append(category)
+                winner = 0
+            X.append(np.vstack((hand1,hand2)))
+            y.append(winner)
         X = np.stack(X)
         y = np.stack(y)[:,None]
         return X,y
@@ -89,25 +96,13 @@ class CardDataset(object):
         """
         
         hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(0,9)}
-        if params['datatype'] == dt.DataTypes.HANDTYPE:
-            for _ in range(600000):
-                cards = np.random.choice(self.deck,13,replace=False)
-                rust_cards = convert_numpy_to_rust(cards)
-                numpy_cards = convert_numpy_to_2d(cards)
-                hand1 = rust_cards[:4]
-                hand2 = rust_cards[4:8]
-                board = rust_cards[8:]
-                en_hand1 = [encode(c) for c in hand1]
-                en_hand2 = [encode(c) for c in hand2]
-                en_board = [encode(c) for c in board]
-                card_rank = hand_rank(en_hand1,en_board)
-                category = CardDataset.find_strength(card_rank)
-                hand_strengths[category].append(numpy_cards[:4]+numpy_cards[8:])
-                hand_strengths[category]
-
-                card_rank = hand_rank(en_hand2,en_board)
-                category = CardDataset.find_strength(card_rank)
-                hand_strengths[category].append(numpy_cards[4:8]+numpy_cards[8:])
+        if params['datatype'] == dt.DataTypes.NINECARD:
+            for category in dt.Globals.HAND_TYPE_DICT.keys():
+                print('category',category)
+                for _ in range(params['maxlen']):
+                    hand,board = self.create_ninecard_handtypes(3)
+                    x_input = np.concatenate([hand,board],axis=0)
+                    hand_strengths[category].append(x_input)
         elif params['datatype'] == dt.DataTypes.FIVECARD:
             for category in dt.Globals.HAND_TYPE_DICT.keys():
                 for _ in range(params['maxlen']):
@@ -118,7 +113,42 @@ class CardDataset(object):
         for i in range(0,9):
             np.save(os.path.join(params['save_path'],f'Hand_type_{dt.Globals.HAND_TYPE_DICT[i]}'),hand_strengths[i])
 
-    def create_handtypes(self,category):
+    def create_ninecard_handtypes(self,category):
+        """
+        Grab 5 cards representing that handtype, then split into hand/board and add cards, 
+        if handtype hasn't changed store hand.
+        """
+        initial_cards = self.create_handtypes(category)
+        flat_card_vector = to_52_vector(initial_cards)
+        remaining_deck = list(set(self.deck) - set(flat_card_vector))
+        extra_cards_52 = np.random.choice(remaining_deck,4,replace=False)
+        extra_cards_2d = to_2d(extra_cards_52)
+        hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
+        board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+        en_hand = [encode(c) for c in hand]
+        en_board = [encode(c) for c in board]
+        print(flat_card_vector)
+        print(remaining_deck)
+        print(extra_cards_52)
+        print(extra_cards_2d)
+        print(initial_cards)
+        print(hand,board)
+        hand_strength = hand_rank(en_hand,en_board)
+        hand_type = CardDataset.find_strength(hand_strength)
+        while hand_type != category:
+            extra_cards_52 = np.random.choice(remaining_deck,4,replace=False)
+            extra_cards_2d = to_2d(extra_cards_52)
+            hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
+            board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+            en_hand = [encode(c) for c in hand]
+            en_board = [encode(c) for c in board]
+            # print(hand,board)
+            hand_strength = hand_rank(en_hand,en_board)
+            hand_type = CardDataset.find_strength(hand_strength)
+        return hand,board
+
+        
+    def create_handtypes(self,category,randomize=True):
         switcher = {
             0: self.straight_flush,
             1: self.quads,
@@ -130,7 +160,8 @@ class CardDataset(object):
             7: self.one_pair,
             8: self.high_card
         }
-        np.random.shuffle(self.fivecard_indicies)
+        if randomize == True:
+            np.random.shuffle(self.fivecard_indicies)
         return np.transpose(switcher[category]()[:,self.fivecard_indicies])
          
     def straight_flush(self):
@@ -164,7 +195,7 @@ class CardDataset(object):
     def flush(self):
         ranks4 = np.random.choice(self.rank_types,4,replace=False)
         if np.max(ranks4) - np.min(ranks4) == 4:
-            untouchables = set(ranks4) & set((np.max(ranks4)+1,np.min(ranks4)-1)) & set(self.rank_types)
+            untouchables = set(ranks4) | set((np.max(ranks4)+1,np.min(ranks4)-1)) & set(self.rank_types)
             possible = set(self.rank_types) - set(untouchables)
         else:
             possible = set(self.rank_types) - set(ranks4)
