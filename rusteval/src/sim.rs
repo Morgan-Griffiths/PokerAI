@@ -29,6 +29,24 @@ pub extern fn hand_with_board_rank(hand: *const [c_long; 4], board: *const [c_lo
     unsafe { best_rank_w_board(*hand, *board) }
 }
 
+#[no_mangle]
+pub extern fn holdem_hand_with_board_rank(hand: *const [c_long; 2], board: *const [c_long; 5]) -> c_int {
+    unsafe { holdem_best_rank_w_board(*hand, *board) }
+}
+
+#[no_mangle]
+pub extern fn holdem_winner(hand1: *const [c_long; 2], hand2: *const [c_long; 2], board: *const [c_long; 5]) -> c_int {
+    let rank1 = unsafe { holdem_best_rank_w_board(*hand1, *board) };
+    let rank2 = unsafe { holdem_best_rank_w_board(*hand2, *board) };
+    if rank1 < rank2 {
+        0
+    } else if rank1 > rank2 {
+        1
+    } else {
+        -1
+    }
+}
+
 fn run_hand_vs_hand(hand1: [c_long; 4], hand2: [c_long; 4], deck: &mut [c_long; 44], iterations: c_int) -> c_float {
     let mut wins = 0;
     for _ in 0..iterations {
