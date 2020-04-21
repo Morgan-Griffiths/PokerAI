@@ -1,3 +1,5 @@
+import numpy as np
+
 class Modes(object):
     TRAIN = 'train'
     BUILD = 'build'
@@ -73,7 +75,37 @@ class Globals(object):
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
     }
-
+    # 7462-6185 High card
+    # 6185-3325 Pair
+    # 3325-2467 2Pair
+    # 2467-1609 Trips
+    # 1609-1599  Stright
+    # 1599-322 Flush
+    # 322-166  FH
+    # 166-10 Quads
+    # 10-0 Str8 flush
+    HAND_STRENGTH_SAMPLING = {
+        0:np.random.choice(np.arange(10)),
+        1:np.random.choice(np.arange(10,166)),
+        2:np.random.choice(np.arange(166,322)),
+        3:np.random.choice(np.arange(322,1599)),
+        4:np.random.choice(np.arange(1599,1609)),
+        5:np.random.choice(np.arange(1609,2467)),
+        6:np.random.choice(np.arange(2467,3325)),
+        7:np.random.choice(np.arange(3325,6185)),
+        8:np.random.choice(np.arange(6185,7463)),
+    }
+    HAND_CATEGORY_EXAMPLES = {
+                0:10,
+                1:156,
+                2:156,
+                3:1277,
+                4:10,
+                5:858,
+                6:858,
+                7:2860,
+                8:1277
+            }
 """
 High is noninclusive
 """

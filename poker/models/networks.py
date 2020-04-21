@@ -938,7 +938,63 @@ class HandRankClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(2048,7463)
+        self.categorical_output = nn.Linear(2048,self.nA)
+
+    def forward(self,x):
+        # Input is (b,5,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        return self.categorical_output(x)
+
+################################################
+#            Partial hand regression           #
+################################################
+
+class PartialHandRegression(nn.Module):
+    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
         # Input is (b,5,2)

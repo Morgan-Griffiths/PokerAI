@@ -25,9 +25,12 @@ class CardDataset(object):
         if params['datatype'] == dt.DataTypes.THIRTEENCARD:
             trainX,trainY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
             valX,valY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
-        if params['datatype'] == dt.DataTypes.TENCARD:
+        elif params['datatype'] == dt.DataTypes.TENCARD:
             trainX,trainY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
             valX,valY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
+        elif params['datatype'] == dt.DataTypes.PARTIAL:
+            trainX,trainY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['train']])
+            valX,valY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['test']])
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -183,15 +186,17 @@ class CardDataset(object):
         X = []
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
-            for _ in range(iterations):
-                ninecards = self.create_ninecard_handtypes(category)
+            for _ in range(iterations // 9):
+                hero_hand,board = self.create_ninecard_handtypes(category)
+                ninecards = np.concatenate([hero_hand,board],axis=0)
                 flat_card_vector = to_52_vector(ninecards)
-                available_cards = list(set(flat_card_vector).difference(set(self.rank_types)))
+                available_cards = list(set(self.deck) - set(flat_card_vector))
                 flat_vil_hand = np.random.choice(available_cards,4,replace=False)
-                vil_hand = to_2d(flat_vil_hand)
-                hero_hand = ninecards[:4]
-                board = ninecards[4:]
-                result = winner(hero_hand,vil_hand,board)
+                vil_hand = np.array(to_2d(flat_vil_hand))
+                en_hand = [encode(c) for c in hero_hand]
+                en_vil = [encode(c) for c in vil_hand]
+                en_board = [encode(c) for c in board]
+                result = winner(en_hand,en_vil,en_board)
                 # hand + board at all stages. Shuffle cards so its more difficult for network
                 np.random.shuffle(hero_hand)
                 pure_hand = np.concatenate([hero_hand,np.zeros((5,2))],axis=0)
