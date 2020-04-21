@@ -10,11 +10,11 @@ pub extern fn winner(hand1: *const [c_long; 4], hand2: *const [c_long; 4], board
     let rank1 = unsafe { best_rank_w_board(*hand1, *board) };
     let rank2 = unsafe { best_rank_w_board(*hand2, *board) };
     if rank1 < rank2 {
-        0
-    } else if rank1 > rank2 {
         1
-    } else {
+    } else if rank1 > rank2 {
         -1
+    } else {
+        0
     }
 }
 
