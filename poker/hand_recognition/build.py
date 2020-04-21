@@ -103,7 +103,13 @@ class CardDataset(object):
                     print('category',category)
                     for _ in range(num_hands):
                         hand,board = self.create_ninecard_handtypes(category)
-                        x_input = np.concatenate([hand,board],axis=0)
+                        hand_indicies = np.arange(4)
+                        board_indicies = np.arange(5)
+                        np.random.shuffle(hand_indicies)
+                        np.random.shuffle(board_indicies)
+                        shuffled_board = board[board_indicies,:]
+                        shuffled_hand = hand[hand_indicies,:]
+                        x_input = np.concatenate([shuffled_hand,shuffled_board],axis=0)
                         hand_strengths[category].append(x_input)
             elif params['datatype'] == dt.DataTypes.FIVECARD:
                 for category in dt.Globals.HAND_TYPE_DICT.keys():

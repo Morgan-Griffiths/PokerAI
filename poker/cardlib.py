@@ -4,9 +4,9 @@ lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
 
 # takes [2,'s'] or [2,1] and returns the cactus kev encoding for that card
 def encode(card):
+    suitnum = card[1]
     if isinstance(card[1],str):
         suitnum = {'s': 0, 'h': 1,'d': 2,'c': 3}.get(card[1], 0)
-    suitnum = card[1]
     return lib.encode(ctypes.c_byte(card[0] - 2), ctypes.c_byte(suitnum))
 
 # takes a cactus kev encoded card and returns a list like [2,'s']

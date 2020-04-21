@@ -216,49 +216,54 @@ class Dueling_QNetwork(nn.Module):
 ################################################
 
 class ThirteenCard(nn.Module):
-    def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(15,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
-        self.hidden_conv_layers = nn.ModuleList()
-        self.hidden_bn_layers = nn.ModuleList()
-        for i in range(params['conv_layers']):
-            self.conv = nn.Conv1d(params['channels'][i], 64, kernel_size=params['kernel'][i], stride=1)
-            self.hidden_conv_layers.append(self.conv)
-            if params['batchnorm'] == True:
-                self.bn = nn.BatchNorm1d(64)
-                self.hidden_bn_layers.append(self.bn)
-            # Output shape is (1,64,9,4,4)
-        self.hidden_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
-            self.hidden_layers.append(hidden_layer)
-        self.value_output = nn.Linear(hidden_dims[-1],1)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(13, 128, kernel_size=1, stride=1),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(13, 128, kernel_size=5, stride=1),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+        )
 
-    def forward(self,state):
-        x = state
-        if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32,device = self.device)
-            # x = x.unsqueeze(0)
-        M = x.size(0)
-        if self.params['permute'] == True:
-            x = x.permute(0,2,1)
-        for i,layer in enumerate(self.hidden_conv_layers):
-            if len(self.hidden_bn_layers):
-                x = self.activation_fc(self.hidden_bn_layers[i](layer(x)))
-            else:
-                x = self.activation_fc(layer(x))
-        # x = self.activation_fc(self.bn2(self.conv2(x)))
-        # x = self.activation_fc(self.bn3(self.conv3(x)))
-        # Flatten layer but retain number of samples
-        x = x.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
-        for hidden_layer in self.hidden_layers:
-            x = self.activation_fc(hidden_layer(x))
-        v = torch.tanh(self.value_output(x))
-        return v
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(128))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(4096,1)
+
+    def forward(self,x):
+        # Input is (b,9,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        return torch.tanh(self.categorical_output(x))
         
 # Emb + fc
 class ThirteenCardV2(nn.Module):
