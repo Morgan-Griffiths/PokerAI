@@ -174,9 +174,15 @@ def train_classification(dataset_params,agent_params,training_params):
 
     print(f'train_shape {train_shape}, train_batch {train_batch}')
     print(f'test_shape {test_shape}, test_batch {test_batch}')
-
-    trainX,trainY = unpack_nparrays(train_shape,train_batch,trainset)
-    valX,valY = unpack_nparrays(test_shape,test_batch,testset)
+    
+    if dataset_params['learning_category'] == dt.LearningCategories.BINARY_CATEGORIZATION:
+        trainX = trainset['trainX']
+        trainY = trainset['trainY']
+        valX = testset['valX']
+        valY = testset['valY']
+    else:
+        trainX,trainY = unpack_nparrays(train_shape,train_batch,trainset)
+        valX,valY = unpack_nparrays(test_shape,test_batch,testset)
     y_handtype_indexes = return_handtype_dict(valX,valY)
     trainloader = return_dataloader(trainX,trainY)
 
@@ -337,7 +343,7 @@ if __name__ == "__main__":
         if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
             train_classification(dataset_params,agent_params,training_params)
         elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
-            pass
+            train_classification(dataset_params,agent_params,training_params)
         elif learning_category == dt.LearningCategories.REGRESSION:
             train_regression(dataset_params,agent_params,training_params)
         else:

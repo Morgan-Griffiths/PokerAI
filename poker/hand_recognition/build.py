@@ -173,13 +173,23 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-
-
     def build_partial(self):
         """
         inputs consistenting of hand + board during all streets
+        target = {-1,0,1}
         """
         pass
+
+    def build_hand_ranks(self):
+        """
+        rank 5 card hands
+        input 5 cards
+        target = {0-7462}
+        """
+        pass
+        # for category in dt.Globals.HAND_TYPE_DICT.keys():
+        #     for _ in range(num_hands):
+        #         hand_strengths[category].append(self.create_handtypes(category))
         
     def create_handtypes(self,category,randomize=True):
         switcher = {

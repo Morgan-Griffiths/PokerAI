@@ -1,5 +1,5 @@
 import hand_recognition.datatypes as dt
-from models.networks import FiveCardClassification,ThirteenCard,ThirteenCardV2,TenCardClassificationV2,HandClassification
+from models.networks import FiveCardClassification,ThirteenCard,ThirteenCardV2,TenCardClassificationV2,HandClassification,BlockerClassification
 from torch.nn import CrossEntropyLoss,BCELoss,SmoothL1Loss
 
 class NetworkConfig(object):
@@ -9,7 +9,7 @@ class NetworkConfig(object):
             dt.DataTypes.TENCARD : TenCardClassificationV2,
             dt.DataTypes.THIRTEENCARD : ThirteenCard,
             dt.DataTypes.PARTIAL : 'Not implemented',
-            dt.DataTypes.BLOCKERS : 'Not implemented'
+            dt.DataTypes.BLOCKERS : BlockerClassification
         }
     LossFunctions = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:CrossEntropyLoss,
