@@ -219,6 +219,7 @@ class ThirteenCard(nn.Module):
     def __init__(self,params,hidden_dims=(15,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
+        self.nA = params['nA']
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
@@ -270,6 +271,7 @@ class ThirteenCardV2(nn.Module):
     def __init__(self,params,hidden_dims=(15,64,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
+        self.nA = params['nA']
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
@@ -332,6 +334,7 @@ class ThirteenCardV3(nn.Module):
     def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
+        self.nA = params['nA']
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
