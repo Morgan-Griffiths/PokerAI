@@ -192,6 +192,24 @@ class CardDataset(object):
                 hero_hand = ninecards[:4]
                 board = ninecards[4:]
                 result = winner(hero_hand,vil_hand,board)
+                # hand + board at all stages. Shuffle cards so its more difficult for network
+                np.random.shuffle(hero_hand)
+                pure_hand = np.concatenate([hero_hand,np.zeros((5,2))],axis=0)
+                np.random.shuffle(hero_hand)
+                hand_flop = np.concatenate([hero_hand,board[:3],np.zeros((2,2))],axis=0)
+                np.random.shuffle(hero_hand)
+                hand_turn = np.concatenate([hero_hand,board[:4],np.zeros((1,2))],axis=0)
+                X.append(pure_hand)
+                X.append(hand_flop)
+                X.append(hand_turn)
+                X.append(ninecards)
+                y.append(result)
+                y.append(result)
+                y.append(result)
+                y.append(result)
+        X = np.stack(X)
+        y = np.stack(y)[:,None]
+        return X,y
 
 
     def build_hand_ranks(self,multiplier):

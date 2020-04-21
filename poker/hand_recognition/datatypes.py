@@ -37,7 +37,7 @@ class Globals(object):
     DatasetCategories = {
         DataTypes.FIVECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
-        DataTypes.S : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.HANDRANKS : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.TENCARD : LearningCategories.REGRESSION,
         DataTypes.THIRTEENCARD : LearningCategories.REGRESSION,
         DataTypes.PARTIAL : LearningCategories.REGRESSION,
@@ -56,14 +56,22 @@ class Globals(object):
         'val' : 'val_set_size'
     }
     ACTION_SPACES = {
-        LearningCategories.MULTICLASS_CATEGORIZATION:9,
-        LearningCategories.BINARY_CATEGORIZATION:1,
-        LearningCategories.REGRESSION:1,
+        DataTypes.FIVECARD:9,
+        DataTypes.NINECARD:9,
+        DataTypes.HANDRANKS:7463,
+        DataTypes.BLOCKERS:1,
+        DataTypes.THIRTEENCARD:1,
+        DataTypes.TENCARD:1,
+        DataTypes.PARTIAL:1
     }
     LABEL_DICT = {
-        LearningCategories.BINARY_CATEGORIZATION:{0:'No Blocker',1:'Blocker'},
-        LearningCategories.MULTICLASS_CATEGORIZATION:HAND_TYPE_DICT,
-        LearningCategories.REGRESSION : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
+        DataTypes.BLOCKERS :{0:'No Blocker',1:'Blocker'},
+        DataTypes.FIVECARD : HAND_TYPE_DICT,
+        DataTypes.NINECARD : HAND_TYPE_DICT,
+        DataTypes.HANDRANKS : {i:i for i in range(7463)},
+        DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
+        DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
+        DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
     }
 
 """

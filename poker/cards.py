@@ -159,9 +159,10 @@ def train_network(data_dict,agent_params,training_params):
                 inputs = unspool(inputs)
             if training_params['one_hot'] == True:
                 inputs = torch.nn.functional.one_hot(inputs)
-            val_preds = net(inputs)
-            val_loss = criterion(val_preds, data_dict['valY'][mask])
-            print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
+            if inputs.size(0) > 0:
+                val_preds = net(inputs)
+                val_loss = criterion(val_preds, data_dict['valY'][mask])
+                print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
         net.train()
     torch.save(net.state_dict(), training_params['save_path'])
 
@@ -181,6 +182,13 @@ def train_classification(dataset_params,agent_params,training_params):
         valX = testset['valX']
         valY = testset['valY']
         y_handtype_indexes = return_handtype_dict(valX,valY,{0:0,1:1})
+    elif dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
+        print('handranks')
+        trainX = trainset['trainX']
+        trainY = trainset['trainY'].long()
+        valX = testset['valX']
+        valY = testset['valY'].long()
+        y_handtype_indexes = return_handtype_dict(valX,valY,{i:i for i in range(7463)})
     else:
         trainX,trainY = unpack_nparrays(train_shape,train_batch,trainset)
         valX,valY = unpack_nparrays(test_shape,test_batch,testset)
@@ -326,7 +334,7 @@ if __name__ == "__main__":
     network_params = {
         'seed':346,
         'state_space':(13,2),
-        'nA':dt.Globals.ACTION_SPACES[learning_category],
+        'nA':dt.Globals.ACTION_SPACES[args.datatype],
         'channels':13,
         'kernel':2,
         'batchnorm':True,
@@ -339,7 +347,7 @@ if __name__ == "__main__":
         'criterion':NetworkConfig.LossFunctions[dataset_params['learning_category']],
         'network': network,
         'save_path':network_path,
-        'labels':dt.Globals.LABEL_DICT[learning_category]
+        'labels':dt.Globals.LABEL_DICT[args.datatype]
     }
     multitrain_params = {
         'conversion_list':[False],#,False],#[,True],
@@ -354,9 +362,9 @@ if __name__ == "__main__":
         check_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating {network_name} on {args.datatype}, {dataset_params["learning_category"]}')
-        if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
+        if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
             train_classification(dataset_params,agent_params,training_params)
-        elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
+        elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
             train_classification(dataset_params,agent_params,training_params)
         elif learning_category == dt.LearningCategories.REGRESSION:
             train_regression(dataset_params,agent_params,training_params)
