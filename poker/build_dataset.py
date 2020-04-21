@@ -69,10 +69,14 @@ if __name__ == "__main__":
     #     print(f'Hand {hand}, Category {handtype}')
 
     dataset = CardDataset(dataset_params)
-    if args.datatype == dt.DataTypes.NINECARD or args.datatype == dt.DataTypes.FIVECARD:
+    if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
-    elif args.datatype == dt.DataTypes.THIRTEENCARD or args.datatype == dt.DataTypes.TENCARD:
+    elif learning_category == dt.LearningCategories.REGRESSION:
         trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
+        save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])
+    elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
+        trainX,trainY = dataset.build_blockers(dataset_params['train_set_size'])
+        valX,valY = dataset.build_blockers(dataset_params['test_set_size'])
         save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])
     else:
         raise ValueError(f'{args.datatype} datatype not understood')

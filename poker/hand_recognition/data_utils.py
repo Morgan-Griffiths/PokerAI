@@ -6,7 +6,6 @@ import hand_recognition.datatypes as dt
 from hand_recognition.build import CardDataset
 from utils import torch_where
 
-
 def return_handtype_dict(X:torch.tensor,y:torch.tensor,target_dict=dt.Globals.HAND_TYPE_DICT):
     type_dict = {}
     print(np.unique(y,return_counts=True))

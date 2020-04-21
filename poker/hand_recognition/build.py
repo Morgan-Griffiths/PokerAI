@@ -44,14 +44,7 @@ class CardDataset(object):
             hand1 = encoded_cards[:4]
             hand2 = encoded_cards[4:8]
             board = encoded_cards[8:]
-            hand1_rank = hand_rank(hand1, board)
-            hand2_rank = hand_rank(hand2, board)
-            if hand1_rank > hand2_rank:
-                result = 1
-            elif hand1_rank < hand2_rank:
-                result = -1
-            else:
-                result = 0
+            result = winner(hand1,hand2,board)
             if encoding == '2d':
                 cards2d = convert_numpy_to_2d(cards)
                 X.append(cards2d)
@@ -110,12 +103,7 @@ class CardDataset(object):
                     print('category',category)
                     for _ in range(num_hands):
                         hand,board = self.create_ninecard_handtypes(category)
-                        hand_indicies = np.arange(4)
-                        board_indicies = np.arange(5)
-                        np.random.shuffle(hand_indicies)
-                        np.random.shuffle(board_indicies)
-                        shuffled_board = board[board_indicies,:]
-                        shuffled_hand = hand[hand_indicies,:]
+                        shuffled_hand,shuffled_board = CardDataset.shuffle_hand_board(hand,board)
                         x_input = np.concatenate([shuffled_hand,shuffled_board],axis=0)
                         hand_strengths[category].append(x_input)
             elif params['datatype'] == dt.DataTypes.FIVECARD:
@@ -155,11 +143,37 @@ class CardDataset(object):
             hand_type = CardDataset.find_strength(hand_strength)
         return hand,board
 
-    def build_blockers(self):
+    def build_blockers(self,iterations):
         """
         board always flush. Hand either has A blocker or A no blocker. Never has flush
         """
-        pass
+        X = []
+        y = []
+        for _ in range(iterations):
+            ranks = np.arange(2,14)
+            board = np.random.choice(ranks,5,replace=False)
+            board_suits = np.full(5,np.random.choice(self.suit_types))
+            hand = np.random.choice(ranks,3,replace=False)
+            board_suit = set(board_suits)
+            other_suits = set(self.suit_types).difference(board_suit)
+            hand_suits = np.random.choice(list(other_suits),3)
+            ace = np.array([14])
+            ace_suit_choices = [list(board_suit)[0],list(other_suits)[0]]
+            ace_suit = np.random.choice(ace_suit_choices,1)
+            hand_ranks = np.hstack((ace,hand))
+            hand_suits = np.hstack((ace_suit,hand_suits))
+            hand = np.stack((hand_ranks,hand_suits),axis=-1)
+            board = np.stack((board,board_suits),axis=-1)
+            shuffled_hand,shuffled_board = CardDataset.shuffle_hand_board(hand,board)
+            result = 1 if ace_suit == board_suit else 0
+            X_input = np.concatenate([shuffled_hand,shuffled_board],axis=0)
+            X.append(X_input)
+            y.append(result)
+        X = np.stack(X)
+        y = np.stack(y)[:,None]
+        return X,y
+
+
 
     def build_partial(self):
         """
@@ -294,6 +308,15 @@ class CardDataset(object):
         hand = np.stack((ranks,suits))
         return hand
 
+    @staticmethod
+    def shuffle_hand_board(hand,board):
+        hand_indicies = np.arange(4)
+        board_indicies = np.arange(5)
+        np.random.shuffle(hand_indicies)
+        np.random.shuffle(board_indicies)
+        shuffled_board = board[board_indicies,:]
+        shuffled_hand = hand[hand_indicies,:]
+        return shuffled_hand,shuffled_board
 
     @staticmethod
     def find_strength(strength):

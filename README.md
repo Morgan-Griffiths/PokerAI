@@ -22,6 +22,17 @@ cargo build --release
 
 A series of poker environments that cover each of the individual complexities of poker, allowing one to test networks and learning architectures quickly and easily starting from the simpliest env all the way to real world poker. The goal is a single API that interfaces with the training architecture for the agent such that you can scale the complexity as needed. Asserting that the learning algorithm learns at all stages.
 
+# Using the library
+
+Build the data and all the folders by ```python setup.py```
+
+Build a specific dataset with ```python build_dataset.py -d <dataset>```
+
+Modify poker/models/network_config.py to change which network to train. Add or modify poker/models/networks.py to try different models.
+
+Train a network (loaded from network_config) on a dataset with ```python cards.py -d <dataset> -M train```
+Examine a network's output (loaded from network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
+
 # Poker Environments
 
 There are a number of environments, each increasing in complexity.
