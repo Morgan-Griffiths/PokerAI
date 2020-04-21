@@ -3,38 +3,55 @@ import numpy as np
 import os
 
 import hand_recognition.datatypes as dt
-from hand_recognition.build_data import CardDataset
+from hand_recognition.build import CardDataset
 from utils import torch_where
 
 
-def return_handtype_dict(X:torch.tensor,y:torch.tensor):
+def return_handtype_dict(X:torch.tensor,y:torch.tensor,target_dict=dt.Globals.HAND_TYPE_DICT):
     type_dict = {}
-    for key in dt.Globals.HAND_TYPE_DICT.keys():
-        # print('key',key)
-        if key == 0:
-            mask = torch.zeros_like(y)
-            mask[(y == 0).nonzero().unsqueeze(0)] = 1
-            type_dict[key] = mask
-        else:
-            type_dict[key] = torch_where(y==key,y)
-        assert(torch.max(type_dict[key]).item() == 1)
+    print(np.unique(y,return_counts=True))
+    for key in target_dict.keys():
+        type_dict[key] = torch.tensor(np.where(y.numpy() == key)[0])
     return type_dict
 
-def load_data(dir_path='data/predict_winner'):
+
+def load_data(dir_path):
+    """
+    loads train,test folder numpy data from parent dir
+    """
+    print(dir_path)
     data = {}
-    for f in os.listdir(dir_path):
-        if f != '.DS_store':
-            name = os.path.splitext(f)[0]
-            data[name] = torch.Tensor(np.load(os.path.join(dir_path,f)))
+    for folder in os.listdir(dir_path):
+        if folder != '.DS_store':
+            for f in os.listdir(os.path.join(dir_path,folder)):
+                name = os.path.splitext(f)[0]
+                data[name] = torch.Tensor(np.load(os.path.join(dir_path,folder,f)))
     return data
 
-def save_data(trainX,trainY,valX,valY,params):
-    if not os.path.isdir(params['save_path']):
-        os.makedirs(params['save_path'])
-    np.save(f"{params['save_path']}/trainX",trainX)
-    np.save(f"{params['save_path']}/trainY",trainY)
-    np.save(f"{params['save_path']}/valX",valX)
-    np.save(f"{params['save_path']}/valY",valY)
+def load_handtypes(dir_path):
+    """
+    loads train,test folder numpy data from parent dir
+    """
+    data = {}
+    for folder in os.listdir(dir_path):
+        if folder != '.DS_store':
+            data[folder] = {}
+            print(folder)
+            for f in os.listdir(os.path.join(dir_path,folder)):
+                name = os.path.splitext(f)[0]
+                data[folder][name] = torch.Tensor(np.load(os.path.join(dir_path,folder,f)))
+    return data
+
+def save_data(trainX,trainY,valX,valY,parent_dir):
+    """
+    saves train,test folder numpy data from parent dir
+    """
+    if not os.path.isdir(parent_dir):
+        os.makedirs(parent_dir)
+    np.save(f"{os.path.join(parent_dir,'train')}/trainX",trainX)
+    np.save(f"{os.path.join(parent_dir,'train')}/trainY",trainY)
+    np.save(f"{os.path.join(parent_dir,'test')}/valX",valX)
+    np.save(f"{os.path.join(parent_dir,'test')}/valY",valY)
 
 def unpack_nparrays(shape,batch,data):
     """
@@ -53,3 +70,14 @@ def unpack_nparrays(shape,batch,data):
         i += 1
     print('Numpy data uniques and counts ',np.lib.arraysetops.unique(Y,return_counts=True))
     return torch.tensor(X).float(),torch.tensor(Y).long()
+
+def return_handtype_data_shapes(dataset:dict):
+    """
+    Assumes each handtype is weighted equally
+    """
+    for key in dataset.keys():
+        trm,trh,trw = dataset[key].size()
+        break
+    train_shape = (trm*9,trh,trw)
+    train_batch = trm
+    return train_shape,train_batch

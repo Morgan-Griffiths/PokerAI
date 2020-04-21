@@ -16,6 +16,10 @@ def hard_update(source,target):
     for target_param,param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
 
+################################################
+#                Helper Layers                 #
+################################################
+
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):
         super().__init__()
@@ -117,6 +121,10 @@ class TransformerBlock(nn.Module):
         feedforward = self.ff(x)
         return self.norm2(feedforward + x)
 
+################################################
+#                Kuhn Networks                 #
+################################################
+
 class Baseline(nn.Module):
     def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super(Baseline,self).__init__()
@@ -203,10 +211,13 @@ class Dueling_QNetwork(nn.Module):
         q = v + a - a.mean(1,keepdim=True).expand_as(a)
         return q
 
-# Conv + FC
-class CardClassification(nn.Module):
+################################################
+#           13 card winner prediction          #
+################################################
+
+class ThirteenCard(nn.Module):
     def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
-        super(CardClassification,self).__init__()
+        super().__init__()
         self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
@@ -236,7 +247,6 @@ class CardClassification(nn.Module):
         if self.params['permute'] == True:
             x = x.permute(0,2,1)
         for i,layer in enumerate(self.hidden_conv_layers):
-            # print(x.size())
             if len(self.hidden_bn_layers):
                 x = self.activation_fc(self.hidden_bn_layers[i](layer(x)))
             else:
@@ -251,9 +261,9 @@ class CardClassification(nn.Module):
         return v
         
 # Emb + fc
-class CardClassificationV2(nn.Module):
+class ThirteenCardV2(nn.Module):
     def __init__(self,params,hidden_dims=(44,64,572),activation_fc=F.relu):
-        super(CardClassificationV2,self).__init__()
+        super().__init__()
         self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
@@ -286,9 +296,9 @@ class CardClassificationV2(nn.Module):
         return v
 
 # Conv + multiheaded attention
-class CardClassificationV3(nn.Module):
+class ThirteenCardV3(nn.Module):
     def __init__(self,params,hidden_dims=(64,32),activation_fc=F.relu):
-        super(CardClassificationV3,self).__init__()
+        super().__init__()
         self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
@@ -331,9 +341,13 @@ class CardClassificationV3(nn.Module):
 #           Hand type categorization           #
 ################################################
 
+################################################
+#           Nine Card categorization           #
+################################################
+
 # Emb + fc
 class HandClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(44,64,64),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
         super(HandClassification,self).__init__()
         self.params = params
         self.nA = params['nA']
@@ -341,34 +355,42 @@ class HandClassification(nn.Module):
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         
-        self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
-        self.public_rank_emb = Embedder(15,32)
-        self.public_suit_emb = Embedder(4,12)
-        
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(9))
+            self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(576,self.nA)
+        self.categorical_output = nn.Linear(2048,self.nA)
 
-    def forward(self,state):
-        x = state
-        if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32,device = self.device)
-            # x = x.unsqueeze(0)
-        M = x.size(0)
-        hand = x[:,:4,:].long()
-        ranks = self.rank_emb(hand[:,:,0])
-        suits = self.suit_emb(hand[:,:,1])
-        hand_embs = torch.cat((ranks,suits),dim=-1)
-        board = x[:,4:,:].long()
-        board_ranks = self.public_rank_emb(board[:,:,0])
-        board_suits = self.public_suit_emb(board[:,:,1])
-        board_embs = torch.cat((board_ranks,board_suits),dim=-1)
-        x = torch.cat((hand_embs,board_embs),dim=1)
+    def forward(self,x):
+        # Input is (b,9,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
 
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
@@ -402,7 +424,6 @@ class HandClassificationV2(nn.Module):
             x = torch.tensor(x,dtype=torch.float32,device = self.device)
             # x = x.unsqueeze(0)
         # generate position embeddings
-        # print(positions.size())
         ranks = self.rank_emb(x[:,:,0].long())
         suits = self.suit_emb(x[:,:,1].long())
 
@@ -530,6 +551,53 @@ class FiveCardClassification(nn.Module):
         self.rank_conv = nn.Conv1d(5, 64, kernel_size=5, stride=1)
         self.rank_bn = nn.BatchNorm1d(64)
         # Output shape is (b,64,9) or (b,64,11) 
+        self.rank_output = nn.Linear(11,32)
+        self.suit_output = nn.Linear(4,12)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(1792,self.nA)
+
+    def forward(self,x):
+        # Input is M,5,2
+        assert(isinstance(x,torch.Tensor))
+        M = x.size(0)
+        ranks = x[:,:,0]
+        suits = x[:,:,1]
+        hot_ranks = self.one_hot_ranks[ranks.long()]
+        hot_suits = self.one_hot_suits[suits.long()]
+
+        s = self.activation_fc(self.suit_bn(self.suit_conv(hot_suits.float())))
+        s = self.activation_fc(self.suit_output(s))
+
+        r = self.activation_fc(self.rank_bn(self.rank_conv(hot_ranks.float())))
+        r = self.activation_fc(self.rank_output(r))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            # r = self.activation_fc(hidden_layer(r))
+            r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
+        r = r.view(M,-1)
+        s = s.view(M,-1)
+        x = torch.cat((s,r),dim=-1)
+        # x = self.dropout(x) 
+        return self.categorical_output(x)
+
+# 3d conv2d
+class FiveCardClassificationV2(nn.Module):
+    def __init__(self,params,hidden_dims=(32,32,16),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        # Input is (b,5,2) -> (b,5,13) or (b,5,15)
+        self.rank_conv = nn.Conv2d(5, 64, kernel_size=5, stride=1)
+        self.rank_bn = nn.BatchNorm2d(64)
+        # Output shape is (b,64,9) or (b,64,11) 
         self.rank_output = nn.Linear(10,32)
         self.suit_output = nn.Linear(4,12)
         self.hidden_layers = nn.ModuleList()
@@ -540,6 +608,188 @@ class FiveCardClassification(nn.Module):
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
         self.categorical_output = nn.Linear(1792,self.nA)
+
+    def forward(self,x):
+        # Input is M,5,2
+        assert(isinstance(x,torch.Tensor))
+        M = x.size(0)
+        ranks = x[:,:,0]
+        suits = x[:,:,1]
+        three_d = torch.zeros(M,5,dt.RANKS.HIGH,dt.SUITS.HIGH)
+        # (b,5,13)
+        for j in range(M):
+            for i in range(5):
+                three_d[j,i,ranks[j,i],suits[j,i]] = 1
+        r = self.activation_fc(self.rank_bn(self.rank_conv(three_d.float())))
+        r = self.activation_fc(self.rank_output(r))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            # r = self.activation_fc(hidden_layer(r))
+            r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
+        r = r.view(M,-1)
+        return self.categorical_output(x)
+
+################################################
+#           tencard categorization             #
+################################################
+
+# Convolve each hand separately
+class TenCardClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(32,32,16),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,5,2) -> (b,5,4)
+        self.suit_conv = nn.Conv1d(5, 64, kernel_size=1, stride=1)
+        self.suit_bn = nn.BatchNorm1d(64)
+        # Output shape is (b,64,1) 
+        # Input is (b,5,2) -> (b,5,13) or (b,5,15)
+        self.rank_conv = nn.Conv1d(5, 64, kernel_size=5, stride=1)
+        self.rank_bn = nn.BatchNorm1d(64)
+        # Output shape is (b,64,9) or (b,64,11) 
+        self.rank_output = nn.Linear(10,32)
+        self.suit_output = nn.Linear(4,12)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.output = nn.Linear(1792,1)
+
+    def forward(self,x):
+        # Input is M,10,2
+        assert(isinstance(x,torch.Tensor))
+        M = x.size(0)
+        ranks1 = x[:,:5,0]
+        suits1 = x[:,:5,1]
+        hot_ranks1 = self.one_hot_ranks[ranks1.long()]
+        hot_suits1 = self.one_hot_suits[suits1.long()]
+        ranks2 = x[:,5:,0]
+        suits2 = x[:,5:,1]
+        hot_ranks2 = self.one_hot_ranks[ranks2.long()]
+        hot_suits2 = self.one_hot_suits[suits2.long()]
+
+        s1 = self.activation_fc(self.suit_bn(self.suit_conv(hot_suits1.float())))
+        s1 = self.activation_fc(self.suit_output(s1))
+
+        s2 = self.activation_fc(self.suit_bn(self.suit_conv(hot_suits2.float())))
+        s2 = self.activation_fc(self.suit_output(s2))
+
+        r1 = self.activation_fc(self.rank_bn(self.rank_conv(hot_ranks1.float())))
+        r1 = self.activation_fc(self.rank_output(r1))
+
+        r2 = self.activation_fc(self.rank_bn(self.rank_conv(hot_ranks2.float())))
+        r2 = self.activation_fc(self.rank_output(r2))
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            # r = self.activation_fc(hidden_layer(r))
+            r1 = self.activation_fc(self.bn_layers[i](hidden_layer(r1)))
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            # r = self.activation_fc(hidden_layer(r))
+            r2 = self.activation_fc(self.bn_layers[i](hidden_layer(r2)))
+
+        r1 = r1.view(M,-1)
+        s1 = s1.view(M,-1)
+        x1 = torch.cat((s1,r1),dim=-1)
+
+        r2 = r2.view(M,-1)
+        s2 = s2.view(M,-1)
+        x2 = torch.cat((s2,r2),dim=-1)
+
+        # x = self.dropout(x) 
+        return torch.tanh(self.output(x1 - x2))
+
+# Convolving everything at once
+class TenCardClassificationV2(nn.Module):
+    def __init__(self,params,hidden_dims=(32,32,16),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,5,2) -> (b,5,4)
+        self.suit_conv = nn.Conv1d(10, 64, kernel_size=1, stride=1)
+        self.suit_bn = nn.BatchNorm1d(64)
+        # Output shape is (b,64,1) 
+        # Input is (b,5,2) -> (b,5,13) or (b,5,15)
+        self.rank_conv = nn.Conv1d(10, 64, kernel_size=5, stride=1)
+        self.rank_bn = nn.BatchNorm1d(64)
+        # Output shape is (b,64,9) or (b,64,11) 
+        self.rank_output = nn.Linear(11,32)
+        self.suit_output = nn.Linear(4,12)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(1792,1)
+
+    def forward(self,x):
+        # Input is M,5,2
+        assert(isinstance(x,torch.Tensor))
+        M = x.size(0)
+        ranks = x[:,:,0]
+        suits = x[:,:,1]
+        hot_ranks = self.one_hot_ranks[ranks.long()]
+        hot_suits = self.one_hot_suits[suits.long()]
+
+        s = self.activation_fc(self.suit_bn(self.suit_conv(hot_suits.float())))
+        s = self.activation_fc(self.suit_output(s))
+
+        r = self.activation_fc(self.rank_bn(self.rank_conv(hot_ranks.float())))
+        r = self.activation_fc(self.rank_output(r))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            # r = self.activation_fc(hidden_layer(r))
+            r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
+        r = r.view(M,-1)
+        s = s.view(M,-1)
+        x = torch.cat((s,r),dim=-1)
+        # x = self.dropout(x) 
+        return torch.tanh(self.categorical_output(x))
+
+# Using 3d convolutions (2d with channels)
+class TenCardClassificationV3(nn.Module):
+    def __init__(self,params,hidden_dims=(32,32,16),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,5,2) -> (b,5,13) or (b,5,15)
+        self.rank_conv = nn.Conv2d(5, 64, kernel_size=(5,4), stride=(1,1))
+        self.rank_bn = nn.BatchNorm2d(64)
+        # Output shape is (b,64,9) or (b,64,11) 
+        self.rank_output = nn.Linear(10,32)
+        self.suit_output = nn.Linear(4,12)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
+            self.hidden_layers.append(hidden_layer)
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(1792,1)
 
     def forward(self,x):
         # Input is M,5,2

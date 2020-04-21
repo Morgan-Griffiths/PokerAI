@@ -22,12 +22,12 @@ class CardDataset(object):
         """
         Hands in test set may or may not match hands in training set.
         """
-        if params['datatype'] == dt.DataTypes.RANDOM:
-            trainX,trainY = self.generate_hands(params['training_set_size'],params['encoding'])
-            valX,valY = self.generate_hands(params['val_set_size'],params['encoding'])
+        if params['datatype'] == dt.DataTypes.THIRTEENCARD:
+            trainX,trainY = self.generate_hands(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
+            valX,valY = self.generate_hands(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
         if params['datatype'] == dt.DataTypes.TENCARD:
-            trainX,trainY = self.build_10card(params['training_set_size'],params['encoding'])
-            valX,valY = self.build_10card(params['val_set_size'],params['encoding'])
+            trainX,trainY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
+            valX,valY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -94,24 +94,26 @@ class CardDataset(object):
         |High Card      |1302540 |1277|
         |TOTAL          |2598960 |7462|
         """
-        
-        hand_strengths = {i:deque(maxlen=params['maxlen']) for i in range(0,9)}
-        if params['datatype'] == dt.DataTypes.NINECARD:
-            for category in dt.Globals.HAND_TYPE_DICT.keys():
-                print('category',category)
-                for _ in range(params['maxlen']):
-                    hand,board = self.create_ninecard_handtypes(3)
-                    x_input = np.concatenate([hand,board],axis=0)
-                    hand_strengths[category].append(x_input)
-        elif params['datatype'] == dt.DataTypes.FIVECARD:
-            for category in dt.Globals.HAND_TYPE_DICT.keys():
-                for _ in range(params['maxlen']):
-                    hand_strengths[category].append(self.create_handtypes(category))
-        else:
-            raise ValueError(f"{params['datatype']} datatype not understood")
-        [print(len(hand_strengths[i])) for i in range(0,9)]
-        for i in range(0,9):
-            np.save(os.path.join(params['save_path'],f'Hand_type_{dt.Globals.HAND_TYPE_DICT[i]}'),hand_strengths[i])
+        for dataset in ['train','test']:
+            save_path = os.path.join(params['save_dir'],dataset)
+            num_hands = params[dt.Globals.INPUT_SET_DICT[dataset]] // 9
+            hand_strengths = {i:deque(maxlen=num_hands) for i in range(0,9)}
+            if params['datatype'] == dt.DataTypes.NINECARD:
+                for category in dt.Globals.HAND_TYPE_DICT.keys():
+                    print('category',category)
+                    for _ in range(num_hands):
+                        hand,board = self.create_ninecard_handtypes(category)
+                        x_input = np.concatenate([hand,board],axis=0)
+                        hand_strengths[category].append(x_input)
+            elif params['datatype'] == dt.DataTypes.FIVECARD:
+                for category in dt.Globals.HAND_TYPE_DICT.keys():
+                    for _ in range(num_hands):
+                        hand_strengths[category].append(self.create_handtypes(category))
+            else:
+                raise ValueError(f"{params['datatype']} datatype not understood")
+            [print(len(hand_strengths[i])) for i in range(0,9)]
+            for i in range(0,9):
+                np.save(os.path.join(save_path,f'Hand_type_{dt.Globals.HAND_TYPE_DICT[i]}'),hand_strengths[i])
 
     def create_ninecard_handtypes(self,category):
         """
@@ -127,12 +129,6 @@ class CardDataset(object):
         board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
         en_hand = [encode(c) for c in hand]
         en_board = [encode(c) for c in board]
-        print(flat_card_vector)
-        print(remaining_deck)
-        print(extra_cards_52)
-        print(extra_cards_2d)
-        print(initial_cards)
-        print(hand,board)
         hand_strength = hand_rank(en_hand,en_board)
         hand_type = CardDataset.find_strength(hand_strength)
         while hand_type != category:
@@ -142,7 +138,6 @@ class CardDataset(object):
             board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
             en_hand = [encode(c) for c in hand]
             en_board = [encode(c) for c in board]
-            # print(hand,board)
             hand_strength = hand_rank(en_hand,en_board)
             hand_type = CardDataset.find_strength(hand_strength)
         return hand,board
@@ -194,8 +189,13 @@ class CardDataset(object):
 
     def flush(self):
         ranks4 = np.random.choice(self.rank_types,4,replace=False)
-        if np.max(ranks4) - np.min(ranks4) == 4:
-            untouchables = set(ranks4) | set((np.max(ranks4)+1,np.min(ranks4)-1)) & set(self.rank_types)
+        # Avoid straight flushes. Wheel is special case
+        if set(ranks4) == set([14,2,3,4]) or set(ranks4) == set([2,3,4,5]) or set(ranks4) == set([14,3,4,5]) or set(ranks4) == set([14,2,4,5]) or set(ranks4) == set([14,2,3,5]):
+            wheel_cards = np.array([14,2,3,4,5,6])
+            untouchables = set(wheel_cards) & set(self.rank_types)
+            possible = set(self.rank_types) - set(untouchables)
+        elif np.max(ranks4) - np.min(ranks4) < 6:
+            untouchables = set(ranks4) | set(np.arange(np.min(ranks4)-1,np.max(ranks4)+2)) & set(self.rank_types)
             possible = set(self.rank_types) - set(untouchables)
         else:
             possible = set(self.rank_types) - set(ranks4)
@@ -230,10 +230,10 @@ class CardDataset(object):
         second_pair = np.full(2,np.random.choice(list(set(self.rank_types).difference(set(first_pair)))))
         other_rank = np.random.choice(list(set(self.rank_types).difference(set(first_pair)|set(second_pair))))
         ranks = np.hstack((first_pair,second_pair,other_rank))
-        two_suits = np.random.choice(self.suit_types,2,replace=False)
-        rest_suits  = np.random.choice(self.suit_types,3,replace=True)
-        suits = np.hstack((two_suits,rest_suits))
-
+        first_pair_suits = np.random.choice(self.suit_types,2,replace=False)
+        second_pair_suits = np.random.choice(self.suit_types,2,replace=False)
+        last_suit  = np.random.choice(self.suit_types,1)
+        suits = np.hstack((first_pair_suits,second_pair_suits,last_suit))
         ranks = np.hstack((first_pair,second_pair,other_rank))
         hand = np.stack((ranks,suits))
         return hand
@@ -243,16 +243,20 @@ class CardDataset(object):
         other_ranks = np.random.choice(list(set(self.rank_types).difference(set(first_pair))),3,replace=False)
         ranks = np.hstack((first_pair,other_ranks))
         suits2 = np.random.choice(self.suit_types,2,replace=False)
-        rest_suits = np.random.choice(self.suit_types,3,replace=False)
+        rest_suits = np.random.choice(self.suit_types,3)
         suits = np.hstack((suits2,rest_suits))
         hand = np.stack((ranks,suits))
         return hand
 
     def high_card(self):
         ranks4 = np.random.choice(self.rank_types,4,replace=False)
-        if np.max(ranks4) - np.min(ranks4) == 4:
-            untouchables = set(ranks4) & set((max(ranks4)+1,min(ranks4)-1)) & set(self.rank_types)
-            possible = set(self.rank_types) - untouchables
+        if set(ranks4) == set([14,2,3,4]) or set(ranks4) == set([2,3,4,5]) or set(ranks4) == set([14,3,4,5]) or set(ranks4) == set([14,2,4,5]) or set(ranks4) == set([14,2,3,5]):
+            wheel_cards = np.array([14,2,3,4,5,6])
+            untouchables = set(wheel_cards) & set(self.rank_types)
+            possible = set(self.rank_types) - set(untouchables)
+        elif np.max(ranks4) - np.min(ranks4) < 6:
+            untouchables = set(ranks4) | set(np.arange(np.min(ranks4)-1,np.max(ranks4)+2)) & set(self.rank_types)
+            possible = set(self.rank_types) - set(untouchables)
         else:
             possible = set(self.rank_types) - set(ranks4)
         last_rank = np.random.choice(list(possible))

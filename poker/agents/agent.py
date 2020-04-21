@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable as V
 from torch import optim
 
-from models.networks import Baseline,Dueling_QNetwork,CardClassification
+from models.networks import Baseline,Dueling_QNetwork
 from models.buffers import PriorityReplayBuffer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

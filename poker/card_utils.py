@@ -1,15 +1,14 @@
 import numpy as np
 import copy
-
+import hand_recognition.datatypes as dt
 
 def convert_numpy_to_rust(vectors):
-    suit_dict = {0:'s',1:'h',2:'d',3:'c'}
     cards = []
     for vector in vectors:
         np_suit = np.floor(np.divide(vector,13)).astype(int)
         rank = np.subtract(vector,np.multiply(np_suit,13))
         rank = np.add(rank,2)
-        suit = suit_dict[np_suit]
+        suit = dt.Globals.SUIT_DICT[np_suit]
         cards.append([rank,suit])
     return cards
 
@@ -34,28 +33,14 @@ def cards_to_planes(cards):
 def suits_to_str(cards):
     new_cards = copy.deepcopy(cards)
     for card in new_cards:
-        if card[1] == 0:
-            card[1] = 's'
-        elif card[1] == 1:
-            card[1] = 'h'
-        elif card[1] == 2:
-            card[1] = 'd'
-        else:
-            card[1] = 'c'
+        card[1] = dt.Globals.SUIT_DICT[card[1]]
     return new_cards
 
 #2d
 def suits_to_num(cards):
     new_cards = copy.deepcopy(cards)
     for card in new_cards:
-        if card[1] == 's':
-            card[1] = 0
-        elif card[1] == 'h':
-            card[1] = 1
-        elif card[1] == 'd':
-            card[1] = 2
-        else:
-            card[1] = 3
+        card[1] = dt.Globals.REVERSE_SUIT_DICT[card[1]]
     return new_cards
 
 #takes 2d vector of numbers, turns into (1,4) matrix of numbers between 0-51
