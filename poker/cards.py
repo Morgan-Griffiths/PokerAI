@@ -212,15 +212,18 @@ def train_regression(dataset_params,agent_params,training_params):
 def check_network(dataset_params,params):
     messages = {
         dt.LearningCategories.REGRESSION:'Enter in a category [0,1,2] to pick the desired result [-1,0,1]',
-        dt.LearningCategories.MULTICLASS_CATEGORIZATION:'Enter in a handtype from 0-8'
+        dt.LearningCategories.MULTICLASS_CATEGORIZATION:'Enter in a handtype from 0-8',
+        dt.LearningCategories.BINARY_CATEGORIZATION:'Enter in a blocker type from 0-1'
     }
     target_mapping = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:{i:i for i in range(9)},
-        dt.LearningCategories.REGRESSION:{i:i-1 for i in range(0,3)}
+        dt.LearningCategories.REGRESSION:{i:i-1 for i in range(0,3)},
+        dt.LearningCategories.BINARY_CATEGORIZATION:{i:i for i in range(0,2)},
     }
     output_mapping = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
-        dt.LearningCategories.REGRESSION:lambda x: x
+        dt.LearningCategories.REGRESSION:lambda x: x,
+        dt.LearningCategories.BINARY_CATEGORIZATION:torch.sigmoid
     }
     output_map = output_mapping[dataset_params['learning_category']]
     mapping = target_mapping[dataset_params['learning_category']]
@@ -235,6 +238,12 @@ def check_network(dataset_params,params):
         test_shape,test_batch = return_handtype_data_shapes(testset)
         valX,valY = unpack_nparrays(test_shape,test_batch,testset)
         y_handtype_indexes = return_handtype_dict(valX,valY)
+    elif dataset_params['learning_category'] == dt.LearningCategories.BINARY_CATEGORIZATION:
+        dataset = load_data(dataset_params['data_path'])
+        target_dict = target_mapping[dataset_params['learning_category']]
+        valX = dataset['valX']
+        valY = dataset['valY']
+        y_handtype_indexes = return_handtype_dict(valX,valY,target_dict)
     elif dataset_params['learning_category'] == dt.LearningCategories.REGRESSION:
         dataset = load_data(dataset_params['data_path'])
         target_dict = {-1:-1,0:0,1:1}

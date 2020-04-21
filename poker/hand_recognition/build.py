@@ -173,14 +173,16 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_partial(self):
+    def build_partial(self,iterations):
         """
         inputs consistenting of hand + board during all streets
         4+padding all the way to the full 9 cards. Always evaluated vs random hand.
         inputs are sorted for data effeciency
         target = {-1,0,1}
         """
-        pass
+        for category in dt.Globals.HAND_TYPE_DICT.keys():
+            for _ in range(iterations):
+                X = self.create_ninecard_handtypes(category)
 
     def build_hand_ranks(self,multiplier):
         """
