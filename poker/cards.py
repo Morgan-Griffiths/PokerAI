@@ -223,7 +223,7 @@ def check_network(dataset_params,params):
     output_mapping = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
         dt.LearningCategories.REGRESSION:lambda x: x,
-        dt.LearningCategories.BINARY_CATEGORIZATION:torch.sigmoid
+        dt.LearningCategories.BINARY_CATEGORIZATION:lambda x: x
     }
     output_map = output_mapping[dataset_params['learning_category']]
     mapping = target_mapping[dataset_params['learning_category']]
