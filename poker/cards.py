@@ -161,7 +161,7 @@ def train_network(data_dict,agent_params,training_params):
                 inputs = torch.nn.functional.one_hot(inputs)
             val_preds = net(inputs)
             val_loss = criterion(val_preds, data_dict['valY'][mask])
-            print(f'test performance on {dt.Globals.HAND_TYPE_DICT[handtype]}: {val_loss}')
+            print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
         net.train()
     torch.save(net.state_dict(), training_params['save_path'])
 
@@ -180,10 +180,11 @@ def train_classification(dataset_params,agent_params,training_params):
         trainY = trainset['trainY']
         valX = testset['valX']
         valY = testset['valY']
+        y_handtype_indexes = return_handtype_dict(valX,valY,{0:0,1:1})
     else:
         trainX,trainY = unpack_nparrays(train_shape,train_batch,trainset)
         valX,valY = unpack_nparrays(test_shape,test_batch,testset)
-    y_handtype_indexes = return_handtype_dict(valX,valY)
+        y_handtype_indexes = return_handtype_dict(valX,valY)
     trainloader = return_dataloader(trainX,trainY)
 
     print(trainX.size(),trainY.size(),valX.size(),valY.size())
@@ -283,6 +284,9 @@ if __name__ == "__main__":
     parser.add_argument('--encode',metavar=[dt.Encodings.TWO_DIMENSIONAL,dt.Encodings.THREE_DIMENSIONAL],
                         help='Encoding of the cards: 2d -> Hand (4,2). 3d -> Hand (4,13,4)',
                         default=dt.Encodings.TWO_DIMENSIONAL,type=str)
+    parser.add_argument('-e','--epochs',
+                        help='Number of training epochs',
+                        default=10,type=int)
 
     args = parser.parse_args()
 
@@ -313,19 +317,20 @@ if __name__ == "__main__":
     network_params = {
         'seed':346,
         'state_space':(13,2),
-        'nA':9,
+        'nA':dt.Globals.ACTION_SPACES[learning_category],
         'channels':13,
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
     }
     training_params = {
-        'epochs':10,
+        'epochs':args.epochs,
         'five_card_conversion':False,
         'one_hot':False,
         'criterion':NetworkConfig.LossFunctions[dataset_params['learning_category']],
         'network': network,
-        'save_path':network_path
+        'save_path':network_path,
+        'labels':dt.Globals.LABEL_DICT[learning_category]
     }
     multitrain_params = {
         'conversion_list':[False],#,False],#[,True],

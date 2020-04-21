@@ -10,6 +10,7 @@ class DataTypes(object):
     TENCARD = 'tencard'
     BLOCKERS = 'blockers'
     PARTIAL = 'partial'
+    HANDRANK = 'handrank'
 
 class Encodings(object):
     TWO_DIMENSIONAL = '2d'
@@ -36,6 +37,7 @@ class Globals(object):
     DatasetCategories = {
         DataTypes.FIVECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.HANDRANK : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.TENCARD : LearningCategories.REGRESSION,
         DataTypes.THIRTEENCARD : LearningCategories.REGRESSION,
         DataTypes.PARTIAL : LearningCategories.REGRESSION,
@@ -52,6 +54,16 @@ class Globals(object):
         'train' : 'train_set_size',
         'test' : 'test_set_size',
         'val' : 'val_set_size'
+    }
+    ACTION_SPACES = {
+        LearningCategories.MULTICLASS_CATEGORIZATION:9,
+        LearningCategories.BINARY_CATEGORIZATION:1,
+        LearningCategories.REGRESSION:1,
+    }
+    LABEL_DICT = {
+        LearningCategories.BINARY_CATEGORIZATION:{0:'No Blocker',1:'Blocker'},
+        LearningCategories.MULTICLASS_CATEGORIZATION:HAND_TYPE_DICT,
+        LearningCategories.REGRESSION : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
     }
 
 """

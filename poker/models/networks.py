@@ -243,7 +243,7 @@ class ThirteenCard(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(128))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(4096,1)
+        self.categorical_output = nn.Linear(4096,self.nA)
 
     def forward(self,x):
         # Input is (b,13,2)
@@ -294,7 +294,7 @@ class ThirteenCardV2(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(2048,1)
+        self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
         # Input is (b,13,2)
@@ -349,7 +349,7 @@ class ThirteenCardV3(nn.Module):
         for i in range(len(hidden_dims)-1):
             hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
             self.hidden_layers.append(hidden_layer)
-        self.value_output = nn.Linear(hidden_dims[-1],1)
+        self.value_output = nn.Linear(hidden_dims[-1],self.nA)
 
     def forward(self,state):
         # Split input into the 60 combinations for both hero+villain
@@ -693,7 +693,7 @@ class TenCardClassification(nn.Module):
             self.hidden_layers.append(hidden_layer)
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.output = nn.Linear(1792,1)
+        self.output = nn.Linear(1792,self.nA)
 
     def forward(self,x):
         # Input is M,10,2
@@ -769,7 +769,7 @@ class TenCardClassificationV2(nn.Module):
             self.hidden_layers.append(hidden_layer)
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(1792,1)
+        self.categorical_output = nn.Linear(1792,self.nA)
 
     def forward(self,x):
         # Input is M,5,2
@@ -820,7 +820,7 @@ class TenCardClassificationV3(nn.Module):
             self.hidden_layers.append(hidden_layer)
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(1792,1)
+        self.categorical_output = nn.Linear(1792,self.nA)
 
     def forward(self,x):
         # Input is M,5,2
@@ -879,7 +879,7 @@ class BlockerClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(2048,1)
+        self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
         # Input is (b,9,2)
@@ -900,3 +900,59 @@ class BlockerClassification(nn.Module):
         x = x.view(M,-1)
         x = self.dropout(x)
         return torch.sigmoid(self.categorical_output(x))
+
+################################################
+#           Hand Rank categorization           #
+################################################
+
+class HandRankClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(2048,7462)
+
+    def forward(self,x):
+        # Input is (b,5,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        return self.categorical_output(x)

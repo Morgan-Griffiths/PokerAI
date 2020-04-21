@@ -165,7 +165,7 @@ class CardDataset(object):
             hand = np.stack((hand_ranks,hand_suits),axis=-1)
             board = np.stack((board,board_suits),axis=-1)
             shuffled_hand,shuffled_board = CardDataset.shuffle_hand_board(hand,board)
-            result = 1 if ace_suit == board_suit else 0
+            result = 1 if ace_suit[0] == list(board_suit) else 0
             X_input = np.concatenate([shuffled_hand,shuffled_board],axis=0)
             X.append(X_input)
             y.append(result)
@@ -176,20 +176,37 @@ class CardDataset(object):
     def build_partial(self):
         """
         inputs consistenting of hand + board during all streets
+        4+padding all the way to the full 9 cards. Always evaluated vs random hand.
+        inputs are sorted for data effeciency
         target = {-1,0,1}
         """
         pass
 
-    def build_hand_ranks(self):
+    def build_hand_ranks(self,multiplier):
         """
         rank 5 card hands
         input 5 cards
         target = {0-7462}
         """
-        pass
-        # for category in dt.Globals.HAND_TYPE_DICT.keys():
-        #     for _ in range(num_hands):
-        #         hand_strengths[category].append(self.create_handtypes(category))
+        Number_of_examples = {
+            0:10,
+            1:156,
+            2:156,
+            3:1277,
+            4:10,
+            5:858,
+            6:858,
+            7:2860,
+            8:1277
+        }
+        X = []
+        y = []
+        for category in dt.Globals.HAND_TYPE_DICT.keys():
+            for _ in range(Number_of_examples[category] * multiplier):
+                hand = self.create_handtypes(category)
+                X.append(hand)
+                y.append(rank(hand))
+        return X,y
         
     def create_handtypes(self,category,randomize=True):
         switcher = {
