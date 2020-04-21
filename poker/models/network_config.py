@@ -10,7 +10,7 @@ class NetworkConfig(object):
             dt.DataTypes.THIRTEENCARD : ThirteenCard,
             dt.DataTypes.PARTIAL : 'Not implemented',
             dt.DataTypes.BLOCKERS : BlockerClassification,
-            dt.DataTypes.HANDRANK : HandRankClassification
+            dt.DataTypes.HANDRANKS : HandRankClassification
         }
     LossFunctions = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:CrossEntropyLoss,

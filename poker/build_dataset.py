@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANK}]",
+                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
                         help='Which dataset to train or build')
     parser.add_argument('-m','--maxlen',
                         help='maxlen of data deques for building data',
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     #     print(f'Hand {hand}, Category {handtype}')
 
     dataset = CardDataset(dataset_params)
-    if dataset_params['datatype'] == dt.DataTypes.HANDRANK:
+    if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
         trainX,trainY = dataset.build_hand_ranks(5)
         valX,valY = dataset.build_hand_ranks(1)
         save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])

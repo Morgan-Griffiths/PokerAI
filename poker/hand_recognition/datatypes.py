@@ -10,7 +10,7 @@ class DataTypes(object):
     TENCARD = 'tencard'
     BLOCKERS = 'blockers'
     PARTIAL = 'partial'
-    HANDRANK = 'handrank'
+    HANDRANKS = 'handranks'
 
 class Encodings(object):
     TWO_DIMENSIONAL = '2d'
@@ -37,7 +37,7 @@ class Globals(object):
     DatasetCategories = {
         DataTypes.FIVECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
-        DataTypes.HANDRANK : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.S : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.TENCARD : LearningCategories.REGRESSION,
         DataTypes.THIRTEENCARD : LearningCategories.REGRESSION,
         DataTypes.PARTIAL : LearningCategories.REGRESSION,

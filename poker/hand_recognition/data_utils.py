@@ -45,8 +45,12 @@ def save_data(trainX,trainY,valX,valY,parent_dir):
     """
     saves train,test folder numpy data from parent dir
     """
-    if not os.path.isdir(parent_dir):
-        os.makedirs(parent_dir)
+    train_dir = os.path.join(parent_dir,'train')
+    test_dir = os.path.join(parent_dir,'test')
+    if not os.path.isdir(train_dir):
+        os.makedirs(train_dir)
+    if not os.path.isdir(test_dir):
+        os.makedirs(test_dir)
     np.save(f"{os.path.join(parent_dir,'train')}/trainX",trainX)
     np.save(f"{os.path.join(parent_dir,'train')}/trainY",trainY)
     np.save(f"{os.path.join(parent_dir,'test')}/valX",valX)

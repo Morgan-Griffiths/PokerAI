@@ -180,9 +180,19 @@ class CardDataset(object):
         inputs are sorted for data effeciency
         target = {-1,0,1}
         """
+        X = []
+        y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(iterations):
-                X = self.create_ninecard_handtypes(category)
+                ninecards = self.create_ninecard_handtypes(category)
+                flat_card_vector = to_52_vector(ninecards)
+                available_cards = list(set(flat_card_vector).difference(set(self.rank_types)))
+                flat_vil_hand = np.random.choice(available_cards,4,replace=False)
+                vil_hand = to_2d(flat_vil_hand)
+                hero_hand = ninecards[:4]
+                board = ninecards[4:]
+                result = winner(hero_hand,vil_hand,board)
+
 
     def build_hand_ranks(self,multiplier):
         """
@@ -206,8 +216,9 @@ class CardDataset(object):
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(Number_of_examples[category] * multiplier):
                 hand = self.create_handtypes(category)
+                en_hand = [encode(c) for c in hand]
                 X.append(hand)
-                y.append(rank(hand))
+                y.append(rank(en_hand))
         return X,y
         
     def create_handtypes(self,category,randomize=True):

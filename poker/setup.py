@@ -26,5 +26,5 @@ os.system('python build_dataset.py -d ninecard -O data/multiclass_categorization
 os.system('python build_dataset.py -d tencard -O data/regression/tencard')
 os.system('python build_dataset.py -d thirteencard -O data/regression/thirteencard')
 os.system('python build_dataset.py -d blockers -O data/binary_categorization/blockers')
+os.system('python build_dataset.py -d handranks -O data/multiclass_categorization/handranks')
 # os.system('python build_dataset.py -d partial -O data/regression/partial')
-# os.system('python build_dataset.py -d handranks -O data/multiclass_categorization/handranks')
