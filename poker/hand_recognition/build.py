@@ -23,8 +23,8 @@ class CardDataset(object):
         Hands in test set may or may not match hands in training set.
         """
         if params['datatype'] == dt.DataTypes.THIRTEENCARD:
-            trainX,trainY = self.generate_hands(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
-            valX,valY = self.generate_hands(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
+            trainX,trainY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
+            valX,valY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
         if params['datatype'] == dt.DataTypes.TENCARD:
             trainX,trainY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
             valX,valY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
@@ -32,7 +32,7 @@ class CardDataset(object):
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
 
-    def generate_hands(self,iterations,encoding):
+    def build_13card(self,iterations,encoding):
         """
         Generates X = (i,13,2) y = [-1,0,1]
         """
@@ -44,7 +44,14 @@ class CardDataset(object):
             hand1 = encoded_cards[:4]
             hand2 = encoded_cards[4:8]
             board = encoded_cards[8:]
-            result = winner(hand1,hand2,board)
+            hand1_rank = hand_rank(hand1, board)
+            hand2_rank = hand_rank(hand2, board)
+            if hand1_rank > hand2_rank:
+                result = 1
+            elif hand1_rank < hand2_rank:
+                result = -1
+            else:
+                result = 0
             if encoding == '2d':
                 cards2d = convert_numpy_to_2d(cards)
                 X.append(cards2d)
@@ -69,13 +76,13 @@ class CardDataset(object):
             hand1_rank = rank(encoded_hand1)
             hand2_rank = rank(encoded_hand2)
             if hand1_rank > hand2_rank:
-                winner = 1
+                result = 1
             elif hand1_rank < hand2_rank:
-                winner = -1
+                result = -1
             else:
-                winner = 0
+                result = 0
             X.append(np.vstack((hand1,hand2)))
-            y.append(winner)
+            y.append(result)
         X = np.stack(X)
         y = np.stack(y)[:,None]
         return X,y
@@ -148,6 +155,17 @@ class CardDataset(object):
             hand_type = CardDataset.find_strength(hand_strength)
         return hand,board
 
+    def build_blockers(self):
+        """
+        board always flush. Hand either has A blocker or A no blocker. Never has flush
+        """
+        pass
+
+    def build_partial(self):
+        """
+        inputs consistenting of hand + board during all streets
+        """
+        pass
         
     def create_handtypes(self,category,randomize=True):
         switcher = {

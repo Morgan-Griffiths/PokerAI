@@ -246,7 +246,7 @@ class ThirteenCard(nn.Module):
         self.categorical_output = nn.Linear(4096,1)
 
     def forward(self,x):
-        # Input is (b,9,2)
+        # Input is (b,13,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
@@ -267,38 +267,65 @@ class ThirteenCard(nn.Module):
         
 # Emb + fc
 class ThirteenCardV2(nn.Module):
-    def __init__(self,params,hidden_dims=(44,64,572),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(15,64,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
-        self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
-        # Output shape is (1,64,9,4,4)
-        self.hidden_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
-            self.hidden_layers.append(hidden_layer)
-        self.value_output = nn.Linear(hidden_dims[-1],1)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+        )
 
-    def forward(self,state):
-        x = state
-        if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32,device = self.device)
-            # x = x.unsqueeze(0)
-        M = x.size(0)
-        ranks = self.rank_emb(state[:,:,0].long())
-        suits = self.suit_emb(state[:,:,1].long())
-        embs = torch.cat((ranks,suits),dim=-1)
-        x = embs
-        # Flatten layer but retain number of samples
-        for hidden_layer in self.hidden_layers:
-            x = self.activation_fc(hidden_layer(x))
-        x = embs.view(M,-1) # * x.shape[2] * x.shape[3] * x.shape[4])
-        v = torch.tanh(self.value_output(x))
-        return v
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.dropout = nn.Dropout(0.5)
+        self.categorical_output = nn.Linear(2048,1)
+
+    def forward(self,x):
+        # Input is (b,13,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+
+        hot_ranks = self.one_hot_ranks[ranks]
+        # (b,13,13)
+        hot_suits = self.one_hot_suits[suits]
+        # (b,13,4)
+        hero_board_ranks = hot_ranks[:,torch.tensor([0,1,2,3,8,9,10,11,12])]
+        hero_board_suits = hot_suits[:,torch.tensor([0,1,2,3,8,9,10,11,12])]
+        vil_board_ranks = hot_ranks[:,4:]
+        vil_board_suits = hot_suits[:,4:]
+        # print(hero_board_ranks.size())
+        # print(hero_board_suits.size())
+        s = self.rank_conv(hero_board_ranks.float())
+        r = self.suit_conv(hero_board_suits.float())
+        x1 = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+        s2 = self.rank_conv(vil_board_ranks.float())
+        r2 = self.suit_conv(vil_board_suits.float())
+        x2 = torch.cat((r2,s2),dim=-1)
+
+        x = x1 - x2
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+        x = x.view(M,-1)
+        x = self.dropout(x)
+        return torch.tanh(self.categorical_output(x))
 
 # Conv + multiheaded attention
 class ThirteenCardV3(nn.Module):
