@@ -183,7 +183,6 @@ def train_classification(dataset_params,agent_params,training_params):
         valY = testset['valY']
         y_handtype_indexes = return_handtype_dict(valX,valY,{0:0,1:1})
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        print('handranks')
         trainX = trainset['trainX']
         trainY = trainset['trainY'].long()
         valX = testset['valX']
@@ -224,9 +223,13 @@ def check_network(dataset_params,params):
         dt.LearningCategories.BINARY_CATEGORIZATION:'Enter in a blocker type from 0-1'
     }
     target_mapping = {
-        dt.LearningCategories.MULTICLASS_CATEGORIZATION:{i:i for i in range(9)},
-        dt.LearningCategories.REGRESSION:{i:i-1 for i in range(0,3)},
-        dt.LearningCategories.BINARY_CATEGORIZATION:{i:i for i in range(0,2)},
+        dt.DataTypes.NINECARD:{i:i for i in range(9)},
+        dt.DataTypes.FIVECARD:{i:i for i in range(9)},
+        dt.DataTypes.HANDRANKS:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.BLOCKERS:{i:i for i in range(0,2)},
     }
     output_mapping = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
@@ -234,13 +237,21 @@ def check_network(dataset_params,params):
         dt.LearningCategories.BINARY_CATEGORIZATION:lambda x: x
     }
     output_map = output_mapping[dataset_params['learning_category']]
-    mapping = target_mapping[dataset_params['learning_category']]
+    mapping = target_mapping[dataset_params['datatype']]
     message = messages[dataset_params['learning_category']]
     examine_params = params['examine_params']
     net = examine_params['network'](params['network_params'])
     net.load_state_dict(torch.load(examine_params['load_path']))
     net.eval()
-    if dataset_params['learning_category'] == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
+    if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
+        dataset = load_handtypes(dataset_params['data_path'])
+        testset = dataset['test']
+        valX = testset['valX']
+        valY = testset['valY']
+        # test_shape,test_batch = return_handtype_data_shapes(testset)
+        # valX,valY = unpack_nparrays(test_shape,test_batch,testset)
+        y_handtype_indexes = return_handtype_dict(valX,valY)
+    elif dataset_params['learning_category'] == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset = load_handtypes(dataset_params['data_path'])
         testset = dataset['test']
         test_shape,test_batch = return_handtype_data_shapes(testset)
@@ -362,9 +373,7 @@ if __name__ == "__main__":
         check_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating {network_name} on {args.datatype}, {dataset_params["learning_category"]}')
-        if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-            train_classification(dataset_params,agent_params,training_params)
-        elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
+        if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
             train_classification(dataset_params,agent_params,training_params)
         elif learning_category == dt.LearningCategories.REGRESSION:
             train_regression(dataset_params,agent_params,training_params)
