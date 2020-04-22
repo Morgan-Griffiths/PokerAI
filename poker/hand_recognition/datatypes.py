@@ -75,6 +75,15 @@ class Globals(object):
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
     }
+    TARGET_DICT = {
+        DataTypes.THIRTEENCARD:set(range(-1,2)),
+        DataTypes.TENCARD:set(range(-1,2)),
+        DataTypes.PARTIAL:set(range(-1,2)),
+        DataTypes.HANDRANKS:set(range(7463)),
+        DataTypes.NINECARD:set(range(9)),
+        DataTypes.FIVECARD:set(range(9)),
+        DataTypes.BLOCKERS:set(range(2)),
+    }
     # 7462-6185 High card
     # 6185-3325 Pair
     # 3325-2467 2Pair
@@ -85,15 +94,15 @@ class Globals(object):
     # 166-10 Quads
     # 10-0 Str8 flush
     HAND_STRENGTH_SAMPLING = {
-        0:np.random.choice(np.arange(10)),
-        1:np.random.choice(np.arange(10,166)),
-        2:np.random.choice(np.arange(166,322)),
-        3:np.random.choice(np.arange(322,1599)),
-        4:np.random.choice(np.arange(1599,1609)),
-        5:np.random.choice(np.arange(1609,2467)),
-        6:np.random.choice(np.arange(2467,3325)),
-        7:np.random.choice(np.arange(3325,6185)),
-        8:np.random.choice(np.arange(6185,7463)),
+        0:lambda : np.random.choice(np.arange(10)),
+        1:lambda : np.random.choice(np.arange(10,166)),
+        2:lambda : np.random.choice(np.arange(166,322)),
+        3:lambda : np.random.choice(np.arange(322,1599)),
+        4:lambda : np.random.choice(np.arange(1599,1609)),
+        5:lambda : np.random.choice(np.arange(1609,2467)),
+        6:lambda : np.random.choice(np.arange(2467,3325)),
+        7:lambda : np.random.choice(np.arange(3325,6185)),
+        8:lambda : np.random.choice(np.arange(6185,7463)),
     }
     HAND_CATEGORY_EXAMPLES = {
                 0:10,

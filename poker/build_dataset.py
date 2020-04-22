@@ -2,7 +2,7 @@ import os
 
 import hand_recognition.datatypes as dt
 from hand_recognition.build import CardDataset
-from hand_recognition.data_utils import unpack_nparrays,load_data,save_data,return_handtype_dict
+from hand_recognition.data_utils import load_data,save_all
 
 if __name__ == "__main__":
     import argparse
@@ -29,6 +29,9 @@ if __name__ == "__main__":
     parser.add_argument('--trainsize',
                         help='Size of train set',
                         default=45000,type=int)
+    parser.add_argument('--valsize',
+                        help='Size of val set',
+                        default=9000,type=int)
     parser.add_argument('--testsize',
                         help='Size of test set',
                         default=9000,type=int)
@@ -52,6 +55,7 @@ if __name__ == "__main__":
 
     dataset_params = {
         'train_set_size':args.trainsize,
+        'val_set_size':args.valsize,
         'test_set_size':args.testsize,
         'encoding':args.encode,
         'maxlen':args.maxlen,
@@ -72,15 +76,15 @@ if __name__ == "__main__":
     if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
         trainX,trainY = dataset.build_hand_ranks(5)
         valX,valY = dataset.build_hand_ranks(1)
-        save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
     elif learning_category == dt.LearningCategories.REGRESSION:
         trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
-        save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
     elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
         trainX,trainY = dataset.build_blockers(dataset_params['train_set_size'])
-        valX,valY = dataset.build_blockers(dataset_params['test_set_size'])
-        save_data(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        valX,valY = dataset.build_blockers(dataset_params['val_set_size'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
     else:
         raise ValueError(f'{args.datatype} datatype not understood')
