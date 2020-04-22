@@ -28,7 +28,7 @@ class mathDataset(Dataset):
 
         return sample
 
-def return_dataloader(X,y):
+def return_trainloader(X,y):
     data = mathDataset(X,y)
     params = {
         'batch_size':2048,

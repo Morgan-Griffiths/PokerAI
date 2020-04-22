@@ -5,6 +5,7 @@ import os
 from random import shuffle
 
 import hand_recognition.datatypes as dt
+from hand_recognition.data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
 
@@ -24,13 +25,13 @@ class CardDataset(object):
         """
         if params['datatype'] == dt.DataTypes.THIRTEENCARD:
             trainX,trainY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
-            valX,valY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
+            valX,valY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['val']],params['encoding'])
         elif params['datatype'] == dt.DataTypes.TENCARD:
             trainX,trainY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
-            valX,valY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['test']],params['encoding'])
+            valX,valY = self.build_10card(params[dt.Globals.INPUT_SET_DICT['val']],params['encoding'])
         elif params['datatype'] == dt.DataTypes.PARTIAL:
             trainX,trainY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['train']])
-            valX,valY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['test']])
+            valX,valY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['val']])
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -97,10 +98,13 @@ class CardDataset(object):
         |High Card      |1302540 |1277|
         |TOTAL          |2598960 |7462|
         """
-        for dataset in ['train','test']:
+        for dataset in ['train','val']:
             save_path = os.path.join(params['save_dir'],dataset)
+            xpath = f"{os.path.join(save_path,dataset)}X"
+            ypath = f"{os.path.join(save_path,dataset)}Y"
+            X = []
+            y = []
             num_hands = params[dt.Globals.INPUT_SET_DICT[dataset]] // 9
-            hand_strengths = {i:deque(maxlen=num_hands) for i in range(0,9)}
             if params['datatype'] == dt.DataTypes.NINECARD:
                 for category in dt.Globals.HAND_TYPE_DICT.keys():
                     print('category',category)
@@ -108,16 +112,18 @@ class CardDataset(object):
                         hand,board = self.create_ninecard_handtypes(category)
                         shuffled_hand,shuffled_board = CardDataset.shuffle_hand_board(hand,board)
                         x_input = np.concatenate([shuffled_hand,shuffled_board],axis=0)
-                        hand_strengths[category].append(x_input)
+                        X.append(x_input)
+                        y.append(category)
             elif params['datatype'] == dt.DataTypes.FIVECARD:
                 for category in dt.Globals.HAND_TYPE_DICT.keys():
+                    print('category',category)
                     for _ in range(num_hands):
-                        hand_strengths[category].append(self.create_handtypes(category))
+                        X.append(self.create_handtypes(category))
+                        y.append(category)
             else:
                 raise ValueError(f"{params['datatype']} datatype not understood")
-            [print(len(hand_strengths[i])) for i in range(0,9)]
-            for i in range(0,9):
-                np.save(os.path.join(save_path,f'Hand_type_{dt.Globals.HAND_TYPE_DICT[i]}'),hand_strengths[i])
+            save_data(X,xpath)
+            save_data(y,ypath)
 
     def create_ninecard_handtypes(self,category):
         """

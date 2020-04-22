@@ -11,11 +11,11 @@ from itertools import combinations
 
 from visualize import plot_data
 from agents.agent import CardAgent
-from data_loader import return_dataloader
+from data_loader import return_trainloader
 import hand_recognition.datatypes as dt
 from models.networks import *
 from models.network_config import NetworkConfig
-from hand_recognition.data_utils import unpack_nparrays,load_data,return_handtype_dict,load_handtypes,return_handtype_data_shapes
+from hand_recognition.data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes
 
 """
 Creating a hand dataset for training and evaluating networks.
@@ -167,47 +167,27 @@ def train_network(data_dict,agent_params,training_params):
     torch.save(net.state_dict(), training_params['save_path'])
 
 def train_classification(dataset_params,agent_params,training_params):
-    dataset = load_handtypes(dataset_params['data_path'])
-    trainset = dataset['train']
-    testset = dataset['test']
-    train_shape,train_batch = return_handtype_data_shapes(trainset)
-    test_shape,test_batch = return_handtype_data_shapes(testset)
+    dataset = load_data(dataset_params['data_path'])
+    dataset['trainY'] = dataset['trainY'].long()
+    dataset['valY'] = dataset['valY'].long()
+    target = dt.Globals.TARGET_SET[dataset_params['datatype']]
+    y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
 
-    print(f'train_shape {train_shape}, train_batch {train_batch}')
-    print(f'test_shape {test_shape}, test_batch {test_batch}')
-    
-    if dataset_params['learning_category'] == dt.LearningCategories.BINARY_CATEGORIZATION:
-        trainX = trainset['trainX']
-        trainY = trainset['trainY']
-        valX = testset['valX']
-        valY = testset['valY']
-        y_handtype_indexes = return_handtype_dict(valX,valY,{0:0,1:1})
-    elif dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        trainX = trainset['trainX']
-        trainY = trainset['trainY'].long()
-        valX = testset['valX']
-        valY = testset['valY'].long()
-        y_handtype_indexes = return_handtype_dict(valX,valY,{i:i for i in range(7463)})
-    else:
-        trainX,trainY = unpack_nparrays(train_shape,train_batch,trainset)
-        valX,valY = unpack_nparrays(test_shape,test_batch,testset)
-        y_handtype_indexes = return_handtype_dict(valX,valY)
-    trainloader = return_dataloader(trainX,trainY)
-
-    print(trainX.size(),trainY.size(),valX.size(),valY.size())
-    print(np.unique(trainY,return_counts=True),np.unique(valY,return_counts=True))
+    print(dataset['trainX'].size(),dataset['trainY'].size(),dataset['valX'].size(),dataset['valY'].size())
+    print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
 
     data_dict = {
         'trainloader':trainloader,
-        'valX':valX,
-        'valY':valY,
+        'valX':dataset['valX'],
+        'valY':dataset['valY'],
         'y_handtype_indexes':y_handtype_indexes
     }
     train_network(data_dict,agent_params,training_params)
 
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
-    trainloader = return_dataloader(dataset['trainX'],dataset['trainY'])
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
     print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
     data_dict = {
         'trainloader':trainloader,
@@ -222,6 +202,11 @@ def check_network(dataset_params,params):
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:'Enter in a handtype from 0-8',
         dt.LearningCategories.BINARY_CATEGORIZATION:'Enter in a blocker type from 0-1'
     }
+    output_mapping = {
+        dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
+        dt.LearningCategories.REGRESSION:lambda x: x,
+        dt.LearningCategories.BINARY_CATEGORIZATION:lambda x: x
+    }
     target_mapping = {
         dt.DataTypes.NINECARD:{i:i for i in range(9)},
         dt.DataTypes.FIVECARD:{i:i for i in range(9)},
@@ -231,11 +216,7 @@ def check_network(dataset_params,params):
         dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
         dt.DataTypes.BLOCKERS:{i:i for i in range(0,2)},
     }
-    output_mapping = {
-        dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
-        dt.LearningCategories.REGRESSION:lambda x: x,
-        dt.LearningCategories.BINARY_CATEGORIZATION:lambda x: x
-    }
+    target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     output_map = output_mapping[dataset_params['learning_category']]
     mapping = target_mapping[dataset_params['datatype']]
     message = messages[dataset_params['learning_category']]
@@ -243,48 +224,32 @@ def check_network(dataset_params,params):
     net = examine_params['network'](params['network_params'])
     net.load_state_dict(torch.load(examine_params['load_path']))
     net.eval()
-    if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        dataset = load_handtypes(dataset_params['data_path'])
-        testset = dataset['test']
-        valX = testset['valX']
-        valY = testset['valY']
-        # test_shape,test_batch = return_handtype_data_shapes(testset)
-        # valX,valY = unpack_nparrays(test_shape,test_batch,testset)
-        y_handtype_indexes = return_handtype_dict(valX,valY)
-    elif dataset_params['learning_category'] == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
-        dataset = load_handtypes(dataset_params['data_path'])
-        testset = dataset['test']
-        test_shape,test_batch = return_handtype_data_shapes(testset)
-        valX,valY = unpack_nparrays(test_shape,test_batch,testset)
-        y_handtype_indexes = return_handtype_dict(valX,valY)
-    elif dataset_params['learning_category'] == dt.LearningCategories.BINARY_CATEGORIZATION:
-        dataset = load_data(dataset_params['data_path'])
-        target_dict = target_mapping[dataset_params['learning_category']]
-        valX = dataset['valX']
-        valY = dataset['valY']
-        y_handtype_indexes = return_handtype_dict(valX,valY,target_dict)
-    elif dataset_params['learning_category'] == dt.LearningCategories.REGRESSION:
-        dataset = load_data(dataset_params['data_path'])
-        target_dict = {-1:-1,0:0,1:1}
-        valX = dataset['valX']
-        valY = dataset['valY']
-        y_handtype_indexes = return_handtype_dict(valX,valY,target_dict)
-    else:
-        raise ValueError(f'Learning category {dataset_params["learning_category"]} not supported')
+
+    dataset = load_data(dataset_params['data_path'])
+    valX = dataset['valX']
+    valY = dataset['valY']
+    y_handtype_indexes = return_ylabel_dict(valX,valY,target)
+
     while 1:
         human_input = input(message)
         while not human_input.isdigit():
             print('Improper input, must be digit')
             human_input = input(message)
-        category = mapping[int(human_input)]
+        if callable(mapping[int(human_input)]) == True:
+            category = mapping[int(human_input)]()
+        else:
+            category = mapping[int(human_input)]
         indicies = y_handtype_indexes[category]
-        print('indicies',indicies.size())
-        rand_index = torch.randint(0,indicies.size(0),(1,))
-        rand_hand = indicies[rand_index]
-        print(f'Evaluating on: {valX[rand_hand]}')
-        out = net(valX[rand_hand])
-        print(f'Network output: {output_map(out)}')
-        print(f'Actual category: {valY[rand_hand]}')
+        if len(indicies) > 0:
+            print('indicies',indicies.size())
+            rand_index = torch.randint(0,indicies.size(0),(1,))
+            rand_hand = indicies[rand_index]
+            print(f'Evaluating on: {valX[rand_hand]}')
+            out = net(valX[rand_hand])
+            print(f'Network output: {output_map(out)}')
+            print(f'Actual category: {valY[rand_hand]}')
+        else:
+            print('No instances of this, please try again')
 
 if __name__ == "__main__":
     import argparse
