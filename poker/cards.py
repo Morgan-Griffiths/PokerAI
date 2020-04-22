@@ -249,7 +249,7 @@ def check_network(dataset_params,params):
             print(f'Network output: {output_map(out)}')
             print(f'Actual category: {valY[rand_hand]}')
         else:
-            print('No instances of this, please try again')
+            print('No instances of this, please try')
 
 if __name__ == "__main__":
     import argparse
