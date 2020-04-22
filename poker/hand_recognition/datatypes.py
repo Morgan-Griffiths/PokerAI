@@ -75,7 +75,7 @@ class Globals(object):
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
     }
-    TARGET_DICT = {
+    TARGET_SET = {
         DataTypes.THIRTEENCARD:set(range(-1,2)),
         DataTypes.TENCARD:set(range(-1,2)),
         DataTypes.PARTIAL:set(range(-1,2)),

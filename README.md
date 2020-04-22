@@ -30,8 +30,8 @@ Build a specific dataset with ```python build_dataset.py -d <dataset>```
 
 Modify poker/models/network_config.py to change which network to train. Add or modify poker/models/networks.py to try different models.
 
-Train a network (loaded from network_config) on a dataset with ```python cards.py -d <dataset> -M train```
-Examine a network's output (loaded from network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
+Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M train -e 10```
+Examine a network's output (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
 
 # Hand recognizing
 

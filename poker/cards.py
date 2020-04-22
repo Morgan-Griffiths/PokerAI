@@ -168,13 +168,14 @@ def train_network(data_dict,agent_params,training_params):
 
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
-    print(dataset.keys())
-    target = dt.Globals.TARGET_DICT[dataset_params['datatype']]
+    dataset['trainY'] = dataset['trainY'].long()
+    dataset['valY'] = dataset['valY'].long()
+    target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
 
     print(dataset['trainX'].size(),dataset['trainY'].size(),dataset['valX'].size(),dataset['valY'].size())
-    print(np.unique(trainY,return_counts=True),np.unique(valY,return_counts=True))
+    print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
 
     data_dict = {
         'trainloader':trainloader,
@@ -201,21 +202,21 @@ def check_network(dataset_params,params):
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:'Enter in a handtype from 0-8',
         dt.LearningCategories.BINARY_CATEGORIZATION:'Enter in a blocker type from 0-1'
     }
-    target_mapping = {
-        dt.DataTypes.NINECARD:{i:i for i in range(9)},
-        dt.DataTypes.FIVECARD:{i:i for i in range(9)},
-        dt.DataTypes.HANDRANKS:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i]() for i in range(9)},
-        dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
-        dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
-        dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
-        dt.DataTypes.BLOCKERS:{i:i for i in range(0,2)},
-    }
     output_mapping = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:F.softmax,
         dt.LearningCategories.REGRESSION:lambda x: x,
         dt.LearningCategories.BINARY_CATEGORIZATION:lambda x: x
     }
-    target = dt.Globals.TARGET_DICT[dataset_params['datatype']]
+    target_mapping = {
+        dt.DataTypes.NINECARD:{i:i for i in range(9)},
+        dt.DataTypes.FIVECARD:{i:i for i in range(9)},
+        dt.DataTypes.HANDRANKS:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
+        dt.DataTypes.BLOCKERS:{i:i for i in range(0,2)},
+    }
+    target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     output_map = output_mapping[dataset_params['learning_category']]
     mapping = target_mapping[dataset_params['datatype']]
     message = messages[dataset_params['learning_category']]
@@ -225,17 +226,19 @@ def check_network(dataset_params,params):
     net.eval()
 
     dataset = load_data(dataset_params['data_path'])
-    target_dict = target_mapping[dataset_params['datatype']]
     valX = dataset['valX']
     valY = dataset['valY']
-    y_handtype_indexes = return_ylabel_dict(valX,valY,target_dict)
-    
+    y_handtype_indexes = return_ylabel_dict(valX,valY,target)
+
     while 1:
         human_input = input(message)
         while not human_input.isdigit():
             print('Improper input, must be digit')
             human_input = input(message)
-        category = mapping[int(human_input)]
+        if callable(mapping[int(human_input)]) == True:
+            category = mapping[int(human_input)]()
+        else:
+            category = mapping[int(human_input)]
         indicies = y_handtype_indexes[category]
         if len(indicies) > 0:
             print('indicies',indicies.size())
@@ -245,6 +248,8 @@ def check_network(dataset_params,params):
             out = net(valX[rand_hand])
             print(f'Network output: {output_map(out)}')
             print(f'Actual category: {valY[rand_hand]}')
+        else:
+            print('No instances of this, please try again')
 
 if __name__ == "__main__":
     import argparse
