@@ -39,11 +39,11 @@ pub extern fn holdem_winner(hand1: *const [c_long; 2], hand2: *const [c_long; 2]
     let rank1 = unsafe { holdem_best_rank_w_board(*hand1, *board) };
     let rank2 = unsafe { holdem_best_rank_w_board(*hand2, *board) };
     if rank1 < rank2 {
-        0
-    } else if rank1 > rank2 {
         1
-    } else {
+    } else if rank1 > rank2 {
         -1
+    } else {
+        0
     }
 }
 
