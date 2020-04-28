@@ -22,6 +22,8 @@ cargo build --release
 
 A series of poker environments that cover each of the individual complexities of poker, allowing one to test networks and learning architectures quickly and easily starting from the simpliest env all the way to real world poker. The goal is a single API that interfaces with the training architecture for the agent such that you can scale the complexity as needed. Asserting that the learning algorithm learns at all stages.
 
+Additionally there is a sub library in hand_recognition if you want to test networks on ability and efficacy of understanding hand board relationships
+
 # Using the library
 
 Build the data and all the folders by ```python setup.py```
@@ -33,7 +35,19 @@ Modify poker/models/network_config.py to change which network to train. Add or m
 Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M train -e 10```
 Examine a network's output (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
 
-# Hand recognizing
+# Hand recognition
+
+To build all the datasets run
+
+```python setup.py```
+
+to train a network on a dataset
+
+```python cards.py -d <dataset> -M train -e 10```
+
+to examine a trained network
+
+```python cards.py -d <dataset> -M examine```
 
 # Poker Environments
 
@@ -106,6 +120,8 @@ _Baseline performance_
 ![Graph](Complex_Action_probabilities_for_BB.png)
 
 ## Limit holdem with full deck
+
+
 
 ## Added betsize
 

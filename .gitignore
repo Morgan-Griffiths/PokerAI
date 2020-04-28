@@ -6,7 +6,7 @@
 .vscode/
 .DS_Store
 rusteval/target
-../src/Poker_MDP.py
-poker/data/
-poker/assets/
-poker/checkpoints/
+legacy/handattributes.pickle
+src/data/
+src/assets/
+src/checkpoints/
