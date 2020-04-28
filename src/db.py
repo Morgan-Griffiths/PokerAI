@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 import numpy as np
 import torch
+import poker.datatypes as pdt
 
 class MongoDB(object):
     def __init__(self):
@@ -10,7 +11,13 @@ class MongoDB(object):
         client = MongoClient('localhost', 27017)
         self.db = client['poker']
 
-    def store_data(self,training_data:dict,mapping:dict,training_round:int):
+    def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype):
+        if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN:
+            self.store_kuhn_data(training_data,mapping,training_round,gametype)
+        elif gametype == pdt.Holdem:
+            self.store_holdem_data(training_data,mapping,training_round,gametype)
+
+    def store_kuhn_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str):
         """
         training_data, contains all positions
         Poker db;
@@ -34,6 +41,7 @@ class MongoDB(object):
                 actions = poker_round['actions']
                 action_probs = poker_round['action_probs']
                 rewards = poker_round['rewards']
+                values = poker_round['values']
                 assert(isinstance(rewards,torch.Tensor))
                 assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(actions,torch.Tensor))
@@ -41,17 +49,79 @@ class MongoDB(object):
                 assert(isinstance(game_states,torch.Tensor))
                 for step,game_state in enumerate(game_states):
                     hand = int(game_state[mapping['state']['hand']])
+                    vil_hand = int(game_state[mapping['observation']['vil_hand']])
+                    # board = int(game_state[mapping['state']['hand']])
                     previous_action = int(game_state[mapping['state']['previous_action']])
                     state_json = {
                         'position':position,
                         'hand':hand,
+                        'vil_hand':vil_hand,
                         'reward':float(rewards[step]),
                         'action':int(actions[step]),
                         'action_probs':float(action_probs[step].detach()),
                         'previous_action':previous_action,
                         'training_round':training_round,
                         'poker_round':i,
-                        'step':step
+                        'step':step,
+                        'game':gametype
+                        }
+                    if len(values) > 0:
+                        if len(values[step][0]) > 1:
+                            index = torch.arange(values[step].size(0))
+                            state_json['value'] = float(values[step][index,actions[step]].detach())
+                        else:
+                            state_json['value'] = float(values[step].detach())
+                    self.db['game_data'].insert_one(state_json)
+
+    def store_holdem_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str):
+        """
+        training_data, contains all positions
+        Poker db;
+        state,obs,action,log_prob,reward collections
+        State:
+        training_run,round,step,p1_hand,previous_action
+        *** future ***
+        p1_position,p1_hand,p1_stack
+        p2_position,p2_stack
+        pot,board_cards,previous_action
+        Action:
+        training_run,round,step,p1_action,log_prob
+        Reward:
+        training_run,round,step,reward
+        """
+        print('holdem')
+        positions = training_data.keys()
+        for position in positions:
+            for i,poker_round in enumerate(training_data[position]):
+                game_states = poker_round['game_states']
+                observations = poker_round['observations']
+                actions = poker_round['actions']
+                action_probs = poker_round['action_probs']
+                rewards = poker_round['rewards']
+                assert(isinstance(rewards,torch.Tensor))
+                assert(isinstance(action_probs,torch.Tensor))
+                assert(isinstance(actions,torch.Tensor))
+                assert(isinstance(observations,torch.Tensor))
+                assert(isinstance(game_states,torch.Tensor))
+                for step,game_state in enumerate(game_states):
+                    hand = game_state[mapping['state']['hand']].long().numpy()
+                    vil_hand = game_state[mapping['observation']['vil_hand']].long().numpy()
+                    board = game_state[mapping['state']['board']].long().numpy()
+                    previous_action = int(game_state[mapping['state']['previous_action']])
+                    state_json = {
+                        'position':position,
+                        'hand':hand.tolist(),
+                        'vil_hand':vil_hand.tolist(),
+                        'board':board.tolist(),
+                        'reward':float(rewards[step]),
+                        'action':int(actions[step]),
+                        'action_probs':float(action_probs[step].detach()),
+                        'unit_vector':float(MongoDB.unit_vector(action_probs[step].detach())),
+                        'previous_action':previous_action,
+                        'training_round':training_round,
+                        'poker_round':i,
+                        'step':step,
+                        'game':gametype
                         }
                     self.db['game_data'].insert_one(state_json)
                     
@@ -59,6 +129,10 @@ class MongoDB(object):
         print(f'query {query}, projection {projection}')
         data = self.db['game_data'].find(query,projection)
         return data
+
+    @staticmethod
+    def unit_vector(vector):
+        return vector / torch.sqrt((vector**2).sum())
 
     @staticmethod
     def pad_inputs(inputs:list,N:int):
@@ -73,7 +147,8 @@ class MongoDB(object):
     def return_frequency(inputs:list,interval:int,num_features:int):
         assert(isinstance(inputs,list))
         assert(isinstance(inputs[0],np.ndarray))
-        assert(len(inputs[0]) > interval)
+        if len(inputs[0]) < interval:
+            raise ValueError("Number of samples < the interval") 
         percentages = []
         for data_type in inputs:
             percentage_type = [[] for _ in range(num_features)]

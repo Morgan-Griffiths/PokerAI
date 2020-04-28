@@ -1,32 +1,13 @@
-from torch import Tensor as T
-
 class Config(object):
-    def __init__(self,game_type='simple',n_players=2):
-        self.action_dict = {0:'check',1:'bet',2:'call',3:'fold',4:'raise',5:'unopened'}
+    def __init__(self):
         self.betsize_dict = {0:0,1:1,2:1,3:0,4:2}
-        self.position_dict = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
         self.act_dict = {'SB':0,'BB':1}
-        self.agent = 'baseline'
-        self.params = {
-            'game':'kuhn'
-        }
-        self.state_params = {
-                'ranks':list(range(1,4)),
-                'suits':None,
-                'n_players':2,
-                'n_rounds':1,
-                'stacksize':1,
-                'pot':1,
-                'game_turn':0,
-                'cards_per_player':1,
-                'to_act':'SB',
-            }
+        self.agent = 'actor_critic'
         self.training_params = {
                 'epochs':2500,
                 'action_index':1,
                 'training_round':0,
-                'save_dir':'checkpoints/RL',
-                'agent_name':'baseline'
+                'save_dir':'checkpoints/RL'
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
@@ -42,8 +23,10 @@ class Config(object):
             'TAU':0.01,
             'UPDATE_EVERY':4,
             'CLIP_NORM':10,
+            'L2': 0.01,
             'embedding':True,
-            'mapping':{'hand':0,'action':1}
+            'network':None,
+            'critic_network':None,
+            'actor_network':None,
+            'critic_type':'reg'
         }
-            
-        self.params['state_params'] = self.state_params

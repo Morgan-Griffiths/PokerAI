@@ -4,10 +4,8 @@ import numpy as np
 from collections import deque
 from random import shuffle
 
+import poker.datatypes as pdt
 from cardlib import winner,encode,decode,holdem_hand_rank,holdem_winner
-
-action_dict = {0:'check',1:'bet',2:'call',3:'fold',4:'raise',5:'unopened'}
-position_dict = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
 
 class Action(object):
     def __init__(self,action):
@@ -17,7 +15,7 @@ class Action(object):
         return self.action
         
     def readable(self):
-        return action_dict[self.action]
+        return pdt.Globals.ACTION_DICT[self.action]
     
 class Card(object):
     def __init__(self,rank,suit):
@@ -155,7 +153,7 @@ class Players(object):
         self.n_players = n_players
         self.stacksizes = stacksizes
         self.to_act = to_act
-        self.initial_positions = position_dict[n_players]
+        self.initial_positions = pdt.Globals.PLAYERS_POSITIONS_DICT[n_players]
         self.reset(hands)
 
     def update_hands(self,hands):
@@ -171,16 +169,22 @@ class Players(object):
         self.observations = {position:[] for position in self.poker_positions}
         self.actions = {position:[] for position in self.poker_positions}
         self.action_probs = {position:[] for position in self.poker_positions}
+        self.values = {position:[] for position in self.poker_positions}
         self.rewards = {position:[] for position in self.poker_positions}
+        self.complete_probs = {position:[] for position in self.poker_positions}
         self.player_turns = {position:0 for position in self.poker_positions}
         
     def store_states(self,state:torch.Tensor,obs:torch.Tensor):
         self.observations[self.current_player].append(obs)
         self.game_states[self.current_player].append(state)
         
-    def store_actions(self,action:int,action_probs:torch.Tensor):
+    def store_actions(self,action:int,action_probs:torch.Tensor,complete_probs:torch.Tensor):
         self.actions[self.current_player].append(action)
         self.action_probs[self.current_player].append(action_probs)
+        self.complete_probs[self.current_player].append(complete_probs)
+
+    def store_values(self,value:torch.Tensor):
+        self.values[self.current_player].append(value)
         
     def store_rewards(self,position:str,reward:float):
         N = self.player_turns[position]
@@ -202,7 +206,7 @@ class Players(object):
         
     def gen_rewards(self):
         for i,initial_stacksize in enumerate(self.stacksizes):
-            position = position_dict[self.n_players][i]
+            position = pdt.Globals.PLAYERS_POSITIONS_DICT[self.n_players][i]
             player = self.players[position]
 #             print(f'gen_rewards,player.stack {player.stack}, initial_stacksize {initial_stacksize}')
             self.store_rewards(position,player.stack - initial_stacksize)
@@ -231,7 +235,9 @@ class Players(object):
                     'observations':self.observations[position],
                     'actions':self.actions[position],
                     'action_probs':self.action_probs[position],
-                    'rewards':self.rewards[position]
+                    'complete_probs':self.complete_probs[position],
+                    'rewards':self.rewards[position],
+                    'values':self.values[position]
                 }
                 assert(self.rewards[position][0].size(0) == len(self.actions[position]))
             else:
@@ -263,14 +269,14 @@ class Players(object):
     @property
     def previous_player(self):
         return self.poker_positions[-1]
+
+    @property
+    def previous_hand(self):
+        return self.players[self.previous_player].hand
     
 class Rules(object):
-    def __init__(self,params,game):
-        self.game = game
-        if self.game == 'kuhn':
-            self.load_rules(params)
-        else:
-            raise ValueError('Game type not supported')
+    def __init__(self,params):
+        self.load_rules(params)
 
     def return_mask(self,state):
         return self.mask_dict[state[0,self.action_index].long().item()]
@@ -286,9 +292,9 @@ class Rules(object):
         self.action_index = params['action_index'] # Indexes into game_state. Important for masking actions
         self.state_index = params['state_index']
         self.action_space = len(self.action_dict.keys())
-        self.over = self.kuhn1street if self.bets_per_street == 1 else self.kuhn2street
+        self.over = self.two_actions if self.bets_per_street == 1 else self.multiple_actions
 
-    def kuhn2street(self,env):
+    def multiple_actions(self,env):
         done = False
         if env.history.last_action == 3 or env.history.last_action == 2:
             done = True
@@ -297,18 +303,19 @@ class Rules(object):
                 done = True
         return done
         
-    def kuhn1street(self,env):
+    def two_actions(self,env):
         done = False
         if env.history.last_action == 3 or env.history.last_action == 2 or env.history.last_action == 0:
             done = True
         return done
     
-def eval_kuhn(hands):
-    ranks = [card.rank for card in hands]
+def eval_kuhn(cards):
+    hand1,hand2 = cards
+    ranks = [card.rank for card in hand1+hand2]
     return np.argmax(ranks)
 
-def eval_holdem(hands):
-    hand1,hand2,board = hands
+def eval_holdem(cards):
+    hand1,hand2,board = cards
     hand1 = [[card.rank,card.suit] for card in hand1]
     hand2 = [[card.rank,card.suit] for card in hand2]
     board = [[card.rank,card.suit] for card in board]
@@ -317,8 +324,8 @@ def eval_holdem(hands):
     en_board = [encode(c) for c in board]
     return holdem_winner(en_hand1,en_hand2,en_board)
 
-def eval_omaha_hi(hands):
-    hand1,hand2,board = hands
+def eval_omaha_hi(cards):
+    hand1,hand2,board = cards
     hand1 = [[card.rank,card.suit] for card in hand1]
     hand2 = [[card.rank,card.suit] for card in hand2]
     board = [[card.rank,card.suit] for card in board]
@@ -330,14 +337,14 @@ def eval_omaha_hi(hands):
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
-        if self.game == 'kuhn':
+        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN:
             self.evaluate = eval_kuhn
-        elif self.game == 'holdem':
+        elif self.game == pdt.GameTypes.HOLDEM:
             self.evaluate = eval_holdem
-        elif self.game == 'omahaHI':
+        elif self.game == pdt.GameTypes.OMAHAHI:
             self.evaluate = eval_omaha_hi
         else:
             raise ValueError('Game type not supported')
         
-    def __call__(self,hands):
-        return self.evaluate(hands)
+    def __call__(self,cards):
+        return self.evaluate(cards)

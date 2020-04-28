@@ -7,28 +7,31 @@ import torch.nn.functional as F
 from torch.autograd import Variable as V
 from torch import optim
 
-from models.networks import Baseline,Dueling_QNetwork
+from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic,hard_update
 from models.buffers import PriorityReplayBuffer
+import poker.datatypes as pdt
+from noise import GaussianNoise
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def return_agent(agent_type,nS,nO,nA,seed,params):
-    if agent_type == 'baseline':
+    if agent_type == pdt.AgentTypes.ACTOR:
+        agent = BaselineAgent(nS,nO,nA,seed,params)
+    elif agent_type == pdt.AgentTypes.ACTOR_CRITIC:
         agent = Agent(nS,nO,nA,seed,params)
-    elif agent_type == 'dqn':
-        agent = Priority_DQN(nS,nO,nA,seed,params)
     else:
         raise ValueError(f'Agent not supported {agent_type}')
     return agent
 
-class Agent(object):
+class BaselineAgent(object):
     def __init__(self,nS,nO,nA,seed,params):
         super().__init__()
         self.nS = nS
         self.nO = nO
         self.nA = nA
         self.seed = seed
-        self.network = Baseline(seed,nS,nA,params)
+        self.network = params['network'](seed,nS,nA,params)
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-4)
         
     def __call__(self,x,mask):
@@ -62,6 +65,150 @@ class Agent(object):
         if not os.path.exists(directory):
             os.mkdir(directory)
         torch.save(self.network.state_dict(), path)
+
+class Agent(object):
+    def __init__(self,nS,nO,nA,seed,params):
+        super().__init__()
+        print('Actor critic')
+        self.nS = nS
+        self.nO = nO
+        self.nA = nA
+        self.seed = seed
+        self.epochs = params['epochs']+1
+        self.noise = GaussianNoise(self.nA,self.epochs)
+        self.tau = params['TAU']
+        self.max_reward = params['max_reward']
+        self.gradient_clip = params['CLIP_NORM']
+        self.critic_type = params['critic_type']
+        self.local_actor = params['actor_network'](seed,nS,nA,params)
+        self.target_actor = params['actor_network'](seed,nS,nA,params)
+        self.local_critic = params['critic_network'](seed,nO,nA,params)
+        self.target_critic = params['critic_network'](seed,nO,nA,params)
+        if self.critic_type == 'Q':
+            self.critic_backward = self.reg_critic_backward
+            self.actor_backward = self.reg_actor_backward
+            self.critique = self.reg_critique
+        else:
+            self.critic_backward = self.qcritic_backward
+            self.actor_backward = self.qactor_backward
+            self.critique = self.qcritique
+
+        self.actor_optimizer = optim.Adam(self.local_actor.parameters(), lr=1e-4,weight_decay=params['L2'])
+        self.critic_optimizer = optim.Adam(self.local_critic.parameters(), lr=1e-4)
+        # Copy the weights from local to target
+        hard_update(self.local_critic,self.target_critic)
+        hard_update(self.local_actor,self.target_actor)
+        
+    def __call__(self,x,mask):
+        return self.local_actor(x,mask,self.noise.sample())
+
+    def reg_critique(self,obs,action):
+        return self.target_critic(obs,action)
+
+    def qcritique(self,obs,action):
+        return self.target_critic(obs)
+    
+    def learn(self,player_data):
+        positions = player_data.keys()
+        for position in positions:
+            action_probs = player_data[position]['action_probs']
+            complete_probs = player_data[position]['complete_probs']
+            game_states = player_data[position]['game_states']
+            rewards = player_data[position]['rewards']
+            actions = player_data[position]['actions'].view(-1)
+            observations = player_data[position]['observations']
+            # dones = player_data[position]['dones']
+            # indexes = player_data[position]['indexes']
+            if len(game_states):
+                self.critic_backward(rewards,observations,actions)
+                self.actor_backward(action_probs,observations,actions,rewards,complete_probs)
+
+    def reg_critic_backward(self,rewards,observations,actions):
+        values = self.local_critic(observations,actions)
+        scaled_rewards = rewards/self.max_reward
+        critic_loss = F.smooth_l1_loss(scaled_rewards,values)
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.local_critic.parameters(), self.gradient_clip)
+        self.critic_optimizer.step()
+        Agent.soft_update(self.local_critic,self.target_critic,self.tau)
+            
+    def reg_actor_backward(self,action_probs,observations,actions,rewards,complete_probs):
+        values = self.target_critic(observations,actions)
+        policy_loss = (-action_probs * values).sum()
+        self.actor_optimizer.zero_grad()
+        policy_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.local_actor.parameters(), self.gradient_clip)
+        self.actor_optimizer.step()
+        Agent.soft_update(self.local_actor,self.target_actor,self.tau)
+
+    def return_value_mask(self,actions):
+        M = actions.size(0)
+        value_mask = torch.zeros(M,self.nA)
+        if actions.dim() > 1:
+            actions = actions.squeeze(1)
+        value_mask[torch.arange(M),actions] = 1
+        return value_mask.bool()
+
+    def qcritic_backward(self,rewards,observations,actions):
+        values = self.local_critic(observations)
+        value_mask = self.return_value_mask(actions)
+        scaled_rewards = rewards/self.max_reward
+        # print('scaled_rewards',scaled_rewards,' value',values[value_mask].detach(),'values',values.detach(),' action',actions)
+        critic_loss = F.smooth_l1_loss(scaled_rewards.squeeze(1),values[value_mask])
+        # print('critic_loss',critic_loss)
+        # critic_loss = (scaled_rewards - values[value_mask]).sum()
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.local_critic.parameters(), self.gradient_clip)
+        self.critic_optimizer.step()
+        Agent.soft_update(self.local_critic,self.target_critic,self.tau)
+            
+    def qactor_backward(self,action_probs,observations,actions,rewards,complete_probs):
+        values = self.target_critic(observations)
+        value_mask = self.return_value_mask(actions)
+        expected_value = (complete_probs * values).detach().sum(-1)
+        advantages = values[value_mask] - expected_value
+        policy_loss = (-action_probs.view(-1) * advantages).sum()
+        # print('')
+        # print('observations',observations)
+        # print('values',values)
+        # print('expected_value',expected_value)
+        # print('advantages',advantages)
+        # print('Q value',values[value_mask])
+        # print('complete_probs',complete_probs)
+        # print('actions',actions)
+        # print('rewards',rewards)
+        # print('action_probs',action_probs)
+        # print('policy_loss',policy_loss)
+        self.actor_optimizer.zero_grad()
+        policy_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.local_actor.parameters(), self.gradient_clip)
+        self.actor_optimizer.step()
+        Agent.soft_update(self.local_actor,self.target_actor,self.tau)
+
+    def load_weights(self,path):
+        self.local_actor.load_state_dict(torch.load(path))
+        self.local_critic.load_state_dict(torch.load(path))
+        self.local_actor.eval()
+        self.local_critic.eval()
+
+    def save_weights(self,path):
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        torch.save(self.local_actor.state_dict(), path)
+        torch.save(self.local_critic.state_dict(), path)
+
+    
+    def update_networks(self):
+        self.target_critic = Agent.soft_update_target(self.local_critic,self.target_critic,self.tau)
+        self.target_actor = Agent.soft_update_target(self.local_actor,self.target_actor,self.tau)
+
+    @staticmethod
+    def soft_update(local,target,tau):
+        for local_param,target_param in zip(local.parameters(),target.parameters()):
+            target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
         
 """
 DQN with Priority Replay, DDQN, and Dueling DQN.

@@ -5,16 +5,14 @@ import os
 from poker_env import Poker
 from agents.agent import return_agent
 from poker.config import Config
-import poker.datatypes as dt
-
-action_dict = {0:'check',1:'bet',2:'call',3:'fold',4:'raise',5:'unopened'}
-card_dict = {0:'?',1:'Q',2:'K',3:'A'}
+import poker.datatypes as pdt
+from models.network_config import NetworkConfig
 
 def get_player_input(mask):
-    player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[action_dict[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
+    player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
     while player_input.isdigit() == False:
         print('Invalid input, please enter a number or exit with ^C')
-        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[action_dict[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
+        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
     action = torch.tensor(int(player_input)).unsqueeze(0)
     return action
     
@@ -27,7 +25,15 @@ def play(env,agent,player_position,training_params):
         mask = env.action_mask(state)
         print(f'state {state},done {done}')
         while not done:
-            print(f'current_player {env.current_player}, Current Hand {card_dict[env.players.current_hand.rank]}')
+            print(f'current_player {env.current_player}')
+            if len(env.players.current_hand) == 1:
+                print(f'Current Hand {pdt.Globals.KUHN_CARD_DICT[env.players.current_hand.rank]}')
+            else:
+                board = [[card.rank,card.suit] for card in env.board]
+                hand = [[card.rank,card.suit] for card in env.players.current_hand]
+                print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
+                print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
+
             if env.current_player == player_position:
                 action = get_player_input(mask)
                 log_probs = fake_probs
@@ -57,10 +63,15 @@ if __name__ == "__main__":
         Run RL experiments with varying levels of complexity in poker.\n\n
         Modify the traiing params via the config file.\n
         """)
-    parser.add_argument('-e','--env',
-                        default=dt.GameTypes.KUHN,
-                        metavar=f"[{dt.GameTypes.KUHN},{dt.GameTypes.COMPLEXKUHN},{dt.GameTypes.HOLDEM}]",
+    parser.add_argument('--env',
+                        default=pdt.GameTypes.KUHN,
+                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
+    parser.add_argument('-p','--pos',
+                        dest='position',
+                        default=pdt.Positions.SB,
+                        metavar=f"[{pdt.Positions.SB},{pdt.Positions.BB}]",
+                        help='Picks which position to play')
 
     args = parser.parse_args()
 
@@ -69,18 +80,24 @@ if __name__ == "__main__":
     config = Config()
     # config.agent = args.agent
     # config.params['game'] = args.env
-    game_params = dt.Globals.GameTypeDict[args.env]
-    print(game_params.rule_params)
-    params = config.params
-    params['rule_params'] = game_params.rule_params
+
+
+    config = Config()
+    player_position = pdt.Globals.POSITION_DICT[args.position]
+    
+    params = {'game':args.env}
+    params['state_params'] = pdt.Globals.GameTypeDict[args.env].state_params
+    params['rule_params'] = pdt.Globals.GameTypeDict[args.env].rule_params
     training_params = config.training_params
     agent_params = config.agent_params
-    position_dict = config.position_dict
+    agent_params['network'] = NetworkConfig.EnvModels[args.env]
+    agent_params['mapping'] = params['rule_params']['mapping']
 
     training_data = {}
-    for position in position_dict[params['state_params']['n_players']]:
+    for position in pdt.Globals.PLAYERS_POSITIONS_DICT[params['state_params']['n_players']]:
         training_data[position] = []
     training_params['training_data'] = training_data
+    training_params['agent_name'] = f'{args.env}_baseline'
 
     env = Poker(params)
 
@@ -89,7 +106,6 @@ if __name__ == "__main__":
     nA = env.action_space
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}')
     seed = 154
-    player_position = 'BB'
 
     agent = return_agent(config.agent,nS,nO,nA,seed,agent_params)
     agent.load_weights(os.path.join(training_params['save_dir'],training_params['agent_name']))

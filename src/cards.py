@@ -333,7 +333,7 @@ if __name__ == "__main__":
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
     agent_params['multitrain_params'] = multitrain_params
-    # compute_baseline()
+    
     if args.mode == dt.Modes.EXAMINE:
         check_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.TRAIN:

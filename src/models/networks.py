@@ -122,12 +122,147 @@ class TransformerBlock(nn.Module):
         return self.norm2(feedforward + x)
 
 ################################################
+#               Holdem Networks                #
+################################################
+
+class HoldemBaseline(nn.Module):
+    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.action_emb = Embedder(6,64)
+
+        # Input is (1,13,2) -> (1,13,64)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(2, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(2, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+
+        self.fc1 = nn.Linear(304,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nA)
+        self.dropout = nn.Dropout(0.5)
+        
+    def forward(self,x,mask):
+        M,c = x.size()
+        ranks = x[:,self.mapping['state']['rank']].long()
+        suits = x[:,self.mapping['state']['suit']].long()
+        board_ranks = x[:,self.mapping['state']['board_ranks']].long()
+        board_suits = x[:,self.mapping['state']['board_suits']].long()
+        rank_input = torch.cat((ranks,board_ranks),dim=-1)
+        suit_input = torch.cat((suits,board_suits),dim=-1)
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        h = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        last_action = self.action_emb(last_action)
+        x = torch.cat([h.view(M,-1),last_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.dropout(x)
+        action_logits = self.fc3(x)
+        
+        action_probs = F.softmax(action_logits,dim=-1)
+        action_probs = action_probs * mask
+        action_probs /= action_probs.sum()
+        m = Categorical(action_probs)
+        action = m.sample()
+        return action,m.log_prob(action)
+
+class HoldemBaselineCritic(nn.Module):
+    def __init__(self,seed,nO,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.action_emb = Embedder(6,64)
+
+        # Input is (1,13,2) -> (1,13,64)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(2, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(2, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+
+        self.fc1 = nn.Linear(304,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nA)
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self,x,mask):
+        M,c = x.size()
+        ranks = x[:,self.mapping['observation']['rank']].long()
+        suits = x[:,self.mapping['observation']['suit']].long()
+        vil_rank = x[:,self.mapping['observation']['vil_ranks']].long()
+        vil_suit = x[:,self.mapping['observation']['vil_suits']].long()
+        board_ranks = x[:,self.mapping['observation']['board_ranks']].long()
+        board_suits = x[:,self.mapping['observation']['board_suits']].long()
+
+        rank_input = torch.cat((ranks,board_ranks),dim=-1)
+        suit_input = torch.cat((suits,board_suits),dim=-1)
+        hot_ranks = self.one_hot_ranks[rank_input]
+        hot_suits = self.one_hot_suits[suit_input]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        hero = torch.cat((r,s),dim=-1)
+
+        rank_input2 = torch.cat((vil_rank,board_ranks),dim=-1)
+        suit_input2 = torch.cat((vil_suit,board_suits),dim=-1)
+        hot_ranks2 = self.one_hot_ranks[rank_input2]
+        hot_suits2 = self.one_hot_suits[suit_input2]
+
+        s2 = self.suit_conv(hot_suits2.float())
+        r2 = self.rank_conv(hot_ranks2.float())
+        villain = torch.cat((r2,s2),dim=-1)
+        # should be (b,64,88)
+
+        winner = hero - villain
+
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        last_action = self.action_emb(last_action)
+        x = torch.cat([winner.view(M,-1),last_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.dropout(x)
+        return torch.tanh(self.fc3(x))
+
+################################################
 #                Kuhn Networks                 #
 ################################################
 
 class Baseline(nn.Module):
     def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
-        super(Baseline,self).__init__()
+        super().__init__()
         self.activation = activation
         self.nS = nS
         self.nA = nA
@@ -147,14 +282,14 @@ class Baseline(nn.Module):
             self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
             self.fc3 = nn.Linear(hidden_dims[1],nA)
         
-    def forward(self,state,mask):
+    def forward(self,state,mask,noise=None):
         x = state
         if not isinstance(state,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32) #device = self.device,
             x = x.unsqueeze(0)
         if self.use_embedding:
-            hand = x[:,self.mapping['hand']].long()
-            last_action = x[:,self.mapping['action']].long()
+            hand = x[:,self.mapping['state']['rank']].long()
+            last_action = x[:,self.mapping['state']['previous_action']].long()
             hand = self.hand_emb(hand)
             last_action = self.action_emb(last_action)
             x = torch.cat([hand,last_action],dim=-1)
@@ -163,11 +298,127 @@ class Baseline(nn.Module):
         action_logits = self.fc3(x)
         
         action_probs = F.softmax(action_logits,dim=-1)
+        if isinstance(noise,torch.Tensor):
+            print(action_probs.size(),noise.size())
+            with torch.no_grad():
+                action_probs += noise
         action_probs = action_probs * mask
         action_probs /= torch.sum(action_probs)
         m = Categorical(action_probs)
         action = m.sample()
-        return action,m.log_prob(action)
+        return action,m.log_prob(action),action_probs
+
+
+class BaselineKuhnCritic(nn.Module):
+    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.use_embedding = params['embedding']
+        self.mapping = params['mapping']
+        self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
+        self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
+        self.hand_emb = Embedder(5,32)
+        self.action_emb = Embedder(6,32)
+        self.positional_embeddings = Embedder(2,32)
+
+        self.conv = nn.Sequential(
+            nn.Conv1d(2, 32, kernel_size=3, stride=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(inplace=True),
+        )
+        self.action_conv = nn.Sequential(
+            nn.Conv1d(2, 32, kernel_size=3, stride=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(inplace=True),
+        )
+        # self.lstm = nn.LSTM(96, 32)
+        self.fc0 = nn.Linear(64,hidden_dims[0])
+        self.fc1 = nn.Linear(128,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.value_output = nn.Linear(64,1)
+        # self.q_values = nn.Linear(hidden_dims[1],self.nA)
+        
+    def forward(self,obs,action):
+        x = obs
+        M,c = x.size()
+        # hand = x[:,self.mapping['observation']['rank']].long()
+        # vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        hot_ranks = self.one_hot_kuhn[x[:,0:2].long()]
+    
+        # Convolve actions
+        # hot_prev_action = self.one_hot_actions[last_action]
+        # hot_cur_action = self.one_hot_actions[action]
+        # actions = torch.stack((hot_prev_action,hot_cur_action)).permute(1,0,2)
+
+        # Embed actions
+        positions = torch.arange(2)
+        a1 = self.action_emb(last_action)
+        a2 = self.action_emb(action)
+        p1 = self.positional_embeddings(positions[0])
+        p2 = self.positional_embeddings(positions[1])
+
+        a1 += p1
+        a2 += p2
+
+        h = self.conv(hot_ranks.float()).view(M,-1)
+        # print(h.size(),a2.size(),a1.size())
+        x = torch.cat([h,a2,a1],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = x.view(M,-1)
+        return torch.tanh(self.value_output(x))
+        
+class BaselineCritic(nn.Module):
+    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.use_embedding = params['embedding']
+        self.mapping = params['mapping']
+        self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
+        self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
+        self.hand_emb = Embedder(5,32)
+        self.action_emb = Embedder(6,32)
+        self.positional_embeddings = Embedder(2,32)
+
+        self.conv = nn.Sequential(
+            nn.Conv1d(2, 32, kernel_size=3, stride=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(inplace=True),
+        )
+        self.fc0 = nn.Linear(64,hidden_dims[0])
+        self.fc1 = nn.Linear(96,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.nA)
+        
+    def forward(self,obs):
+        x = obs
+        M,c = x.size()
+        # hand = x[:,self.mapping['observation']['rank']].long()
+        # vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        a1 = self.action_emb(last_action)
+        hot_ranks = self.one_hot_kuhn[x[:,0:2].long()]
+
+        h = self.conv(hot_ranks.float()).view(M,-1)
+        x = torch.cat([h,a1],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = x.view(M,-1)
+        a = self.advantage_output(x)
+        v = self.value_output(x)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+        return q
 
 """
 Dueling QNetwork for function aproximation. Splits the network prior to the end into two streams V and Q. 

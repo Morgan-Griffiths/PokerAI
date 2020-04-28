@@ -5,7 +5,7 @@ import numpy as np
 from poker.config import Config
 from poker_env import Poker
 from poker.data_classes import Card,Evaluator
-import poker.datatypes as dt
+import poker.datatypes as pdt
 from cardlib import winner,holdem_winner,encode
 
 
@@ -13,9 +13,11 @@ class TestEnv(unittest.TestCase):
     @classmethod
     def setUp(self):
         gametype = 'kuhn'
+
         self.config = Config()
-        self.params = self.config.params
-        self.params['rule_params'] = dt.Globals.GameTypeDict[gametype].rule_params
+        self.params = {'game':gametype}
+        self.params['state_params'] = pdt.Globals.GameTypeDict[gametype].state_params
+        self.params['rule_params'] = pdt.Globals.GameTypeDict[gametype].rule_params
         logs = torch.randn(4)
         actions = ['Check','Bet','Call','Fold','Raise']
         torch_action_dict = {a:b.unsqueeze(0) for a,b in zip(actions,torch.arange(5))}
@@ -102,14 +104,14 @@ class TestEnv(unittest.TestCase):
             print(f'ml_inputs {ml_inputs}')
 
     def evaluations(self):
-        omaha = Evaluator('omahaHI')
-        holdem = Evaluator('holdem')
-        kuhn = Evaluator('kuhn')
+        omaha = Evaluator(pdt.GameTypes.OMAHAHI)
+        holdem = Evaluator(pdt.GameTypes.HOLDEM)
+        kuhn = Evaluator(pdt.GameTypes.KUHN)
 
         Q = Card(1,None)
         K = Card(2,None)
-        assert(kuhn([K,Q]) == 0)
-        assert(kuhn([Q,K]) == 1)
+        assert(kuhn([[K],[Q]]) == 0)
+        assert(kuhn([[Q],[K]]) == 1)
         hand = [Card(14,'c'),Card(2,'c'),Card(2,'d'),Card(5,'c')]
         hand2 = [Card(7,'s'),Card(5,'c'),Card(14,'h'),Card(10,'h')]
         PLO_board = [Card(10,'c'),Card(2,'h'),Card(4,'c'),Card(13,'c'),Card(4,'h')]
