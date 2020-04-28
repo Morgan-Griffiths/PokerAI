@@ -100,7 +100,7 @@ class Agent(object):
         hard_update(self.local_actor,self.target_actor)
         
     def __call__(self,x,mask):
-        return self.local_actor(x,mask,self.noise.sample())
+        return self.local_actor(x,mask)
 
     def reg_critique(self,obs,action):
         return self.target_critic(obs,action)
