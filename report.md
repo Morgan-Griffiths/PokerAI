@@ -5,3 +5,7 @@ I used a simple baseline of reinforce to solve simple and complex kuhn poker. Th
 ## Improvements
 
 Clearly it would be preferred to have a sense of how good the state is, and then update towards how effect that action is relative to the others. In the case of SB having an A. The EV of betting is > 1. Whereas the EV of checking is == 1. therefore when selecting check, we want to move the frequency down even though the outcome is positive. A way around this is by introducing a critic, that estimates the value of a state. Or estimates the Q values (action,state pairs). And then update the action frequency towards the critic's valuation.
+
+## Critic
+
+A key aspect of the critic's ability to correctly determine the outcome is the ability to distinguish which actions took place previously and which action is the current one taken by the actor. There are several options to encoding the positional information. Create a positional embedding vector along with the embedding of the action and add the two. One hot encode the actions and use a convnet.
