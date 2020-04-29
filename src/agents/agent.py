@@ -10,7 +10,6 @@ from torch import optim
 from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic,hard_update
 from models.buffers import PriorityReplayBuffer
 import poker.datatypes as pdt
-from noise import GaussianNoise
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -75,7 +74,6 @@ class Agent(object):
         self.nA = nA
         self.seed = seed
         self.epochs = params['epochs']+1
-        self.noise = GaussianNoise(self.nA,self.epochs)
         self.tau = params['TAU']
         self.max_reward = params['max_reward']
         self.gradient_clip = params['CLIP_NORM']

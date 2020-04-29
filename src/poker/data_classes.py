@@ -142,11 +142,12 @@ class PlayerTurn(object):
         self.value = self.initial_value
 
 class Player(object):
-    def __init__(self,hand,stack,position,active=True):
+    def __init__(self,hand,stack,position,active=True,allin=False):
         self.hand = hand
         self.stack = stack
         self.position = position
         self.active = active
+        self.allin = allin
         
 class Players(object):
     def __init__(self,n_players:int,stacksizes:list,hands:list,to_act:str):
@@ -224,6 +225,12 @@ class Players(object):
             position = self.initial_positions[player]
             hands.append(self.players[position].hand)
         return hands
+
+    def get_allins(self):
+        """
+        Only for HU
+        """
+        return [self.players[position].allin for position in self.initial_positions]
     
     def get_inputs(self):
         ml_inputs = {}

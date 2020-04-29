@@ -126,7 +126,6 @@ class Poker(object):
                 assert(isinstance(raw_ml[position]['complete_probs'][0],torch.Tensor))
                 assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
                 # assert(isinstance(raw_ml[position]['values'][0],torch.Tensor))
-                
                 raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(-1,self.state_space)
                 raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(-1,self.observation_space)
                 raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(-1,1)
@@ -216,3 +215,17 @@ class Poker(object):
         # Obs
         obs = torch.cat((current_hand.float(),vil_hand.float(),action.float())).unsqueeze(0)
         return state,obs
+
+    def available_actions(self):
+        """
+        Grabs last action, return mask of action possibilities. Requires categorical action selection.
+        Knows which actions represent bets and their size. When it is a bet, checks stack sizes to make sure betting/calling
+        etc. are valid. If both players are allin, then game finishes.
+        """
+        current_player = self.players.current_player
+        current_stack = current_player.stack
+        # last_action
+        # Categorical actions
+        # betsizes
+        
+        

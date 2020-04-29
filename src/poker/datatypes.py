@@ -68,10 +68,34 @@ class ComplexKuhn:
                 2:T([0,0,0,0,0]),
                 3:T([0,0,0,0,0]),
                 4:T([0,0,1,1,0]),
-                5:T([1,1,0,1,0])
+                5:T([1,1,0,0,0])
                 }
-        self.rule_params['action_dict'] = {0:'check',1:'bet',2:'call',3:'fold',4:'raise'}
-        self.rule_params['betsize_dict'] = {0:0,1:1,2:1,3:0,4:2}
+        self.rule_params['action_dict'] = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
+        self.rule_params['betsize_dict'] = {0:0,1:0,2:1,3:1,4:2}
+        self.rule_params['bets_per_street'] = 2
+        self.rule_params['raises_per_street'] = 1
+
+class BetsizeKuhn:
+    def __init__(self):
+        K = Kuhn()
+        self.rule_params = K.rule_params
+        self.state_params = K.state_params
+        self.state_params['stacksize'] = 5
+
+        self.rule_params['action_index'] = 1,
+        self.rule_params['state_index'] = 0,
+        self.rule_params['mapping'] = {'state':{'previous_action':1,'rank':0,'hand':0},
+                'observation':{'previous_action':2,'vil_rank':1,'rank':0,'vil_hand':1,'hand':0},
+                },
+        self.rule_params['mask_dict'] = {
+                0:T([1,1,0,0,0]),
+                1:T([0,0,1,1,1]),
+                2:T([0,0,0,0,0]),
+                3:T([0,0,0,0,0]),
+                4:T([0,0,1,1,0]),
+                5:T([1,1,0,0,0])
+                }
+        self.rule_params['action_dict'] = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
         self.rule_params['bets_per_street'] = 2
         self.rule_params['raises_per_street'] = 1
 

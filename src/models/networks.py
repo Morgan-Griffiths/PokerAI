@@ -212,7 +212,7 @@ class HoldemBaseline(nn.Module):
         action_probs /= action_probs.sum()
         m = Categorical(action_probs)
         action = m.sample()
-        return action,m.log_prob(action)
+        return action,m.log_prob(action),action_probs
 
 class HoldemBaselineCritic(nn.Module):
     def __init__(self,seed,nO,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
@@ -244,8 +244,10 @@ class HoldemBaselineCritic(nn.Module):
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],nA)
         self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.nA)
 
-    def forward(self,x,mask):
+    def forward(self,x,action):
         M,c = x.size()
         ranks = x[:,self.mapping['observation']['rank']].long()
         suits = x[:,self.mapping['observation']['suit']].long()
@@ -280,12 +282,146 @@ class HoldemBaselineCritic(nn.Module):
         x = torch.cat([winner.view(M,-1),last_action],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
-        x = self.dropout(x)
         return torch.tanh(self.fc3(x))
+
+class HoldemQCritic(nn.Module):
+    def __init__(self,seed,nO,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.action_emb = Embedder(6,64)
+
+        # Input is (1,13,2) -> (1,13,64)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(7, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(7, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+
+        self.fc1 = nn.Linear(304,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nA)
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(5,1)
+        self.advantage_output = nn.Linear(5,self.nA)
+
+    def forward(self,x):
+        M,c = x.size()
+        ranks = x[:,self.mapping['observation']['rank']].long()
+        suits = x[:,self.mapping['observation']['suit']].long()
+        vil_rank = x[:,self.mapping['observation']['vil_ranks']].long()
+        vil_suit = x[:,self.mapping['observation']['vil_suits']].long()
+        board_ranks = x[:,self.mapping['observation']['board_ranks']].long()
+        board_suits = x[:,self.mapping['observation']['board_suits']].long()
+
+        rank_input = torch.cat((ranks,board_ranks),dim=-1)
+        suit_input = torch.cat((suits,board_suits),dim=-1)
+        hot_ranks = self.one_hot_ranks[rank_input]
+        hot_suits = self.one_hot_suits[suit_input]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        hero = torch.cat((r,s),dim=-1)
+
+        rank_input2 = torch.cat((vil_rank,board_ranks),dim=-1)
+        suit_input2 = torch.cat((vil_suit,board_suits),dim=-1)
+        hot_ranks2 = self.one_hot_ranks[rank_input2]
+        hot_suits2 = self.one_hot_suits[suit_input2]
+
+        s2 = self.suit_conv(hot_suits2.float())
+        r2 = self.rank_conv(hot_ranks2.float())
+        villain = torch.cat((r2,s2),dim=-1)
+        # should be (b,64,88)
+
+        winner = hero - villain
+
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        last_action = self.action_emb(last_action)
+        x = torch.cat([winner.view(M,-1),last_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.activation(self.fc3(x))
+        x = self.dropout(x)
+        a = self.advantage_output(x)
+        v = self.value_output(x)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+        return q
 
 ################################################
 #                Kuhn Networks                 #
 ################################################
+
+class BetsizeActor(nn.Module):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        """
+        Num Categories: nC (check,fold,call,bet,raise)
+        Num Betsizes: nA (various betsizes)
+        """
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nC = nC
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,64)
+        self.noise = GaussianNoise()
+        self.fc1 = nn.Linear(64+64,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nC)
+        self.bfc1 = nn.Linear(64+64,hidden_dims[0])
+        self.bfc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.bfc3 = nn.Linear(hidden_dims[1],nA)
+        
+    def forward(self,state,mask):
+        x = state
+        hand = x[:,self.mapping['state']['rank']].long()
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        last_betsize = x[:,self.mapping['state']['previous_betsize']].long()
+        hand = self.hand_emb(hand)
+        last_action = self.action_emb(last_action)
+        x = torch.cat([hand,last_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.fc3(x)
+        action_logits = self.noise(x)
+        action_probs = F.softmax(action_logits,dim=-1)
+        action_probs = action_probs * mask
+        action_probs /= torch.sum(action_probs)
+        m = Categorical(action_probs)
+        action = m.sample()
+        # Check which category it is
+        if action < 2:
+            betsize = torch.tensor([0])
+        elif action == 2:
+            betsize = last_betsize
+        else:
+            # generate betsize
+            x = self.activation(self.bfc1(x))
+            x = self.activation(self.bfc2(x))
+            x = self.bfc3(x)
+            betsize_logits = self.noise(x)
+            betsize_probs = F.softmax(betsize_logits,dim=-1)
+            betsize_probs = betsize_probs * mask
+            betsize_probs /= torch.sum(betsize_probs)
+            b = Categorical(betsize_probs)
+            betsize = b.sample()
+        return action,m.log_prob(action),action_probs,betsize
 
 class Baseline(nn.Module):
     def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
@@ -327,10 +463,6 @@ class Baseline(nn.Module):
         action_logits = self.noise(x)
         
         action_probs = F.softmax(action_logits,dim=-1)
-        # if isinstance(noise,torch.Tensor):
-        #     print(action_probs.size(),noise.size())
-        #     with torch.no_grad():
-        #         action_probs += noise
         action_probs = action_probs * mask
         action_probs /= torch.sum(action_probs)
         m = Categorical(action_probs)

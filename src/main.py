@@ -19,21 +19,28 @@ if __name__ == "__main__":
     parser.add_argument('--agent',
                         default='actor_critic',
                         metavar="['actor','actor_critic']",
+                        type=str,
                         help='Which agent to train')
     parser.add_argument('--env',
                         default=pdt.GameTypes.KUHN,
+                        type=str,
                         metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to train in')
     parser.add_argument('--clean',
-                        default=False,
-                        metavar="boolean",
+                        default=True,
+                        type=bool,
                         help='cleans database')
+    parser.add_argument('--store',
+                        default=True,
+                        type=bool,
+                        help='Stores training data in database')
     parser.add_argument('-e','--epochs',
                         default=1000,
-                        metavar="int",
+                        type=int,
                         help='Number of training epochs')
     parser.add_argument('--critic',
                         default='q',
+                        type=str,
                         metavar="['q','reg']",
                         help='Critic output types [nA,1]')
 
@@ -48,7 +55,12 @@ if __name__ == "__main__":
     params['state_params'] = game_object.state_params
     params['rule_params'] = game_object.rule_params
     agent_params = config.agent_params
-    agent_params['network'] = NetworkConfig.EnvModels[args.env]
+
+    env_networks = NetworkConfig.EnvModels[args.env]
+    agent_params['network'] = env_networks['actor']
+    agent_params['actor_network'] = env_networks['actor']
+    agent_params['critic_network'] = env_networks['critic'][args.critic]
+    print(agent_params['critic_network'],env_networks['critic'])
     agent_params['mapping'] = params['rule_params']['mapping']
     agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
     agent_params['epochs'] = int(args.epochs)
@@ -62,14 +74,6 @@ if __name__ == "__main__":
     training_params['training_data'] = training_data
     training_params['agent_name'] = f'{args.env}_baseline'
     training_params['agent_type'] = args.agent
-    if args.critic == CriticType.Q:
-        agent_params['critic_network'] = NetworkConfig.CriticModels[CriticType.Q]
-        agent_params['actor_network'] = NetworkConfig.ActorModels[CriticType.Q]
-    else:
-        agent_params['critic_network'] = NetworkConfig.CriticModels[CriticType.REG]
-        agent_params['actor_network'] = NetworkConfig.ActorModels[CriticType.REG]
-    # Change pot size to see how it effects betting and calling
-    # params['state_params']['pot'] = 5
 
     env = Poker(params)
 
@@ -82,8 +86,9 @@ if __name__ == "__main__":
     agent = return_agent(args.agent,nS,nO,nA,seed,agent_params)
     action_data = train(env,agent,training_params)
 
-    mongo = MongoDB()
-    if args.clean:
-        print('Cleaning db')
-        mongo.clean_db()
-    mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
+    if args.store == True:
+        mongo = MongoDB()
+        if args.clean:
+            print('Cleaning db')
+            mongo.clean_db()
+        mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
