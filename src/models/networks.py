@@ -309,7 +309,7 @@ class Baseline(nn.Module):
             self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
             self.fc3 = nn.Linear(hidden_dims[1],nA)
         
-    def forward(self,state,mask,noise=None):
+    def forward(self,state,mask):
         x = state
         if not isinstance(state,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32) #device = self.device,
@@ -325,10 +325,10 @@ class Baseline(nn.Module):
         action_logits = self.fc3(x)
         
         action_probs = F.softmax(action_logits,dim=-1)
-        if isinstance(noise,torch.Tensor):
-            print(action_probs.size(),noise.size())
-            with torch.no_grad():
-                action_probs += noise
+        # if isinstance(noise,torch.Tensor):
+        #     print(action_probs.size(),noise.size())
+        #     with torch.no_grad():
+        #         action_probs += noise
         action_probs = action_probs * mask
         action_probs /= torch.sum(action_probs)
         m = Categorical(action_probs)
