@@ -200,7 +200,7 @@ if __name__ == "__main__":
         }
         projection ={'action':1,'hand':1,'_id':0}
         params = {
-            'interval':100
+            'interval':200
         }
         mongo = MongoDB()
         # SB

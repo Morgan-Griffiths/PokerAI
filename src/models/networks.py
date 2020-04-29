@@ -38,7 +38,7 @@ class GaussianNoise(nn.Module):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0)#.to(device)
+        self.noise = torch.tensor(0).float()#.to(device)
 
     def forward(self, x):
         if self.training and self.sigma != 0:
@@ -300,6 +300,7 @@ class Baseline(nn.Module):
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
+        self.noise = GaussianNoise()
         if self.use_embedding == True:
             self.fc1 = nn.Linear(64+64,hidden_dims[0])
             self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
@@ -322,7 +323,8 @@ class Baseline(nn.Module):
             x = torch.cat([hand,last_action],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
-        action_logits = self.fc3(x)
+        x = self.fc3(x)
+        action_logits = self.noise(x)
         
         action_probs = F.softmax(action_logits,dim=-1)
         # if isinstance(noise,torch.Tensor):
@@ -419,7 +421,7 @@ class BaselineCritic(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv1d(2, 32, kernel_size=3, stride=1),
             nn.BatchNorm1d(32),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
         self.fc0 = nn.Linear(64,hidden_dims[0])
         self.fc1 = nn.Linear(96,hidden_dims[0])
