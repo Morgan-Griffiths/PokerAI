@@ -1,7 +1,14 @@
 import ctypes
-
-# lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
-lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
+from sys import platform
+if platform == "linux" or platform == "linux2":
+    # linux
+    lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
+elif platform == "darwin":
+    # OS X
+    lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
+else:
+    raise OSError('Unknown OS')
+# lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
 
 
 # takes [2,'s'] or [2,1] and returns the cactus kev encoding for that card
