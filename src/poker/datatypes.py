@@ -24,6 +24,10 @@ class LimitTypes:
     NO_LIMIT = 'no_limit'
     LIMIT = 'limit'
 
+class OutputTypes:
+    TIERED = 'tiered'
+    FLAT = 'flat'
+
 class GameTypes:
     KUHN = 'kuhn'
     COMPLEXKUHN = 'complexkuhn'

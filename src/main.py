@@ -46,13 +46,17 @@ if __name__ == "__main__":
                         type=str,
                         metavar="['q','reg']",
                         help='Critic output types [nA,1]')
+    parser.add_argument('--N-output',
+                        default='flat',
+                        dest='network_output',
+                        type=str,
+                        metavar="['flat','tiered']",
+                        help='Network output types. Controls whether betsize is combined with actions or not')
 
     args = parser.parse_args()
 
     print(f'args {args}')
     tic = time.time()
-
-    BETSIZE_TYPE = 'flat'
     
     game_object = pdt.Globals.GameTypeDict[args.env]
     config = Config()
@@ -60,6 +64,7 @@ if __name__ == "__main__":
     params = {'game':args.env}
     params['state_params'] = game_object.state_params
     params['rule_params'] = game_object.rule_params
+    params['rule_params']['network_output'] = args.network_output
     agent_params = config.agent_params
 
     env_networks = NetworkConfig.EnvModels[args.env]
@@ -81,6 +86,7 @@ if __name__ == "__main__":
     training_params['training_data'] = training_data
     training_params['agent_name'] = f'{args.env}_baseline'
     training_params['agent_type'] = args.agent
+    training_params['critic'] = args.critic
 
     env = Poker(params)
 

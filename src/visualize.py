@@ -53,7 +53,10 @@ def plot_frequencies(title:str,data:list,hand_labels:list,action_labels:list,pat
         axs[i].set_title(f'Hand {hand_labels[i]}')
         # axs[i].set_xlabel('Epochs')
         # axs[i].set_ylabel('Frequency')
-        axs[i].legend()
+        axs[i].legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        # axs[i].legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
+        #   fancybox=True, shadow=True, ncol=5)
+    # axs.legend()
     fig.subplots_adjust(hspace=0.5)
     fig.savefig(f'{path+title}.png',bbox_inches='tight')
     # plt.title(title)
@@ -123,22 +126,23 @@ if __name__ == "__main__":
     # actions,hands = mongo.actionByHand(query)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])
     gametype = args.game
-    # data = mongo.get_data(query,projection)
-    # rewards = []
-    # values = []
-    # hands = []
-    # for point in data:
-    #     rewards.append(point['reward'])
-    #     values.append(point['value'])
-    #     hands.append(point['hand'])
-    # # plot value loss over time
-    # interval = 25
-    # critic_loss = np.array(values) - (np.array(rewards) / 2)
-    # critic_loss_rolling_mean = []
-    # for i in range(len(critic_loss)-interval):
-    #     critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
+    def plot_critic_values():
+        data = mongo.get_data(query,projection)
+        rewards = []
+        values = []
+        hands = []
+        for point in data:
+            rewards.append(point['reward'])
+            values.append(point['value'])
+            hands.append(point['hand'])
+        # plot value loss over time
+        interval = 25
+        critic_loss = np.array(values) - (np.array(rewards) / 2)
+        critic_loss_rolling_mean = []
+        for i in range(len(critic_loss)-interval):
+            critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
 
-    # plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+        plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
     def plot_action_probabilities():
         query = {
             'position':args.position,
@@ -163,7 +167,7 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-    # plot_action_probabilities()
+    plot_action_probabilities()
 
     def plot_betsize_probabilities():
         query = {
@@ -172,7 +176,7 @@ if __name__ == "__main__":
         }
         projection ={'betsizes':1,'hand':1,'_id':0}
         params = {
-            'interval':250   
+            'interval':100   
         }
         mongo = MongoDB()
         # SB
@@ -189,4 +193,4 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [size for size in unique_betsizes]
         plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
-    plot_betsize_probabilities()
+    # plot_betsize_probabilities()

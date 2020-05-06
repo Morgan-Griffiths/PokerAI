@@ -104,7 +104,10 @@ class Poker(object):
     def step(self,actor_outputs):
         self.players.store_actor_outputs(actor_outputs)
         if self.rules.betsize == True:
-            self.update_state(actor_outputs['action'],actor_outputs['betsize'])
+            if self.rules.network_output == 'flat':
+                self.update_state(actor_outputs['action_category'],actor_outputs['betsize'])
+            else:
+                self.update_state(actor_outputs['action'],actor_outputs['betsize'])
         else:
             self.update_state(actor_outputs['action'])
         state,obs = self.return_state(actor_outputs['action'])
@@ -149,9 +152,12 @@ class Poker(object):
                 if self.rules.betsize == True:
                     # print(raw_ml[position]['betsizes'])
                     # [print(point.size()) for point in raw_ml[position]['betsizes']]
-                    raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
-                    raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(-1,1)
-                    raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(-1,self.betsize_space)
+                    if self.rules.network_output == 'flat':
+                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
+                    else:
+                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
+                        raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(-1,1)
+                        raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(-1,self.betsize_space)
                 # raw_ml[position]['values'] = torch.stack(raw_ml[position]['values']).view(-1,1)
         return raw_ml
         

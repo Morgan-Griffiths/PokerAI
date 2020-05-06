@@ -73,12 +73,14 @@ class MongoDB(object):
                         if betsizes[step][0].dim() > 1:
                             index = torch.arange(betsizes[step].size(0))
                             state_json['betsizes'] = float(betsizes[step][index,actions[step]].detach())
-                            state_json['betsize_prob'] = float(betsize_prob[step][index,actions[step]].detach())
-                            state_json['betsize_probs'] = betsize_probs[step][index,actions[step]].detach().tolist()
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step][index,actions[step]].detach())
+                                state_json['betsize_probs'] = betsize_probs[step][index,actions[step]].detach().tolist()
                         else:
                             state_json['betsizes'] = float(betsizes[step].detach())
-                            state_json['betsize_prob'] = float(betsize_prob[step].detach())
-                            state_json['betsize_probs'] = betsize_probs[step].detach().tolist()
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step].detach())
+                                state_json['betsize_probs'] = betsize_probs[step].detach().tolist()
                     if len(values) > 0:
                         if len(values[step][0]) > 1:
                             index = torch.arange(values[step].size(0))
@@ -174,7 +176,7 @@ class MongoDB(object):
                     base = np.zeros(num_features)
                     mask = set(np.arange(num_features))&set(uniques)
                     for i,loc in enumerate(mask):
-                        base[loc] = frequencies[i]
+                        base[int(loc)] = frequencies[i]
                     frequencies = base
                 for j in range(len(frequencies)):
                     percentage_type[j].append(frequencies[j])

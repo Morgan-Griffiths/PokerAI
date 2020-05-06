@@ -22,6 +22,44 @@ def norm_frequencies(action_soft,mask):
     action_probs =  action_masked / action_masked.sum(-1).unsqueeze(1)
     return action_probs
 
+def combined_masks(action_mask,betsize_mask):
+    return torch.cat([action_mask[:-2],betsize_mask])
+
+class NetworkFunctions(object):
+    def __init__(self,nA,nB):
+        self.nA = nA
+        self.nB = nB
+
+    def wrap_action(self,action,betsize_category,previous_action):
+        """
+        Wraps split action/betsize into flat action.
+        Bets and raises are combined into one.
+        """
+        actions = torch.zeros(self.nA - 2 + self.nB)
+        if action < 3:
+            actions[action] = 1
+        else: # Bet or raise
+            actions[betsize_category + 3] = 1
+        return torch.argmax(actions, dim=0).unsqueeze(0)
+
+    def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
+        """Unwraps flat action into action_category and betsize_category"""
+        actions = torch.zeros(self.nA)
+        betsizes = torch.zeros(self.nB)
+        if action < 3:
+            actions[action] = 1
+        elif previous_action == 5: # Unopened
+            actions[3] = 1
+            bet_category = action - 3
+            betsizes[bet_category] = 1
+        else: # facing bet or raise
+            actions[4] = 1
+            bet_category = action - 3
+            betsizes[bet_category] = 1
+        int_actions = torch.argmax(actions, dim=0).unsqueeze(0)
+        int_betsizes = torch.argmax(betsizes, dim=0).unsqueeze(0)
+        return int_actions,int_betsizes
+
 ################################################
 #                Helper Layers                 #
 ################################################
@@ -547,36 +585,40 @@ class BetsizeCritic(nn.Module):
 ################################################
 
 class FlatBetsizeActor(nn.Module):
-    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         """
-        Num Categories: nC (check,fold,call,bet,raise)
-        Num Betsizes: nA (various betsizes)
+        Num Categories: nA (check,fold,call,bet,raise)
+        Num Betsizes: nB (various betsizes)
         """
         super().__init__()
         self.activation = activation
         self.nS = nS
-        self.nC = nC
         self.nA = nA
-        self.combined_output = nC - 2 + nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
         
         self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
-        self.betsize_emb = Embedder(self.nA,64)
+        self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise()
-        self.fc1 = nn.Linear(64+64,hidden_dims[0])
+        self.fc1 = nn.Linear(129,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],self.combined_output)
         
-    def forward(self,state,mask,betsize_mask):
+    def forward(self,state,action_mask,betsize_mask):
+        mask = combined_masks(action_mask,betsize_mask)
         x = state
-        hand = x[:,self.mapping['state']['rank']].long()
+        hand = x[0,self.mapping['state']['rank']].long().unsqueeze(0)
         last_action = x[:,self.mapping['state']['previous_action']].long()
-        previous_betsize = x[:,self.mapping['state']['previous_betsize']].long()
+        previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
+        if previous_betsize.dim() == 1:
+            previous_betsize = previous_betsize.unsqueeze(1)
         hand = self.hand_emb(hand)
-        last_action = self.action_emb(last_action)
-        x = torch.cat([hand,last_action,previous_betsize],dim=-1)
+        last_action_emb = self.action_emb(last_action)
+        x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         cateogry_logits = self.fc3(x)
@@ -587,22 +629,26 @@ class FlatBetsizeActor(nn.Module):
         # action_probs /= torch.sum(action_probs)
         m = Categorical(action_probs)
         action = m.sample()
+
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
         
         outputs = {
             'action':action,
+            'action_category':action_category,
             'action_prob':m.log_prob(action),
-            'action_probs':action_probs
+            'action_probs':action_probs,
+            'betsize':betsize_category
             }
         return outputs
 
 class FlatBetsizeCritic(nn.Module):
-    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
         self.nS = nS
-        self.nC = nC
         self.nA = nA
-        self.combined_output = nC - 2 + nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
         
         self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
@@ -619,7 +665,7 @@ class FlatBetsizeCritic(nn.Module):
             nn.ReLU(inplace=True)
         )
         self.fc0 = nn.Linear(64,hidden_dims[0])
-        self.fc1 = nn.Linear(96,hidden_dims[0])
+        self.fc1 = nn.Linear(97,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.value_output = nn.Linear(64,1)
         self.advantage_output = nn.Linear(64,self.combined_output)
@@ -627,17 +673,22 @@ class FlatBetsizeCritic(nn.Module):
     def forward(self,obs):
         x = obs
         M,c = x.size()
-        hand = x[:,self.mapping['observation']['rank']].long()
-        vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        hand = x[0,self.mapping['observation']['rank']].long().unsqueeze(0)
+        vil_hand = x[0,self.mapping['observation']['vil_rank']].long().unsqueeze(0)
         hands = torch.cat([hand,vil_hand],dim=-1)
         hot_ranks = self.one_hot_kuhn[hands.long()]
         if hot_ranks.dim() == 2:
             hot_ranks = hot_ranks.unsqueeze(0)
         last_action = x[:,self.mapping['observation']['previous_action']].long()
-        last_betsize = x[:,self.mapping['observation']['previous_betsize']].long()
+        last_betsize = x[:,self.mapping['observation']['previous_betsize']].float()
+        if last_betsize.dim() == 1:
+            last_betsize = last_betsize.unsqueeze(1)
         a1 = self.action_emb(last_action)
 
-        h = self.conv(hot_ranks.float()).view(M,-1)
+        # print(hot_ranks.size())
+        h = self.conv(hot_ranks.float())
+        h = h.view(-1).unsqueeze(0).repeat(M,1)
+        # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
         x = torch.cat([h,a1,last_betsize],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))

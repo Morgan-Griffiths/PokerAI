@@ -1,5 +1,6 @@
 import os
 import poker.datatypes as pdt
+import models.network_config as ng
 import copy
 import torch
 

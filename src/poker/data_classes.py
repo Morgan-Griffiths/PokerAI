@@ -207,8 +207,11 @@ class Players(object):
     def store_actor_outputs(self,actor_outputs):
         self.store_actions(actor_outputs['action'],actor_outputs['action_prob'],actor_outputs['action_probs'])
         if 'betsize' in actor_outputs:
-            self.store_betsizes(actor_outputs['betsize'],actor_outputs['betsize_prob'],actor_outputs['betsize_probs'])
-
+            if 'betsize_prob' in actor_outputs:
+                self.store_betsizes(actor_outputs['betsize'],actor_outputs['betsize_prob'],actor_outputs['betsize_probs'])
+            else:
+                self.betsizes[self.current_player].append(actor_outputs['betsize'])
+                
     def store_actions(self,action:int,action_prob:torch.Tensor,action_probs:torch.Tensor):
         self.actions[self.current_player].append(action)
         self.action_prob[self.current_player].append(action_prob)
@@ -340,6 +343,8 @@ class Rules(object):
         return self.mask_dict[state[0,self.action_index].long().item()]
             
     def load_rules(self,params):
+        if 'network_output' in params:
+            self.network_output = params['network_output']
         self.bettype = params['bettype']
         self.blinds = params['blinds']
         self.minbet = self.blinds['BB']
