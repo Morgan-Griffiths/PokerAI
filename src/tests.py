@@ -120,21 +120,22 @@ class TestEnv(unittest.TestCase):
         assert(holdem([holdem_hand,holdem_hand2,holdem_board]) == 1)
         assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
-    def poker_envs(self):
-        os.system('python main.py --env kuhn -e 10 --store False --clean False')
-        os.system('python main.py --env complexkuhn -e 10 --store False --clean False')
-        os.system('python main.py --env holdem -e 10 --store False --clean False')
-        # os.system('python main.py --env betsizekuhn -e 10 --store False')
-        # os.system('python main.py --env omaha -e 10 --store False')
+    def TestRlEnvironments(self):
+        os.system('python main.py --env kuhn -e 10 --no-clean --no-store')
+        os.system('python main.py --env complexkuhn -e 10 --no-clean --no-store')
+        os.system('python main.py --env holdem -e 10 --no-clean --no-store')
+        # os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
+        # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
 
 
 def envTestSuite():
     suite = unittest.TestSuite()
     suite.addTest(TestEnv('testRun'))
-    suite.addTest(TestEnv('testScenario'))
     suite.addTest(TestEnv('testRepresentations'))
     suite.addTest(TestEnv('evaluations'))
-    suite.addTest(TestEnv('poker_envs'))
+    suite.addTest(TestEnv('TestRlEnvironments'))
+    # suite.addTest(TestEnv('testScenario'))
     return suite
 
 

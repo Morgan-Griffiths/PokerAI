@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from collections import deque
 from random import shuffle
+import copy
 
 import poker.datatypes as pdt
 from cardlib import winner,encode,decode,holdem_hand_rank,holdem_winner
@@ -60,12 +61,13 @@ class Deck(object):
             print(card)
 
 class Historical_point(object):
-    def __init__(self,player,action):
+    def __init__(self,player,action,betsize):
         self.player = player
         self.action = Action(action)
+        self.betsize = betsize
     
     def display(self):
-        return (self.player,self.action.readable())
+        return (self.player,self.action.readable(),self.betsize)
     
 class History(object):
     def __init__(self,initial_state=None):
@@ -74,24 +76,36 @@ class History(object):
         else:
             self.history = []
         
-    def add(self,player,action):
-        self.history.append(Historical_point(player,action))
+    def add(self,player,action,betsize):
+        self.history.append(Historical_point(player,action,betsize))
         
     def display(self):
         for step in self.history:
             print(step.display())
+
+    @property
+    def last_betsize(self):
+        if len(self.history) > 0:
+            return self.history[-1].betsize
+        return torch.tensor([0])
             
     @property
     def last_action(self):
         if len(self.history) > 0:
             return self.history[-1].action.item()
-        return None
+        return torch.tensor([5])
 
     @property
     def penultimate_action(self):
         if len(self.history) > 1:
             return self.history[-2].action.item()
-        return None
+        return torch.tensor([5])
+
+    @property
+    def penultimate_betsize(self):
+        if len(self.history) > 1:
+            return self.history[-2].betsize
+        return torch.tensor([0])
 
     def __len__(self):
         return len(self.history)
@@ -114,7 +128,7 @@ class GameTurn(object):
 In the Future we will need to account for side pots
 '''
 class Pot(object):
-    def __init__(self,initial_value:int):
+    def __init__(self,initial_value:float):
         self.initial_value = initial_value
         self.value = initial_value
         
@@ -169,34 +183,63 @@ class Players(object):
         self.game_states = {position:[] for position in self.poker_positions}
         self.observations = {position:[] for position in self.poker_positions}
         self.actions = {position:[] for position in self.poker_positions}
+        self.action_prob = {position:[] for position in self.poker_positions}
         self.action_probs = {position:[] for position in self.poker_positions}
         self.values = {position:[] for position in self.poker_positions}
+        self.betsize_values = {position:[] for position in self.poker_positions}
         self.rewards = {position:[] for position in self.poker_positions}
-        self.complete_probs = {position:[] for position in self.poker_positions}
+        self.betsizes = {position:[] for position in self.poker_positions}
+        self.betsize_prob = {position:[] for position in self.poker_positions}
+        self.betsize_probs = {position:[] for position in self.poker_positions}
+        self.action_masks = {position:[] for position in self.poker_positions}
+        self.betsize_masks = {position:[] for position in self.poker_positions}
         self.player_turns = {position:0 for position in self.poker_positions}
         
     def store_states(self,state:torch.Tensor,obs:torch.Tensor):
-        self.observations[self.current_player].append(obs)
-        self.game_states[self.current_player].append(state)
-        
-    def store_actions(self,action:int,action_probs:torch.Tensor,complete_probs:torch.Tensor):
-        self.actions[self.current_player].append(action)
-        self.action_probs[self.current_player].append(action_probs)
-        self.complete_probs[self.current_player].append(complete_probs)
+        self.observations[self.current_player].append(copy.deepcopy(obs))
+        self.game_states[self.current_player].append(copy.deepcopy(state))
 
-    def store_values(self,value:torch.Tensor):
-        self.values[self.current_player].append(value)
+    def store_masks(self,action_mask:torch.Tensor,betsize_mask:torch.Tensor):
+        # print(action_mask,betsize_mask)
+        self.action_masks[self.current_player].append(action_mask)
+        self.betsize_masks[self.current_player].append(betsize_mask)
+        
+    def store_actor_outputs(self,actor_outputs):
+        self.store_actions(actor_outputs['action'],actor_outputs['action_prob'],actor_outputs['action_probs'])
+        if 'betsize' in actor_outputs:
+            self.store_betsizes(actor_outputs['betsize'],actor_outputs['betsize_prob'],actor_outputs['betsize_probs'])
+
+    def store_actions(self,action:int,action_prob:torch.Tensor,action_probs:torch.Tensor):
+        self.actions[self.current_player].append(action)
+        self.action_prob[self.current_player].append(action_prob)
+        self.action_probs[self.current_player].append(action_probs)
+
+    def store_betsizes(self,betsize:int,betsize_prob:torch.Tensor,betsize_probs:torch.Tensor):
+        self.betsizes[self.current_player].append(betsize)
+        self.betsize_prob[self.current_player].append(betsize_prob)
+        self.betsize_probs[self.current_player].append(betsize_probs)
+
+    def store_values(self,critic_outputs:dict):
+        self.values[self.current_player].append(critic_outputs['value'])
+        if len(critic_outputs.keys()) == 2:
+            self.betsize_values[self.current_player].append(critic_outputs['betsize'])
         
     def store_rewards(self,position:str,reward:float):
         N = self.player_turns[position]
         torch_rewards = torch.Tensor(N).fill_(reward)#.view(N,1)
         self.rewards[position].append(torch_rewards)
         
-    def update_stack(self,amount:float,player=None):
+    def update_stack(self,amount:torch.Tensor,player=None):
+        if amount.dim() > 0:
+            amount = amount.squeeze(0)
         if player == None:
             self.players[self.current_player].stack += amount
+            if self.players[self.current_player].stack == 0:
+                self.players[self.current_player].allin = True
         else:
             self.players[player].stack += amount
+            if self.players[player].stack == 0:
+                self.players[player].allin = True
         
     def order_post_flop(self):
         pass
@@ -209,7 +252,6 @@ class Players(object):
         for i,initial_stacksize in enumerate(self.stacksizes):
             position = pdt.Globals.PLAYERS_POSITIONS_DICT[self.n_players][i]
             player = self.players[position]
-#             print(f'gen_rewards,player.stack {player.stack}, initial_stacksize {initial_stacksize}')
             self.store_rewards(position,player.stack - initial_stacksize)
     
     def get_player(self,position):
@@ -241,8 +283,13 @@ class Players(object):
                     'game_states':self.game_states[position],
                     'observations':self.observations[position],
                     'actions':self.actions[position],
+                    'action_prob':self.action_prob[position],
                     'action_probs':self.action_probs[position],
-                    'complete_probs':self.complete_probs[position],
+                    'betsizes':self.betsizes[position],
+                    'betsize_prob':self.betsize_prob[position],
+                    'betsize_probs':self.betsize_probs[position],
+                    'action_masks':self.action_masks[position],
+                    'betsize_masks':self.betsize_masks[position],
                     'rewards':self.rewards[position],
                     'values':self.values[position]
                 }
@@ -270,6 +317,10 @@ class Players(object):
         return self.players[self.current_player].hand
     
     @property
+    def current_stack(self):
+        return self.players[self.current_player].stack
+
+    @property
     def current_player(self):
         return self.poker_positions[0]
     
@@ -289,12 +340,17 @@ class Rules(object):
         return self.mask_dict[state[0,self.action_index].long().item()]
             
     def load_rules(self,params):
+        self.bettype = params['bettype']
+        self.blinds = params['blinds']
+        self.minbet = self.blinds['BB']
+        self.betsize = params['betsize']
+        self.betsizes = params['betsizes']
+        self.num_betsizes = len(self.betsizes)
         self.unopened_action = params['unopened_action']
         self.action_dict = params['action_dict']
         self.betsize_dict = params['betsize_dict']
         self.mask_dict = params['mask_dict']
         self.bets_per_street = params['bets_per_street']
-        self.raises_per_street = params['raises_per_street']
         self.db_mapping = params['mapping']
         self.action_index = params['action_index'] # Indexes into game_state. Important for masking actions
         self.state_index = params['state_index']
@@ -303,16 +359,16 @@ class Rules(object):
 
     def multiple_actions(self,env):
         done = False
-        if env.history.last_action == 3 or env.history.last_action == 2:
+        if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD] or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
             done = True
         if len(env.history) > 1:
-            if env.history.last_action == 0 and env.history.penultimate_action == 0:
+            if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK] and env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]:
                 done = True
         return done
         
     def two_actions(self,env):
         done = False
-        if env.history.last_action == 3 or env.history.last_action == 2 or env.history.last_action == 0:
+        if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD] or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]:
             done = True
         return done
     
@@ -344,7 +400,7 @@ def eval_omaha_hi(cards):
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
-        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN:
+        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN or self.game == pdt.GameTypes.BETSIZEKUHN :
             self.evaluate = eval_kuhn
         elif self.game == pdt.GameTypes.HOLDEM:
             self.evaluate = eval_holdem

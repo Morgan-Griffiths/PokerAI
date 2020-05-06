@@ -1,6 +1,8 @@
 import ctypes
 
-lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
+# lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
+lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
+
 
 # takes [2,'s'] or [2,1] and returns the cactus kev encoding for that card
 def encode(card):
