@@ -18,6 +18,16 @@ cargo build --release
 ```
 (`brew install rust` if you don't have it.)
 
+## MongoDB
+
+Is used for storing the RL training run data and generating plots.
+
+### Ubuntu
+https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/
+
+### OSX
+https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/
+
 # Abstract
 
 A series of poker environments that cover each of the individual complexities of poker, allowing one to test networks and learning architectures quickly and easily starting from the simpliest env all the way to real world poker. The goal is a single API that interfaces with the training architecture for the agent such that you can scale the complexity as needed. Asserting that the learning algorithm learns at all stages.
@@ -34,6 +44,8 @@ Modify poker/models/network_config.py to change which network to train. Add or m
 
 Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M train -e 10```
 Examine a network's output (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
+Train an RL agent on an env with ```python main.py --env <environment>```
+Plot the RL training results with ```python visualize.py```
 
 # Hand recognition
 
@@ -78,7 +90,7 @@ There are a number of environments, each increasing in complexity.
 
 _Baseline performance_
 
-![Graph](Action_probabilities_for_SB.png)
+![Graph](assets/Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -87,7 +99,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Action_probabilities_for_BB.png)
+![Graph](assets/Action_probabilities_for_BB.png)
 
 ## Complex Kuhn
 
@@ -108,7 +120,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Complex_Action_probabilities_for_SB.png)
+![Graph](assets/Complex_Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -117,7 +129,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Complex_Action_probabilities_for_BB.png)
+![Graph](assets/Complex_Action_probabilities_for_BB.png)
 
 ## Limit holdem with full deck
 

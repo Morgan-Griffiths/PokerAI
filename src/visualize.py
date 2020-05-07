@@ -5,66 +5,12 @@ import numpy as np
 from db import MongoDB
 import poker.datatypes as pdt
 
-hand_dict = {0:'?',1:'Q',2:'K',3:'A'}
-
-label_dict = {5:['Check','Bet','Fold'],
+label_dict = {5:['Check','Bet'],
             0:['Check','Bet'],
             1:['Call','Raise','Fold'],
             4:['Betting','Checking']}
 
-action_dict = {
-    0:'Check',
-    1:'Bet',
-    2:'Call',
-    3:'Fold',
-    4:'Raise',
-    5:'Unopened'
-}
-
 colors = ['g','b','m','r','y']
-
-def visualize_actions(actions):
-    labels = label_dict[index]
-    keys = log_probs.keys()
-    N = 0
-    for key in keys:
-        N = max(N,len(log_probs[key]))
-    epochs = range(1,N+1)
-    for i in range(len(keys)):
-        plt.plot(epochs,torch.exp(log_probs[i]).detach().numpy(),colors[i],label=f"{action_labels[i]} frequency")
-#     plt.title(f'{card_dict[hand]}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.savefig('DQN_performance.png',bbox_inches='tight')
-
-def monitor_frequencies(hand,log_probs,index):
-    labels = label_dict[index]
-    keys = log_probs.keys()
-    N = 0
-    for key in keys:
-        N = max(N,len(log_probs[key]))
-    epochs = range(1,N+1)
-    for i in range(len(keys)):
-        plt.plot(epochs,torch.exp(log_probs[i]).detach().numpy(),colors[i],label=f"{action_labels[i]} frequency")
-#     plt.title(f'{card_dict[hand]}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.savefig('DQN_performance.png',bbox_inches='tight')
-    
-def monitor_ndfrequencies(hand,log_probs,index):
-    labels = label_dict[index]
-    epochs = range(1,log_probs.size(0)+1)
-    for i in range(log_probs.size(1)):
-        print(log_probs[:,i].detach().numpy().size)
-        plt.plot(epochs,log_probs[:,i].detach().numpy(),colors[i],label=f"{action_labels[i]} frequency")
-#     plt.title(f'{card_dict[hand]}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.savefig('DQN_performance.png',bbox_inches='tight')
-
 
 def plot_data(title:str,data:list,labels:list,path='assets/'):
     print(path+title)
@@ -86,7 +32,7 @@ def plot_frequencies(title:str,data:list,hand_labels:list,action_labels:list,pat
     epochs = range(amount)#range(1,len(data[0][0])+1)
     fig, axs = plt.subplots(len(data))
     fig.suptitle('Frequencies')
-    barWidth = 0.5
+    barWidth = 1
     for i,hand in enumerate(data):
         if len(action_labels) == 5:
             axs[i].bar(epochs,hand[0][:amount],color=colors[0],label=action_labels[0],width=barWidth)
@@ -107,7 +53,10 @@ def plot_frequencies(title:str,data:list,hand_labels:list,action_labels:list,pat
         axs[i].set_title(f'Hand {hand_labels[i]}')
         # axs[i].set_xlabel('Epochs')
         # axs[i].set_ylabel('Frequency')
-        axs[i].legend()
+        axs[i].legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        # axs[i].legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
+        #   fancybox=True, shadow=True, ncol=5)
+    # axs.legend()
     fig.subplots_adjust(hspace=0.5)
     fig.savefig(f'{path+title}.png',bbox_inches='tight')
     # plt.title(title)
@@ -177,22 +126,23 @@ if __name__ == "__main__":
     # actions,hands = mongo.actionByHand(query)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])
     gametype = args.game
-    data = mongo.get_data(query,projection)
-    rewards = []
-    values = []
-    hands = []
-    for point in data:
-        rewards.append(point['reward'])
-        values.append(point['value'])
-        hands.append(point['hand'])
-    # plot value loss over time
-    interval = 25
-    critic_loss = np.array(values) - (np.array(rewards) / 2)
-    critic_loss_rolling_mean = []
-    for i in range(len(critic_loss)-interval):
-        critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
-
-    plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+    def plot_critic_values():
+        data = mongo.get_data(query,projection)
+        rewards = []
+        values = []
+        hands = []
+        for point in data:
+            rewards.append(point['reward'])
+            values.append(point['value'])
+            hands.append(point['hand'])
+        # plot value loss over time
+        interval = 25
+        critic_loss = np.array(values) - (np.array(rewards) / 2)
+        critic_loss_rolling_mean = []
+        for i in range(len(critic_loss)-interval):
+            critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
+        plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+        
     def plot_action_probabilities():
         query = {
             'position':args.position,
@@ -206,15 +156,41 @@ if __name__ == "__main__":
         # SB
         data = mongo.get_data(query,projection)
         actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
-        hand_labels = [f'Hand {hand_dict[hand]}' for hand in unique_hands]
-        action_labels = [action_dict[act] for act in unique_actions]
+        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-
+        print('BB')
         # BB
         query['position'] = pdt.Positions.BB
         data = mongo.get_data(query,projection)
         actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
-        hand_labels = [f'Hand {hand_dict[hand]}' for hand in unique_hands]
-        action_labels = [action_dict[act] for act in unique_actions]
+        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
     plot_action_probabilities()
+
+    def plot_betsize_probabilities():
+        query = {
+            'position':args.position,
+            'training_round':args.run
+        }
+        projection ={'betsizes':1,'hand':1,'_id':0}
+        params = {
+            'interval':100   
+        }
+        mongo = MongoDB()
+        # SB
+        data = mongo.get_data(query,projection)
+        betsize,unique_hands,unique_betsize = mongo.betsizeByHand(data,params)
+        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+        action_labels = [size for size in unique_betsize]
+        plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsize,hand_labels,action_labels)
+
+        # BB
+        query['position'] = pdt.Positions.BB
+        data = mongo.get_data(query,projection)
+        betsizes,unique_hands,unique_betsizes = mongo.betsizeByHand(data,params)
+        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+        action_labels = [size for size in unique_betsizes]
+        plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
+    plot_betsize_probabilities()

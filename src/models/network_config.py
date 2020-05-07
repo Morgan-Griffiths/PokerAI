@@ -23,16 +23,29 @@ class NetworkConfig(object):
         dt.LearningCategories.REGRESSION:SmoothL1Loss,
     }
     EnvModels = {
-            pdt.GameTypes.KUHN : Baseline,
-            pdt.GameTypes.COMPLEXKUHN : Baseline,
-            pdt.GameTypes.HOLDEM : HoldemBaseline,
+            pdt.GameTypes.KUHN : {
+                'actor':Baseline,
+                'critic':{
+                    CriticType.Q : BaselineCritic,
+                    CriticType.REG : BaselineKuhnCritic
+                }},
+            pdt.GameTypes.COMPLEXKUHN : {
+                'actor':Baseline,
+                'critic':{
+                    CriticType.Q : BaselineCritic,
+                    CriticType.REG : BaselineKuhnCritic
+                }},
+            pdt.GameTypes.BETSIZEKUHN : {
+                'actor':FlatBetsizeActor,
+                'critic':{
+                    CriticType.Q : FlatBetsizeCritic,
+                    CriticType.REG : BaselineKuhnCritic
+                }},
+            pdt.GameTypes.HOLDEM : {
+                'actor':HoldemBaseline,
+                'critic':{
+                    CriticType.Q : HoldemQCritic,
+                    CriticType.REG : HoldemBaselineCritic
+                }},
             pdt.GameTypes.OMAHAHI : 'Not implemented',
         }
-    CriticModels = {
-        CriticType.Q : BaselineCritic,
-        CriticType.REG : BaselineKuhnCritic
-    }
-    ActorModels = {
-        CriticType.Q : Baseline,
-        CriticType.REG : Baseline
-    }

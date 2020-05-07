@@ -28,5 +28,5 @@ class Config(object):
             'network':None,
             'critic_network':None,
             'actor_network':None,
-            'critic_type':'reg'
+            'critic_type':'q'
         }

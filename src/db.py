@@ -12,7 +12,7 @@ class MongoDB(object):
         self.db = client['poker']
 
     def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype):
-        if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN:
+        if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN:
             self.store_kuhn_data(training_data,mapping,training_round,gametype)
         elif gametype == pdt.Holdem:
             self.store_holdem_data(training_data,mapping,training_round,gametype)
@@ -39,18 +39,22 @@ class MongoDB(object):
                 game_states = poker_round['game_states']
                 observations = poker_round['observations']
                 actions = poker_round['actions']
+                action_prob = poker_round['action_prob']
                 action_probs = poker_round['action_probs']
                 rewards = poker_round['rewards']
                 values = poker_round['values']
+                betsizes = poker_round['betsizes']
+                betsize_prob = poker_round['betsize_prob']
+                betsize_probs = poker_round['betsize_probs']
                 assert(isinstance(rewards,torch.Tensor))
-                assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(actions,torch.Tensor))
+                assert(isinstance(action_prob,torch.Tensor))
+                assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(observations,torch.Tensor))
                 assert(isinstance(game_states,torch.Tensor))
                 for step,game_state in enumerate(game_states):
                     hand = int(game_state[mapping['state']['hand']])
                     vil_hand = int(game_state[mapping['observation']['vil_hand']])
-                    # board = int(game_state[mapping['state']['hand']])
                     previous_action = int(game_state[mapping['state']['previous_action']])
                     state_json = {
                         'position':position,
@@ -58,17 +62,29 @@ class MongoDB(object):
                         'vil_hand':vil_hand,
                         'reward':float(rewards[step]),
                         'action':int(actions[step]),
-                        'action_probs':float(action_probs[step].detach()),
+                        'action_probs':action_probs[step].detach().tolist(),
                         'previous_action':previous_action,
                         'training_round':training_round,
                         'poker_round':i,
                         'step':step,
                         'game':gametype
                         }
+                    if len(betsizes) > 0:
+                        if betsizes[step][0].dim() > 1:
+                            index = torch.arange(betsizes[step].size(0))
+                            state_json['betsizes'] = float(betsizes[step][index,actions[step]].detach())
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step][index,actions[step]].detach())
+                                state_json['betsize_probs'] = betsize_probs[step][index,actions[step]].detach().tolist()
+                        else:
+                            state_json['betsizes'] = float(betsizes[step].detach())
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step].detach())
+                                state_json['betsize_probs'] = betsize_probs[step].detach().tolist()
                     if len(values) > 0:
                         if len(values[step][0]) > 1:
                             index = torch.arange(values[step].size(0))
-                            state_json['value'] = float(values[step][index,actions[step]].detach())
+                            state_json['value'] = values[step][index,actions[step]].detach().tolist()
                         else:
                             state_json['value'] = float(values[step].detach())
                     self.db['game_data'].insert_one(state_json)
@@ -160,7 +176,7 @@ class MongoDB(object):
                     base = np.zeros(num_features)
                     mask = set(np.arange(num_features))&set(uniques)
                     for i,loc in enumerate(mask):
-                        base[loc] = frequencies[i]
+                        base[int(loc)] = frequencies[i]
                     frequencies = base
                 for j in range(len(frequencies)):
                     percentage_type[j].append(frequencies[j])
@@ -174,6 +190,36 @@ class MongoDB(object):
         for point in data:
             states.append(np.array([point['hand'],point['position']]))
         return states
+
+    def betsizeByHand(self,data:'pymongo.cursor',params,pad=True):
+        hands = []
+        betsizes = []
+        for point in data:
+            hands.append(np.array(point['hand']))
+            betsizes.append(np.array(point['betsizes']))
+        hands = np.stack(hands)
+        betsizes = np.stack(betsizes)
+        betsize_mask = betsizes > -1
+        hands = hands[betsize_mask]
+        betsizes = betsizes[betsize_mask]
+        R = hands.shape[0]
+        hands = hands.reshape(R,1)
+        betsizes = betsizes.reshape(R,1)
+        unique_hands,hand_counts = np.lib.arraysetops.unique(hands,return_counts=True)
+        unique_betsizes,action_counts = np.lib.arraysetops.unique(betsizes,return_counts=True)
+        num_features = len(action_counts)
+        print('unique_hands and counts',unique_hands,hand_counts)
+        print('unique_betsizes and counts',unique_betsizes,action_counts)
+        return_data = []
+        N = 0
+        for hand_type in unique_hands:
+            mask = np.where(hands == hand_type)
+            return_data.append(betsizes[mask])
+            N = max(N,betsizes[mask].shape[0])
+        if pad == True:
+            return_data = MongoDB.pad_inputs(return_data,N)
+        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        return return_data,unique_hands,unique_betsizes
 
     def actionByHand(self,data:'pymongo.cursor',params,pad=True):
         hands = []

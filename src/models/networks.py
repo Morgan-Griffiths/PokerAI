@@ -16,9 +16,80 @@ def hard_update(source,target):
     for target_param,param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
 
+def norm_frequencies(action_soft,mask):
+    # with torch.no_grad():
+    action_masked = action_soft * mask
+    action_probs =  action_masked / action_masked.sum(-1).unsqueeze(1)
+    return action_probs
+
+def combined_masks(action_mask,betsize_mask):
+    return torch.cat([action_mask[:-2],betsize_mask])
+
+class NetworkFunctions(object):
+    def __init__(self,nA,nB):
+        self.nA = nA
+        self.nB = nB
+
+    def wrap_action(self,action,betsize_category,previous_action):
+        """
+        Wraps split action/betsize into flat action.
+        Bets and raises are combined into one.
+        """
+        actions = torch.zeros(self.nA - 2 + self.nB)
+        if action < 3:
+            actions[action] = 1
+        else: # Bet or raise
+            actions[betsize_category + 3] = 1
+        return torch.argmax(actions, dim=0).unsqueeze(0)
+
+    def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
+        """Unwraps flat action into action_category and betsize_category"""
+        actions = torch.zeros(self.nA)
+        betsizes = torch.zeros(self.nB)
+        if action < 3:
+            actions[action] = 1
+        elif previous_action == 5: # Unopened
+            actions[3] = 1
+            bet_category = action - 3
+            betsizes[bet_category] = 1
+        else: # facing bet or raise
+            actions[4] = 1
+            bet_category = action - 3
+            betsizes[bet_category] = 1
+        int_actions = torch.argmax(actions, dim=0).unsqueeze(0)
+        int_betsizes = torch.argmax(betsizes, dim=0).unsqueeze(0)
+        return int_actions,int_betsizes
+
 ################################################
 #                Helper Layers                 #
 ################################################
+
+class GaussianNoise(nn.Module):
+    """Gaussian noise regularizer.
+
+    Args:
+        sigma (float, optional): relative standard deviation used to generate the
+            noise. Relative means that it will be multiplied by the magnitude of
+            the value your are adding the noise to. This means that sigma can be
+            the same regardless of the scale of the vector.
+        is_relative_detach (bool, optional): whether to detach the variable before
+            computing the scale of the noise. If `False` then the scale of the noise
+            won't be seen as a constant but something to optimize: this will bias the
+            network to generate vectors with smaller values.
+    """
+
+    def __init__(self, sigma=0.1, is_relative_detach=True):
+        super().__init__()
+        self.sigma = sigma
+        self.is_relative_detach = is_relative_detach
+        self.noise = torch.tensor(0).float()#.to(device)
+
+    def forward(self, x):
+        if self.training and self.sigma != 0:
+            scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
+            sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
+            x = x + sampled_noise
+        return x 
 
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):
@@ -185,7 +256,13 @@ class HoldemBaseline(nn.Module):
         action_probs /= action_probs.sum()
         m = Categorical(action_probs)
         action = m.sample()
-        return action,m.log_prob(action)
+
+        outputs = {
+            'action':action,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs
+        }
+        return outputs
 
 class HoldemBaselineCritic(nn.Module):
     def __init__(self,seed,nO,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
@@ -217,8 +294,10 @@ class HoldemBaselineCritic(nn.Module):
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],nA)
         self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.nA)
 
-    def forward(self,x,mask):
+    def forward(self,x,action):
         M,c = x.size()
         ranks = x[:,self.mapping['observation']['rank']].long()
         suits = x[:,self.mapping['observation']['suit']].long()
@@ -253,67 +332,433 @@ class HoldemBaselineCritic(nn.Module):
         x = torch.cat([winner.view(M,-1),last_action],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
+        outputs = {
+            'value':torch.tanh(self.fc3(x))
+            }
+        return outputs
+
+class HoldemQCritic(nn.Module):
+    def __init__(self,seed,nO,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.action_emb = Embedder(6,64)
+
+        # Input is (1,13,2) -> (1,13,64)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(7, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(7, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+
+        self.fc1 = nn.Linear(304,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nA)
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(5,1)
+        self.advantage_output = nn.Linear(5,self.nA)
+
+    def forward(self,x):
+        M,c = x.size()
+        ranks = x[:,self.mapping['observation']['rank']].long()
+        suits = x[:,self.mapping['observation']['suit']].long()
+        vil_rank = x[:,self.mapping['observation']['vil_ranks']].long()
+        vil_suit = x[:,self.mapping['observation']['vil_suits']].long()
+        board_ranks = x[:,self.mapping['observation']['board_ranks']].long()
+        board_suits = x[:,self.mapping['observation']['board_suits']].long()
+
+        rank_input = torch.cat((ranks,board_ranks),dim=-1)
+        suit_input = torch.cat((suits,board_suits),dim=-1)
+        hot_ranks = self.one_hot_ranks[rank_input]
+        hot_suits = self.one_hot_suits[suit_input]
+
+        s = self.suit_conv(hot_suits.float())
+        r = self.rank_conv(hot_ranks.float())
+        hero = torch.cat((r,s),dim=-1)
+
+        rank_input2 = torch.cat((vil_rank,board_ranks),dim=-1)
+        suit_input2 = torch.cat((vil_suit,board_suits),dim=-1)
+        hot_ranks2 = self.one_hot_ranks[rank_input2]
+        hot_suits2 = self.one_hot_suits[suit_input2]
+
+        s2 = self.suit_conv(hot_suits2.float())
+        r2 = self.rank_conv(hot_ranks2.float())
+        villain = torch.cat((r2,s2),dim=-1)
+        # should be (b,64,88)
+
+        winner = hero - villain
+
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        last_action = self.action_emb(last_action)
+        x = torch.cat([winner.view(M,-1),last_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.activation(self.fc3(x))
         x = self.dropout(x)
-        return torch.tanh(self.fc3(x))
+        a = self.advantage_output(x)
+        v = self.value_output(x)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+        outputs = {
+            'value':q
+            }
+        return outputs
 
 ################################################
 #                Kuhn Networks                 #
 ################################################
 
-class Baseline(nn.Module):
-    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+################################################
+#              Betsize Networks                #
+################################################
+
+class BetsizeActor(nn.Module):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        """
+        Num Categories: nC (check,fold,call,bet,raise)
+        Num Betsizes: nA (various betsizes)
+        """
         super().__init__()
         self.activation = activation
         self.nS = nS
+        self.nC = nC
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,64)
+        self.betsize_emb = Embedder(self.nA,64)
+        self.noise = GaussianNoise()
+        self.fc1 = nn.Linear(128,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nC)
+        self.bfc1 = nn.Linear(64,hidden_dims[0])
+        self.bfc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.bfc3 = nn.Linear(hidden_dims[1],nA)
+        
+    def forward(self,state,mask,betsize_mask):
+        x = state
+        M,c = x.size()
+        hand = x[:,self.mapping['state']['rank']].long()
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        # previous_betsize = x[:,self.mapping['state']['previous_betsize']].float().unsqueeze(0)
+        hand = self.hand_emb(hand)
+        embedded_action = self.action_emb(last_action)
+        # print(hand.size(),embedded_action.size(),previous_betsize.size())
+        # x = torch.cat([hand,embedded_action,previous_betsize],dim=-1)
+        x = torch.cat([hand,embedded_action],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        category_logits = self.fc3(x)
+        category_logits = self.noise(category_logits)
+        action_soft = F.softmax(category_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
+        # with torch.no_grad():
+        #     action_masked = action_soft * mask
+        #     action_probs =  action_masked / action_masked.sum(-1).unsqueeze(1)
+        m = Categorical(action_probs)
+        action = m.sample()
+        # Check which category it is
+        # betsize = torch.tensor([-1])
+        # betsize_prob = torch.tensor([-1]).float()
+        # betsize_probs = torch.Tensor(self.nA).fill_(-1).unsqueeze(0).float()
+        # # print('action',action)
+        # # print('betsize_mask',betsize_mask)
+        # if action > 2:
+        # generate betsize
+        b = self.activation(self.bfc1(x))
+        b = self.activation(self.bfc2(b))
+        b = self.bfc3(b)
+        betsize_logits = self.noise(b)
+        # print('betsize_logits',betsize_logits)
+        betsize_probs = F.softmax(betsize_logits,dim=-1)
+        # print('betsize_probs',betsize_probs)
+        if betsize_mask.sum(-1) == 0:
+            betsize_mask = torch.ones(M,self.nA)
+        # with torch.no_grad():
+        mask_betsize_probs = betsize_probs * betsize_mask
+        # print('mask_betsize_probs',mask_betsize_probs)
+        norm_betsize_probs = mask_betsize_probs / mask_betsize_probs.sum(-1).unsqueeze(1)
+        # print('mask_betsize_probs',mask_betsize_probs)
+        b = Categorical(norm_betsize_probs)
+        betsize = b.sample()
+        betsize_prob = b.log_prob(betsize)
+
+        # print('betsize',betsize)
+        # print('betsize_prob',betsize_prob)
+        # print('betsize_probs',betsize_probs)
+        outputs = {
+            'action':action,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs,
+            'betsize':betsize,
+            'betsize_prob':betsize_prob,
+            'betsize_probs':betsize_probs}
+        return outputs
+
+class BetsizeCritic(nn.Module):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nC = nC
         self.nA = nA
         
         self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
-        print(f'Using embeddings {self.use_embedding}')
+        self.mapping = params['mapping']
+        self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
+        self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
+        self.hand_emb = Embedder(5,32)
+        self.action_emb = Embedder(6,32)
+        self.positional_embeddings = Embedder(2,32)
+
+        self.conv = nn.Sequential(
+            nn.Conv1d(2, 32, kernel_size=3, stride=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(inplace=True)
+        )
+        self.fc0 = nn.Linear(64,hidden_dims[0])
+        self.fc1 = nn.Linear(97,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.nC)
+        self.bfc0 = nn.Linear(64,hidden_dims[0])
+        self.bfc1 = nn.Linear(64,hidden_dims[0])
+        self.bfc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.betsize_value_output = nn.Linear(64,1)
+        self.betsize_advantage_output = nn.Linear(64,self.nA)
+        
+    def forward(self,obs):
+        x = obs
+        M,c = x.size()
+        hand = x[0,self.mapping['observation']['rank']].long().unsqueeze(0)
+        vil_hand = x[0,self.mapping['observation']['vil_rank']].long().unsqueeze(0)
+        hands = torch.cat([hand,vil_hand],dim=-1)
+
+        hot_ranks = self.one_hot_kuhn[hands.long()]
+        if hot_ranks.dim() == 2:
+            hot_ranks = hot_ranks.unsqueeze(0)
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        last_betsize = x[:,self.mapping['observation']['previous_betsize']].float().unsqueeze(1)
+        a1 = self.action_emb(last_action)
+
+        h = self.conv(hot_ranks.float())
+        h = h.view(-1).unsqueeze(0).repeat(M,1)
+        x = torch.cat([h,a1,last_betsize],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        q_input = x.view(M,-1)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+
+        # Could only do a forward pass if betsizes are available
+        x = self.activation(self.bfc0(x))
+        x = self.activation(self.bfc1(x))
+        x = self.activation(self.bfc2(x))
+        betsize_input = x.view(M,-1)
+        ab = self.betsize_advantage_output(betsize_input)
+        vb = self.betsize_value_output(betsize_input)
+        vb = vb.expand_as(ab)
+        qb = vb + ab - ab.mean(1,keepdim=True).expand_as(ab)
+
+        outputs = {'value':q,'betsize':qb}
+        return outputs
+
+################################################
+#            Flat Betsize Networks             #
+################################################
+
+class FlatBetsizeActor(nn.Module):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        """
+        Num Categories: nA (check,fold,call,bet,raise)
+        Num Betsizes: nB (various betsizes)
+        """
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
+        
+        self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
-        if self.use_embedding == True:
-            self.fc1 = nn.Linear(64+64,hidden_dims[0])
-            self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-            self.fc3 = nn.Linear(hidden_dims[1],nA)
-        else:
-            self.fc1 = nn.Linear(nS,hidden_dims[0])
-            self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-            self.fc3 = nn.Linear(hidden_dims[1],nA)
+        self.betsize_emb = Embedder(self.nB,64)
+        self.noise = GaussianNoise()
+        self.fc1 = nn.Linear(129,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],self.combined_output)
+        
+    def forward(self,state,action_mask,betsize_mask):
+        mask = combined_masks(action_mask,betsize_mask)
+        x = state
+        hand = x[0,self.mapping['state']['rank']].long().unsqueeze(0)
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
+        if previous_betsize.dim() == 1:
+            previous_betsize = previous_betsize.unsqueeze(1)
+        hand = self.hand_emb(hand)
+        last_action_emb = self.action_emb(last_action)
+        x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        cateogry_logits = self.fc3(x)
+        cateogry_logits = self.noise(cateogry_logits)
+        action_soft = F.softmax(cateogry_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
+        # action_probs = action_probs * mask
+        # action_probs /= torch.sum(action_probs)
+        m = Categorical(action_probs)
+        action = m.sample()
+
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+        
+        outputs = {
+            'action':action,
+            'action_category':action_category,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs,
+            'betsize':betsize_category
+            }
+        return outputs
+
+class FlatBetsizeCritic(nn.Module):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        
+        self.seed = torch.manual_seed(seed)
+        self.use_embedding = params['embedding']
+        self.mapping = params['mapping']
+        self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
+        self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
+        self.hand_emb = Embedder(5,32)
+        self.action_emb = Embedder(6,32)
+        self.positional_embeddings = Embedder(2,32)
+
+        self.conv = nn.Sequential(
+            nn.Conv1d(2, 32, kernel_size=3, stride=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(inplace=True)
+        )
+        self.fc0 = nn.Linear(64,hidden_dims[0])
+        self.fc1 = nn.Linear(97,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.combined_output)
+        
+    def forward(self,obs):
+        x = obs
+        M,c = x.size()
+        hand = x[0,self.mapping['observation']['rank']].long().unsqueeze(0)
+        vil_hand = x[0,self.mapping['observation']['vil_rank']].long().unsqueeze(0)
+        hands = torch.cat([hand,vil_hand],dim=-1)
+        hot_ranks = self.one_hot_kuhn[hands.long()]
+        if hot_ranks.dim() == 2:
+            hot_ranks = hot_ranks.unsqueeze(0)
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        last_betsize = x[:,self.mapping['observation']['previous_betsize']].float()
+        if last_betsize.dim() == 1:
+            last_betsize = last_betsize.unsqueeze(1)
+        a1 = self.action_emb(last_action)
+
+        # print(hot_ranks.size())
+        h = self.conv(hot_ranks.float())
+        h = h.view(-1).unsqueeze(0).repeat(M,1)
+        # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
+        x = torch.cat([h,a1,last_betsize],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        q_input = x.view(M,-1)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+
+        outputs = {'value':q }
+        return outputs
+
+################################################
+#            Normal Kuhn Networks              #
+################################################
+
+class Baseline(nn.Module):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nC = nC
+        self.nA = nA
+        
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,64)
+        self.noise = GaussianNoise()
+        self.fc1 = nn.Linear(64+64,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1],nC)
         
     def forward(self,state,mask):
         x = state
         if not isinstance(state,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32) #device = self.device,
             x = x.unsqueeze(0)
-        if self.use_embedding:
-            hand = x[:,self.mapping['state']['rank']].long()
-            last_action = x[:,self.mapping['state']['previous_action']].long()
-            hand = self.hand_emb(hand)
-            last_action = self.action_emb(last_action)
-            x = torch.cat([hand,last_action],dim=-1)
+        # print(x)
+        # print(self.mapping['state']['rank'])
+        # print(self.mapping['state']['previous_action'])
+        # print(x[:,self.mapping['state']['rank']])
+        # print(x[:,self.mapping['state']['previous_action']])
+        hand = x[:,self.mapping['state']['rank']].long()
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        hand = self.hand_emb(hand)
+        last_action = self.action_emb(last_action)
+        x = torch.cat([hand,last_action],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
-        action_logits = self.fc3(x)
-        
-        action_probs = F.softmax(action_logits,dim=-1)
-        # if isinstance(noise,torch.Tensor):
-        #     print(action_probs.size(),noise.size())
-        #     with torch.no_grad():
-        #         action_probs += noise
-        action_probs = action_probs * mask
-        action_probs /= torch.sum(action_probs)
+        x = self.fc3(x)
+        action_logits = self.noise(x)
+        action_soft = F.softmax(action_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
-        return action,m.log_prob(action),action_probs
+
+        outputs = {
+            'action':action,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs}
+        return outputs
 
 
 class BaselineKuhnCritic(nn.Module):
-    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
         self.nS = nS
+        self.nC = nC
         self.nA = nA
         
         self.seed = torch.manual_seed(seed)
@@ -345,11 +790,14 @@ class BaselineKuhnCritic(nn.Module):
     def forward(self,obs,action):
         x = obs
         M,c = x.size()
-        # hand = x[:,self.mapping['observation']['rank']].long()
-        # vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        hand = x[:,self.mapping['observation']['rank']].long()
+        vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        hands = torch.cat([hand,vil_hand],dim=-1)
         last_action = x[:,self.mapping['observation']['previous_action']].long()
-        hot_ranks = self.one_hot_kuhn[x[:,0:2].long()]
-    
+        hot_ranks = self.one_hot_kuhn[hands.long()]
+        if hot_ranks.dim() == 2:
+            hot_ranks = hot_ranks.unsqueeze(0)
+
         # Convolve actions
         # hot_prev_action = self.one_hot_actions[last_action]
         # hot_cur_action = self.one_hot_actions[action]
@@ -366,18 +814,22 @@ class BaselineKuhnCritic(nn.Module):
         a2 += p2
 
         h = self.conv(hot_ranks.float()).view(M,-1)
-        # print(h.size(),a2.size(),a1.size())
         x = torch.cat([h,a2,a1],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         x = x.view(M,-1)
-        return torch.tanh(self.value_output(x))
+
+        outputs = {
+            'value':self.value_output(x)
+            }
+        return outputs
         
 class BaselineCritic(nn.Module):
-    def __init__(self,seed,nS,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
+    def __init__(self,seed,nS,nC,nA,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
         self.nS = nS
+        self.nC = nC
         self.nA = nA
         
         self.seed = torch.manual_seed(seed)
@@ -392,23 +844,25 @@ class BaselineCritic(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv1d(2, 32, kernel_size=3, stride=1),
             nn.BatchNorm1d(32),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
         self.fc0 = nn.Linear(64,hidden_dims[0])
         self.fc1 = nn.Linear(96,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.value_output = nn.Linear(64,1)
-        self.advantage_output = nn.Linear(64,self.nA)
+        self.advantage_output = nn.Linear(64,self.nC)
         
     def forward(self,obs):
         x = obs
         M,c = x.size()
-        # hand = x[:,self.mapping['observation']['rank']].long()
-        # vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        hand = x[:,self.mapping['observation']['rank']].long()
+        vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        hands = torch.stack((hand,vil_hand)).permute(1,0)
         last_action = x[:,self.mapping['observation']['previous_action']].long()
         a1 = self.action_emb(last_action)
-        hot_ranks = self.one_hot_kuhn[x[:,0:2].long()]
-
+        hot_ranks = self.one_hot_kuhn[hands.long()]
+        if hot_ranks.dim() == 2:
+            hot_ranks = hot_ranks.unsqueeze(0)
         h = self.conv(hot_ranks.float()).view(M,-1)
         x = torch.cat([h,a1],dim=-1)
         x = self.activation(self.fc1(x))
@@ -418,7 +872,10 @@ class BaselineCritic(nn.Module):
         v = self.value_output(x)
         v = v.expand_as(a)
         q = v + a - a.mean(1,keepdim=True).expand_as(a)
-        return q
+        outputs = {
+            'value':q
+            }
+        return outputs
 
 """
 Dueling QNetwork for function aproximation. Splits the network prior to the end into two streams V and Q. 
@@ -563,8 +1020,6 @@ class ThirteenCardV2(nn.Module):
         hero_board_suits = hot_suits[:,torch.tensor([0,1,2,3,8,9,10,11,12])]
         vil_board_ranks = hot_ranks[:,4:]
         vil_board_suits = hot_suits[:,4:]
-        # print(hero_board_ranks.size())
-        # print(hero_board_suits.size())
         s = self.rank_conv(hero_board_ranks.float())
         r = self.suit_conv(hero_board_suits.float())
         x1 = torch.cat((r,s),dim=-1)

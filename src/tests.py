@@ -1,6 +1,7 @@
 import torch
 import unittest
 import numpy as np
+import os
 
 from poker.config import Config
 from poker_env import Poker
@@ -8,6 +9,14 @@ from poker.data_classes import Card,Evaluator
 import poker.datatypes as pdt
 from cardlib import winner,holdem_winner,encode
 
+def run_env(env,case):
+    step = 0
+    state,obs,done = env.reset()
+    while not done:
+        action,action_logprobs,complete_probs = case[step]
+        state,obs,done = env.step(action,action_logprobs,complete_probs)
+        step += 1
+    return env
 
 class TestEnv(unittest.TestCase):
     @classmethod
@@ -19,9 +28,10 @@ class TestEnv(unittest.TestCase):
         self.params['state_params'] = pdt.Globals.GameTypeDict[gametype].state_params
         self.params['rule_params'] = pdt.Globals.GameTypeDict[gametype].rule_params
         logs = torch.randn(4)
+        complete_logs = torch.randn(4)
         actions = ['Check','Bet','Call','Fold','Raise']
         torch_action_dict = {a:b.unsqueeze(0) for a,b in zip(actions,torch.arange(5))}
-        self.actions = [[(torch_action_dict[act],logs) for act in actions]]
+        self.actions = [[(torch_action_dict[act],logs,complete_logs) for act in actions]]
         self.scenario_verification = {
             0:{
                 'pot':2,
@@ -48,12 +58,7 @@ class TestEnv(unittest.TestCase):
         env = Poker(self.params)
         for i,case in enumerate(self.actions):
             print(f'Case {i}')
-            step = 0
-            state,obs,done = env.reset()
-            while not done:
-                action,action_logprobs = case[step]
-                state,obs,done = env.step(action,action_logprobs)
-                step += 1
+            env = run_env(env,case)
         
     def testScenario(self):
         env = Poker(self.params)
@@ -65,19 +70,15 @@ class TestEnv(unittest.TestCase):
             state,obs,done = env.reset()
             env.players.update_hands(self.hands[i])
             while not done:
-                action,action_logprobs = case[step]
-                state,obs,done = env.step(action,action_logprobs)
+                action,action_logprobs,complete_probs = case[step]
+                state,obs,done = env.step(action,action_logprobs,complete_probs)
                 step += 1
                 if step == 1:
                     scenarios[i].append(env.save_scenario())
             for scenario in scenarios[i]:
                 state,obs,done = env.reset()
                 env.load_scenario(scenario)
-                step = 0
-                while not done:
-                    action,action_logprobs = case[step]
-                    state,obs,done = env.step(action,action_logprobs)
-                    step += 1
+                env = run_env(env,case)
                 
         for i in range(len(self.actions)):
             print(f'Scenario {i}')
@@ -94,14 +95,9 @@ class TestEnv(unittest.TestCase):
         env = Poker(self.params)
         for i,case in enumerate(self.actions):
             print(f'Case {i}')
-            step = 0
-            state,obs,done = env.reset()
-            while not done:
-                action,action_logprobs = case[step]
-                state,obs,done = env.step(action,action_logprobs)
-                step += 1
+            env = run_env(env,case)
             ml_inputs = env.ml_inputs()
-            print(f'ml_inputs {ml_inputs}')
+            # print(f'ml_inputs {ml_inputs}')
 
     def evaluations(self):
         omaha = Evaluator(pdt.GameTypes.OMAHAHI)
@@ -124,13 +120,22 @@ class TestEnv(unittest.TestCase):
         assert(holdem([holdem_hand,holdem_hand2,holdem_board]) == 1)
         assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
+    def TestRlEnvironments(self):
+        os.system('python main.py --env kuhn -e 10 --no-clean --no-store')
+        os.system('python main.py --env complexkuhn -e 10 --no-clean --no-store')
+        os.system('python main.py --env holdem -e 10 --no-clean --no-store')
+        # os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
+        # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
+
 
 def envTestSuite():
     suite = unittest.TestSuite()
     suite.addTest(TestEnv('testRun'))
-    suite.addTest(TestEnv('testScenario'))
     suite.addTest(TestEnv('testRepresentations'))
     suite.addTest(TestEnv('evaluations'))
+    suite.addTest(TestEnv('TestRlEnvironments'))
+    # suite.addTest(TestEnv('testScenario'))
     return suite
 
 
