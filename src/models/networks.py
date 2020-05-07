@@ -632,6 +632,8 @@ class FlatBetsizeActor(nn.Module):
         action = m.sample()
 
         action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+        # print('state',state)
+        # print('action_category,betsize_category',action_category,betsize_category)
         
         outputs = {
             'action':action,

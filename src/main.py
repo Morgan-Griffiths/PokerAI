@@ -46,6 +46,11 @@ if __name__ == "__main__":
                         type=str,
                         metavar="['q','reg']",
                         help='Critic output types [nA,1]')
+    parser.add_argument('--betsize',
+                        default=2,
+                        type=int,
+                        metavar="[1-5 or 11]",
+                        help='Number of betsizes the agent can make')
     parser.add_argument('--N-output',
                         default='flat',
                         dest='network_output',
@@ -65,6 +70,7 @@ if __name__ == "__main__":
     params['state_params'] = game_object.state_params
     params['rule_params'] = game_object.rule_params
     params['rule_params']['network_output'] = args.network_output
+    params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[args.betsize]
     agent_params = config.agent_params
 
     env_networks = NetworkConfig.EnvModels[args.env]
@@ -104,7 +110,7 @@ if __name__ == "__main__":
     action_data = train(env,agent,training_params)
 
     if args.store:
-        print('Storing training data')
+        print('\nStoring training data')
         mongo = MongoDB()
         if args.clean:
             print('Cleaning db')

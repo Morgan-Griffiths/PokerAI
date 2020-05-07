@@ -19,6 +19,7 @@ ACTION_MASKS = {
         4:T([0,1,1,0,1]),
         5:T([1,0,0,1,0])
         }}
+
 class LimitTypes:
     POT_LIMIT = 'pot_limit'
     NO_LIMIT = 'no_limit'
@@ -182,3 +183,11 @@ class Globals:
         HOLDEM_RANK_DICT[k] = v
     HOLDEM_SUIT_DICT = {0:'s',1:'h',2:'d',3:'c'}
     BLIND_DICT = BLIND_DICT
+    BETSIZE_DICT = {
+        1 : T([1]),
+        2: T([0.5,1]),
+        3: T([0.3,0.6,1]),
+        4: T([0.25,0.5,0.75,1]),
+        5: T([0.2,0.4,0.6,0.8,1]),
+        11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+    }
