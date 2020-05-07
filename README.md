@@ -90,7 +90,7 @@ There are a number of environments, each increasing in complexity.
 
 _Baseline performance_
 
-![Graph](Action_probabilities_for_SB.png)
+![Graph](assets/Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -99,7 +99,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Action_probabilities_for_BB.png)
+![Graph](assets/Action_probabilities_for_BB.png)
 
 ## Complex Kuhn
 
@@ -120,7 +120,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Complex_Action_probabilities_for_SB.png)
+![Graph](assets/Complex_Action_probabilities_for_SB.png)
 
 *BB*
 - Q fold always
@@ -129,7 +129,7 @@ _Baseline performance_
 
 _Baseline performance_
 
-![Graph](Complex_Action_probabilities_for_BB.png)
+![Graph](assets/Complex_Action_probabilities_for_BB.png)
 
 ## Limit holdem with full deck
 

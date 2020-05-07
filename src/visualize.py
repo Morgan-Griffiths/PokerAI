@@ -141,8 +141,8 @@ if __name__ == "__main__":
         critic_loss_rolling_mean = []
         for i in range(len(critic_loss)-interval):
             critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
-
         plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+        
     def plot_action_probabilities():
         query = {
             'position':args.position,
@@ -193,4 +193,4 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [size for size in unique_betsizes]
         plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
-    # plot_betsize_probabilities()
+    plot_betsize_probabilities()
