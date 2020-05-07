@@ -175,9 +175,12 @@ class MongoDB(object):
                 if frequencies.shape[0] < num_features:
                     base = np.zeros(num_features)
                     mask = set(np.arange(num_features))&set(uniques)
+                    # print(uniques,base,mask,frequencies)
                     for i,loc in enumerate(mask):
                         base[int(loc)] = frequencies[i]
                     frequencies = base
+                    # print('frequencies',frequencies)
+                assert(len(frequencies) == num_features)
                 for j in range(len(frequencies)):
                     percentage_type[j].append(frequencies[j])
             percentages.append(percentage_type)

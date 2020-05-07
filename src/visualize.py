@@ -142,7 +142,7 @@ if __name__ == "__main__":
         for i in range(len(critic_loss)-interval):
             critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
         plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
-        
+
     def plot_action_probabilities():
         query = {
             'position':args.position,

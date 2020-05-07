@@ -74,6 +74,7 @@ if __name__ == "__main__":
     agent_params['mapping'] = params['rule_params']['mapping']
     agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
     agent_params['epochs'] = int(args.epochs)
+    agent_params['network_output'] = args.network_output
 
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
 
@@ -94,9 +95,10 @@ if __name__ == "__main__":
     nO = env.observation_space
     nA = env.action_space
     nB = env.betsize_space
-    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
+    nC = nA - 2 + nB
+    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}, Flat Action Space {nC}')
     seed = 154
-    
+
     agent = return_agent(args.agent,nS,nO,nA,nB,seed,agent_params)
 
     action_data = train(env,agent,training_params)
@@ -110,4 +112,4 @@ if __name__ == "__main__":
         mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
 
     toc = time.time()
-    print(f'Execution took {(toc-tic)/60} minutes')
+    print(f'\nExecution took {(toc-tic)/60} minutes')

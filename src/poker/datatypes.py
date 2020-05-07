@@ -113,7 +113,7 @@ class BetsizeKuhn:
         self.rule_params['mask_dict'] = ACTION_MASKS[5]
         self.rule_params['action_dict'] = ACTION_ORDER
         self.rule_params['bets_per_street'] = 2
-        self.rule_params['betsizes'] = T([0.5,1])
+        self.rule_params['betsizes'] = T([0.2,0.4,0.7,1])
         self.rule_params['bettype'] = LimitTypes.NO_LIMIT
 
 class Holdem(object):

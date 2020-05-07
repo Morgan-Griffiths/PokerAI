@@ -29,13 +29,14 @@ class NetworkFunctions(object):
     def __init__(self,nA,nB):
         self.nA = nA
         self.nB = nB
+        self.nC = nA - 2 + self.nB
 
     def wrap_action(self,action,betsize_category,previous_action):
         """
         Wraps split action/betsize into flat action.
         Bets and raises are combined into one.
         """
-        actions = torch.zeros(self.nA - 2 + self.nB)
+        actions = torch.zeros(self.nC)
         if action < 3:
             actions[action] = 1
         else: # Bet or raise
@@ -48,7 +49,7 @@ class NetworkFunctions(object):
         betsizes = torch.zeros(self.nB)
         if action < 3:
             actions[action] = 1
-        elif previous_action == 5: # Unopened
+        elif previous_action == 5 or previous_action == 0: # Unopened
             actions[3] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1

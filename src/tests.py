@@ -13,8 +13,15 @@ def run_env(env,case):
     step = 0
     state,obs,done = env.reset()
     while not done:
-        action,action_logprobs,complete_probs = case[step]
-        state,obs,done = env.step(action,action_logprobs,complete_probs)
+        mask,betsize_mask = env.action_mask(state)
+        env.players.store_masks(mask,betsize_mask)
+        action,action_prob,action_probs = case[step]
+        actor_output = {
+            'action':action,
+            'action_prob':action_prob,
+            'action_probs':action_probs
+        }
+        state,obs,done = env.step(actor_output)
         step += 1
     return env
 
@@ -29,9 +36,8 @@ class TestEnv(unittest.TestCase):
         self.params['rule_params'] = pdt.Globals.GameTypeDict[gametype].rule_params
         logs = torch.randn(4)
         complete_logs = torch.randn(4)
-        actions = ['Check','Bet','Call','Fold','Raise']
-        torch_action_dict = {a:b.unsqueeze(0) for a,b in zip(actions,torch.arange(5))}
-        self.actions = [[(torch_action_dict[act],logs,complete_logs) for act in actions]]
+        actions = ['check','bet','call','fold','raise']
+        self.actions = [[(torch.tensor([pdt.Globals.REVERSE_ACTION_ORDER[act]]),logs,complete_logs) for act in actions]]
         self.scenario_verification = {
             0:{
                 'pot':2,
@@ -99,7 +105,41 @@ class TestEnv(unittest.TestCase):
             ml_inputs = env.ml_inputs()
             # print(f'ml_inputs {ml_inputs}')
 
-    def evaluations(self):
+
+    def testEnvFunctions(self):
+        env = Poker(self.params)
+        ###  Testing Betsizes  ###
+        actions = [0,1,2,3,4]
+        actions = [torch.tensor([act]) for act in actions]
+        betsizes = [0,0,0,0,0]
+        betsizes = [torch.tensor([act]) for act in betsizes]
+        answers = [[0,0,0],[0,0,0],[0,0,1],[torch.tensor([2.]),torch.tensor([2.]),torch.tensor([1.])],[torch.tensor([2.]),torch.tensor([2.]),torch.tensor([2.])]]
+        i = 0
+        for act,bet in zip(actions,betsizes):
+            self.assertEqual(env.return_potlimit_betsize(act,bet),answers[i][0])
+            self.assertEqual(env.return_nolimit_betsize(act,bet),answers[i][1])
+            self.assertEqual(env.return_limit_betsize(act,bet),answers[i][2])
+            i += 1
+        ###  Testing Betsizes  ###
+        states = [[3,5,0],[2,3,1],[1,4,2],[2,0,0]]
+        states = [torch.tensor([state]) for state in states]
+        answers = [1.,0.,0.,1.]
+        for i,state in enumerate(states):
+            self.assertEqual(env.return_betsizes(state),answers[i])
+        action_answers = [torch.tensor([1., 0., 0., 1.]),torch.tensor([0., 1., 1., 0.]),torch.tensor([0., 1., 1., 0.]),torch.tensor([1., 0., 0., 1.])]
+        betsize_answers = [torch.tensor([1.]),torch.tensor([0.]),torch.tensor([0.]),torch.tensor([1.])]
+        for i,state in enumerate(states):
+            available_categories,available_betsizes = env.action_mask(state)
+            print(env.action_mask(state))
+            self.assertTrue(np.array_equal(available_categories.numpy(),action_answers[i].numpy()))
+            self.assertTrue(np.array_equal(available_betsizes.numpy(),betsize_answers[i].numpy()))
+        # for i,case in enumerate(self.actions):
+        #     print(f'Case {i}')
+        #     env = run_env(env,case)
+        #     ml_inputs = env.ml_inputs()
+            # print(f'ml_inputs {ml_inputs}')
+
+    def testEvaluations(self):
         omaha = Evaluator(pdt.GameTypes.OMAHAHI)
         holdem = Evaluator(pdt.GameTypes.HOLDEM)
         kuhn = Evaluator(pdt.GameTypes.KUHN)
@@ -124,17 +164,18 @@ class TestEnv(unittest.TestCase):
         os.system('python main.py --env kuhn -e 10 --no-clean --no-store')
         os.system('python main.py --env complexkuhn -e 10 --no-clean --no-store')
         os.system('python main.py --env holdem -e 10 --no-clean --no-store')
-        # os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
         # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
 
 
 def envTestSuite():
     suite = unittest.TestSuite()
-    suite.addTest(TestEnv('testRun'))
-    suite.addTest(TestEnv('testRepresentations'))
-    suite.addTest(TestEnv('evaluations'))
-    suite.addTest(TestEnv('TestRlEnvironments'))
+    # suite.addTest(TestEnv('testRun'))
+    # suite.addTest(TestEnv('testRepresentations'))
+    # suite.addTest(TestEnv('testEvaluations'))
+    suite.addTest(TestEnv('testEnvFunctions'))
+    # suite.addTest(TestEnv('TestRlEnvironments'))
     # suite.addTest(TestEnv('testScenario'))
     return suite
 

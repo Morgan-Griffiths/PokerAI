@@ -67,13 +67,14 @@ class BaselineAgent(object):
 class Agent(object):
     def __init__(self,nS,nO,nA,nB,seed,params):
         super().__init__()
-        print('Actor critic')
         self.nS = nS
         self.nO = nO
         self.nA = nA
         self.nB = nB
+        self.nC = nA - 2 + nB
         self.seed = seed
         self.epochs = params['epochs']+1
+        self.network_output = params['network_output']
         self.tau = params['TAU']
         self.max_reward = params['max_reward']
         self.gradient_clip = params['CLIP_NORM']
@@ -175,7 +176,10 @@ class Agent(object):
     def return_value_mask(self,actions):
         """Returns a mask that indexes Q values by the action taken"""
         M = actions.size(0)
-        value_mask = torch.zeros(M,self.nA)
+        if self.network_output == 'flat':
+            value_mask = torch.zeros(M,self.nC)
+        else:
+            value_mask = torch.zeros(M,self.nA)
         if actions.dim() > 1:
             actions = actions.squeeze(1)
         value_mask[torch.arange(M),actions] = 1
