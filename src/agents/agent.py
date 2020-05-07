@@ -77,6 +77,7 @@ class Agent(object):
         self.network_output = params['network_output']
         self.tau = params['TAU']
         self.max_reward = params['max_reward']
+        self.min_reward = params['min_reward']
         self.gradient_clip = params['CLIP_NORM']
         self.critic_type = params['critic_type']
         self.local_actor = params['actor_network'](seed,nS,nA,nB,params)
@@ -190,14 +191,19 @@ class Agent(object):
         mask = actions.gt(2).view(-1)
         return mask
 
+    def scale_rewards(self,rewards):
+        """Scales rewards between -1 and 1"""
+        return 2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1
+
     def qcritic_backward(self,critic_inputs:dict):
         """Computes critic grad update. Optionally computes betsize grad update in unison"""
+        print('critic_inputs',critic_inputs['observations'])
         critic_output = self.local_critic(critic_inputs['observations'])
         value_mask = self.return_value_mask(critic_inputs['actions'])
-        scaled_rewards = critic_inputs['rewards']/self.max_reward
+        scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
+        # print('value_mask',value_mask)
         critic_loss = F.smooth_l1_loss(scaled_rewards.squeeze(1),critic_output['value'][value_mask])
         # print('scaled_rewards',scaled_rewards)
-        # print('values',critic_output['value'],critic_output['value'][value_mask])
         self.critic_optimizer.zero_grad()
         if 'betsize' in critic_output:
             betsize_categories = critic_inputs['betsizes']
