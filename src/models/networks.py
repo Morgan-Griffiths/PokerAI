@@ -19,11 +19,15 @@ def hard_update(source,target):
 def norm_frequencies(action_soft,mask):
     # with torch.no_grad():
     action_masked = action_soft * mask
-    action_probs =  action_masked / action_masked.sum(-1).unsqueeze(1)
+    action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
     return action_probs
 
 def combined_masks(action_mask,betsize_mask):
-    return torch.cat([action_mask[:-2],betsize_mask])
+    """Combines action and betsize masks into flat mask for 1d network outputs"""
+    if action_mask.dim() > 1:
+        return torch.cat([action_mask[:,:-2],betsize_mask],dim=-1)
+    else:
+        return torch.cat([action_mask[:-2],betsize_mask])
 
 class NetworkFunctions(object):
     def __init__(self,nA,nB):
@@ -45,8 +49,10 @@ class NetworkFunctions(object):
 
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """Unwraps flat action into action_category and betsize_category"""
+        # print(action,previous_action)
         actions = torch.zeros(self.nA)
         betsizes = torch.zeros(self.nB)
+        # actions[action[action < 3]] = 1
         if action < 3:
             actions[action] = 1
         elif previous_action == 5 or previous_action == 0: # Unopened
@@ -612,19 +618,21 @@ class FlatBetsizeActor(nn.Module):
     def forward(self,state,action_mask,betsize_mask):
         mask = combined_masks(action_mask,betsize_mask)
         x = state
-        hand = x[0,self.mapping['state']['rank']].long().unsqueeze(0)
+        hand = x[:,self.mapping['state']['rank']].long()
         last_action = x[:,self.mapping['state']['previous_action']].long()
         previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
         if previous_betsize.dim() == 1:
             previous_betsize = previous_betsize.unsqueeze(1)
         hand = self.hand_emb(hand)
         last_action_emb = self.action_emb(last_action)
+        # print('hand,last_action_emb,previous_betsize',hand.size(),last_action_emb.size(),previous_betsize.size())
         x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         cateogry_logits = self.fc3(x)
         cateogry_logits = self.noise(cateogry_logits)
         action_soft = F.softmax(cateogry_logits,dim=-1)
+        # print(action_soft.size(),mask.size())
         action_probs = norm_frequencies(action_soft,mask)
         # action_probs = action_probs * mask
         # action_probs /= torch.sum(action_probs)

@@ -49,6 +49,10 @@ class Deck(object):
         for card in range(N):
             cards.append(self.deck.pop())
         return cards
+
+    def initialize_board(self,street):
+        num_cards = pdt.Globals.INITIALIZE_BOARD_CARDS[street]
+        return [] if num_cards == 0 else self.deal(num_cards)
     
     def shuffle(self):
         shuffle(self.deck)
@@ -162,6 +166,7 @@ class Player(object):
         self.position = position
         self.active = active
         self.allin = allin
+        self.total_bet = 0
         
 class Players(object):
     def __init__(self,n_players:int,stacksizes:list,hands:list,to_act:str):

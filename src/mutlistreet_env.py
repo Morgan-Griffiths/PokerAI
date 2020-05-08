@@ -5,17 +5,27 @@ import copy
 from poker.data_classes import Rules,Evaluator,Pot,GameTurn,Deck,Players,History
 import poker.datatypes as pdt
 
+"""
+HU ONLY
+Full length games. 
+Representation is fixed at Action,Betsize.
+Game types: Holdem, Omaha. 
+Bet types: Limit, NL, PL.
+Params: Game type, Num streets.
+Variables: Num cards per player. Num streets.
+"""
+
 class Poker(object):
     def __init__(self,params):
         self.params = params
         self.game = params['game']
         print(f'Initializating poker game {self.game}')
         self.state_params = params['state_params']
-        self.ranks = params['state_params']['ranks']
-        self.suits = params['state_params']['suits']
         self.evaluator = Evaluator(self.game)
         self.rules = Rules(self.params['rule_params'])
         # State attributes
+        self.starting_street = self.params['starting_street'] # Number range(0,4)
+        self.street = self.starting_street
         self.stacksize = self.state_params['stacksize']
         self.n_players = self.state_params['n_players']
         self.pot = Pot(self.state_params['pot'])
@@ -26,18 +36,15 @@ class Poker(object):
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players = Players(self.n_players,self.stacksizes,hands,self.state_params['to_act'])
-        if self.suits != None:
-            self.board = self.deck.deal(5)
+        self.board = self.deck.initialize_board(self.starting_street)
         self.history = History()
         self.initialize_functions()
 
     def initialize_functions(self):
         func_dict = {
-            pdt.GameTypes.KUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
-            pdt.GameTypes.COMPLEXKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
-            pdt.GameTypes.BETSIZEKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
             pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_holdem,'return_state':self.return_holdem_state},
-            pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED'
+            pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED',
+            pdt.GameTypes.OMAHAHILO : 'NOT IMPLEMENTED'
         }
         betsize_funcs = {
             pdt.LimitTypes.LIMIT : self.return_limit_betsize,
@@ -86,6 +93,7 @@ class Poker(object):
         self.history.reset()
         self.pot.reset()
         self.game_turn.reset()
+        self.street = self.starting_street
         self.deck.reset()
         self.deck.shuffle()
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
@@ -93,8 +101,7 @@ class Poker(object):
         self.players.reset(hands)
         state,obs = self.return_state()
         self.players.store_states(state,obs)
-        if self.suits != None:
-            self.board = self.deck.deal(5)
+        self.board = self.deck.initialize_board(self.starting_street)
         return state,obs,self.game_over
     
     def increment_turn(self):

@@ -79,6 +79,7 @@ if __name__ == "__main__":
     agent_params['critic_network'] = env_networks['critic'][args.critic]
     agent_params['mapping'] = params['rule_params']['mapping']
     agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
+    agent_params['min_reward'] = params['state_params']['stacksize']
     agent_params['epochs'] = int(args.epochs)
     agent_params['network_output'] = args.network_output
 

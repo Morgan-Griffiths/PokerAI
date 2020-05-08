@@ -35,6 +35,7 @@ class GameTypes:
     BETSIZEKUHN = 'betsizekuhn'
     HOLDEM = 'holdem'
     OMAHAHI = 'omaha_hi'
+    OMAHAHILO = 'omaha_hi_lo'
 
 class Positions:
     SB = 'SB'
@@ -114,7 +115,7 @@ class BetsizeKuhn:
         self.rule_params['mask_dict'] = ACTION_MASKS[5]
         self.rule_params['action_dict'] = ACTION_ORDER
         self.rule_params['bets_per_street'] = 2
-        self.rule_params['betsizes'] = T([0.2,0.4,0.7,1])
+        self.rule_params['betsizes'] = T([0.5,1])
         self.rule_params['bettype'] = LimitTypes.NO_LIMIT
 
 class Holdem(object):
@@ -154,6 +155,15 @@ class Holdem(object):
         self.rule_params['betsize_dict'] = {0:T([0]),1:T([1]),2:T([1]),3:T([0]),4:T([2])}
         self.rule_params['bets_per_street'] = 2
 
+
+class MultiStreetHoldem(object):
+    def __init__(self):
+        H = Holdem()
+        self.rule_params = H.rule_params
+        self.state_params = H.state_params
+        self.rule_params['mapping']['state']['previous_betsize'] = 15
+        self.rule_params['mapping']['observation']['previous_betsize'] = 19
+
 class OmahaHI(object):
     def __init__(self):
         ## NOT IMPLEMENTED ##
@@ -186,8 +196,21 @@ class Globals:
     BETSIZE_DICT = {
         1 : T([1]),
         2: T([0.5,1]),
-        3: T([0.3,0.6,1]),
+        3: T([0.8,0.9,1]),
         4: T([0.25,0.5,0.75,1]),
         5: T([0.2,0.4,0.6,0.8,1]),
         11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+    }
+    # Takes street as key
+    ADDITIONAL_BOARD_CARDS = {
+        0 : 0,
+        1 : 3,
+        2 : 1,
+        3 : 1
+    }
+    INITIALIZE_BOARD_CARDS = {
+        0 : 0,
+        1 : 3,
+        2 : 4,
+        3 : 5
     }

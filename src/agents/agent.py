@@ -191,17 +191,18 @@ class Agent(object):
         mask = actions.gt(2).view(-1)
         return mask
 
-    def scale_rewards(self,rewards):
-        """Scales rewards between -1 and 1"""
-        return 2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1
+    def scale_rewards(self,rewards,factor=1):
+        """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
+        return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
 
     def qcritic_backward(self,critic_inputs:dict):
         """Computes critic grad update. Optionally computes betsize grad update in unison"""
-        print('critic_inputs',critic_inputs['observations'])
         critic_output = self.local_critic(critic_inputs['observations'])
         value_mask = self.return_value_mask(critic_inputs['actions'])
         scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
-        # print('value_mask',value_mask)
+        # values = critic_output['value'][value_mask]
+        # print('critic_inputs',critic_inputs['observations'])
+        # print('pre values',values)
         critic_loss = F.smooth_l1_loss(scaled_rewards.squeeze(1),critic_output['value'][value_mask])
         # print('scaled_rewards',scaled_rewards)
         self.critic_optimizer.zero_grad()
@@ -236,12 +237,6 @@ class Agent(object):
         actor_outputs: action,action_prob,action_probs,betsize,betsize_prob,betsize_probs
         """
         critic_outputs = self.target_critic(critic_inputs['observations'])
-        # actor_out = self.local_actor(actor_inputs['game_states'],actor_inputs['action_masks'])
-        # masked_values = critic_outputs['value'] * actor_inputs['action_masks'].long()
-        # expected_value = (actor_inputs['action_probs'] * masked_values[value_mask]).detach().sum(-1)
-        # advantages = critic_outputs['value'][value_mask] - expected_value
-        # policy_loss = (-actor_inputs['action_prob'].view(-1) * advantages).sum()
-        # Update betsize choice
         value_mask = self.return_value_mask(actor_inputs['actions'])
         values = critic_outputs['value']
         expected_value = (actor_inputs['action_probs'].view(-1) * values.view(-1)).detach().sum(-1)
