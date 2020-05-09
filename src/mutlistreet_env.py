@@ -13,6 +13,15 @@ Game types: Holdem, Omaha.
 Bet types: Limit, NL, PL.
 Params: Game type, Num streets.
 Variables: Num cards per player. Num streets.
+
+Step input is a dict containing the actor outputs:
+Action,Action_prob,Action_probs
+Betsize,(Betsize_prob,Betsize_probs) Optional depending on whether flat or tiered
+
+Step output is
+State,Obs,done,Action_mask,Betsize_mask
+
+State,Obs output is stacked gamestate representations
 """
 
 class Poker(object):
@@ -42,7 +51,7 @@ class Poker(object):
 
     def initialize_functions(self):
         func_dict = {
-            pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_holdem,'return_state':self.return_holdem_state},
+            pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_output,'return_state':self.return_holdem_state},
             pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED',
             pdt.GameTypes.OMAHAHILO : 'NOT IMPLEMENTED'
         }
@@ -102,39 +111,38 @@ class Poker(object):
         state,obs = self.return_state()
         self.players.store_states(state,obs)
         self.board = self.deck.initialize_board(self.starting_street)
-        return state,obs,self.game_over
+        action_mask,betsize_mask = self.action_mask(state)
+        self.players.store_masks(action_mask,betsize_mask)
+        return state,obs,self.game_over,action_mask,betsize_mask
     
     def increment_turn(self):
         self.players.increment()
         self.game_turn.increment()
 
     def step(self,actor_outputs):
-        if self.rules.betsize == True:
-            if self.rules.network_output == 'flat':
-                # print('actor_outputs',actor_outputs)
-                flat_outputs = {
-                    'action':actor_outputs['action_category'],
-                    'action_prob':actor_outputs['action_prob'],
-                    'action_probs':actor_outputs['action_probs'],
-                    'betsize':actor_outputs['betsize']
-                    }
-                self.players.store_actor_outputs(flat_outputs)
-                self.update_state(actor_outputs['action_category'],actor_outputs['betsize'])
-                state,obs = self.return_state(actor_outputs['action_category'])
-            else:
-                self.players.store_actor_outputs(actor_outputs)
-                self.update_state(actor_outputs['action'],actor_outputs['betsize'])
-                state,obs = self.return_state(actor_outputs['action'])
+        if self.rules.network_output == 'flat':
+            # print('actor_outputs',actor_outputs)
+            flat_outputs = {
+                'action':actor_outputs['action_category'],
+                'action_prob':actor_outputs['action_prob'],
+                'action_probs':actor_outputs['action_probs'],
+                'betsize':actor_outputs['betsize']
+                }
+            self.players.store_actor_outputs(flat_outputs)
+            self.update_state(actor_outputs['action_category'],actor_outputs['betsize'])
+            state,obs = self.return_state(actor_outputs['action_category'])
         else:
             self.players.store_actor_outputs(actor_outputs)
-            self.update_state(actor_outputs['action'])
+            self.update_state(actor_outputs['action'],actor_outputs['betsize'])
             state,obs = self.return_state(actor_outputs['action'])
+        action_mask,betsize_mask = self.action_mask(state)
         done = self.game_over
         if done == False:
-            self.players.store_states(state,obs)
-        else:
+            self.players.store_states(state,obs) 
+            self.players.store_masks(action_mask,betsize_mask)
+        else: 
             self.determine_winner()
-        return state,obs,done
+        return state,obs,done,action_mask,betsize_mask
     
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
@@ -145,9 +153,6 @@ class Poker(object):
         self.players.update_stack(-bet_amount)
         self.increment_turn()
 
-    def process_flat_actions(self,actions,probabilities,action_probs):
-        pass
-        
     def ml_inputs(self):
         raw_ml = self.players.get_inputs()
         positions = raw_ml.keys()
@@ -168,20 +173,15 @@ class Poker(object):
                 raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(-1,1)
                 raw_ml[position]['action_masks'] = torch.stack(raw_ml[position]['action_masks']).view(-1,self.action_space)
                 raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(-1,self.betsize_space)
-                if self.rules.betsize == True:
-                    # print(raw_ml[position]['betsizes'])
-                    # [print(point.size()) for point in raw_ml[position]['betsizes']]
-                    if self.rules.network_output == 'flat':
-                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
-                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space - 2 + self.betsize_space)
-                    else:
-                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
-                        raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(-1,1)
-                        raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(-1,self.betsize_space)
-                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
+
+                if self.rules.network_output == 'flat':
+                    raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
+                    raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space - 2 + self.betsize_space)
                 else:
+                    raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
+                    raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(-1,1)
+                    raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(-1,self.betsize_space)
                     raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
-                # raw_ml[position]['values'] = torch.stack(raw_ml[position]['values']).view(-1,1)
         return raw_ml
         
     @property
@@ -215,26 +215,13 @@ class Poker(object):
     def current_player(self):
         return self.players.current_player
 
-    def determine_holdem(self):
+    def determine_output(self):
         if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             self.players.update_stack(self.pot.value)
         else:
             hands = self.players.get_hands()
             hand1,hand2 = hands
             winner_idx = self.evaluator([hand1,hand2,self.board])
-            winner_position = self.players.initial_positions[winner_idx]
-            self.players.update_stack(self.pot.value,winner_position)
-        self.players.gen_rewards()
-
-    def determine_kuhn(self):
-        """
-        Two cases, showdown and none showdown.
-        """
-        if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
-            self.players.update_stack(self.pot.value)
-        else:
-            hands = self.players.get_hands()
-            winner_idx = self.evaluator(hands)
             winner_position = self.players.initial_positions[winner_idx]
             self.players.update_stack(self.pot.value,winner_position)
         self.players.gen_rewards()
@@ -253,23 +240,6 @@ class Poker(object):
         obs = torch.cat((current_hand.float(),vil_hand.float(),board.float(),action.float())).unsqueeze(0)
         return state,obs
 
-    def return_kuhn_state(self,action=None):
-        """
-        Current player's hand. Previous action, Previous betsize (Not always used by network)
-        """
-        current_hand = torch.tensor([card.rank for card in self.players.current_hand])
-        vil_hand = torch.tensor([card.rank for card in self.players.previous_hand])
-        if not isinstance(action,torch.Tensor):
-            action = torch.Tensor([self.rules.unopened_action])
-            previous_betsize = torch.tensor([0.])
-        else:
-            previous_betsize = self.history.last_betsize
-        state = torch.cat((current_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
-        # Obs
-        obs = torch.cat((current_hand.float(),vil_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
-        # print('obs',obs)
-        return state,obs
-
     def action_mask(self,state):
         """
         Called from outside when training.
@@ -279,14 +249,13 @@ class Poker(object):
         """
         available_categories = self.rules.return_mask(state)
         available_betsizes = self.return_betsizes(state)
-        # if available_categories[pdt.Globals.REVERSE_ACTION_ORDER['raise']] == 1 or available_categories[pdt.Globals.REVERSE_ACTION_ORDER['bet']] == 1:
         if available_betsizes.sum() == 0:
-            if self.action_space == 5:
-                available_categories[pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] = 0
+            available_categories[pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] = 0
         return available_categories,available_betsizes
 
     def return_betsizes(self,state):
         """Returns possible betsizes. If betsize > player stack no betsize is possible"""
+        # STREAMLINE THIS
         possible_betsizes = torch.zeros((self.rules.num_betsizes))
         if self.history.last_betsize > 0:
             if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:

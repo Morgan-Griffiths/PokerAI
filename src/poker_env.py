@@ -95,7 +95,9 @@ class Poker(object):
         self.players.store_states(state,obs)
         if self.suits != None:
             self.board = self.deck.deal(5)
-        return state,obs,self.game_over
+        action_mask,betsize_mask = self.action_mask(state)
+        self.players.store_masks(action_mask,betsize_mask)
+        return state,obs,self.game_over,action_mask,betsize_mask
     
     def increment_turn(self):
         self.players.increment()
@@ -104,7 +106,6 @@ class Poker(object):
     def step(self,actor_outputs):
         if self.rules.betsize == True:
             if self.rules.network_output == 'flat':
-                # print('actor_outputs',actor_outputs)
                 flat_outputs = {
                     'action':actor_outputs['action_category'],
                     'action_prob':actor_outputs['action_prob'],
@@ -122,12 +123,14 @@ class Poker(object):
             self.players.store_actor_outputs(actor_outputs)
             self.update_state(actor_outputs['action'])
             state,obs = self.return_state(actor_outputs['action'])
+        action_mask,betsize_mask = self.action_mask(state)
         done = self.game_over
         if done == False:
             self.players.store_states(state,obs)
+            self.players.store_masks(action_mask,betsize_mask)
         else:
             self.determine_winner()
-        return state,obs,done
+        return state,obs,done,action_mask,betsize_mask
     
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
