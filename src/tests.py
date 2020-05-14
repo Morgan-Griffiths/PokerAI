@@ -11,17 +11,15 @@ from cardlib import winner,holdem_winner,encode
 
 def run_env(env,case):
     step = 0
-    state,obs,done = env.reset()
+    state,obs,done,mask,betsize_mask = env.reset()
     while not done:
-        mask,betsize_mask = env.action_mask(state)
-        env.players.store_masks(mask,betsize_mask)
         action,action_prob,action_probs = case[step]
         actor_output = {
             'action':action,
             'action_prob':action_prob,
             'action_probs':action_probs
         }
-        state,obs,done = env.step(actor_output)
+        state,obs,done,mask,betsize_mask = env.step(actor_output)
         step += 1
     return env
 
@@ -171,11 +169,11 @@ class TestEnv(unittest.TestCase):
 
 def envTestSuite():
     suite = unittest.TestSuite()
-    # suite.addTest(TestEnv('testRun'))
-    # suite.addTest(TestEnv('testRepresentations'))
-    # suite.addTest(TestEnv('testEvaluations'))
+    suite.addTest(TestEnv('testRun'))
+    suite.addTest(TestEnv('testRepresentations'))
+    suite.addTest(TestEnv('testEvaluations'))
     suite.addTest(TestEnv('testEnvFunctions'))
-    # suite.addTest(TestEnv('TestRlEnvironments'))
+    suite.addTest(TestEnv('TestRlEnvironments'))
     # suite.addTest(TestEnv('testScenario'))
     return suite
 

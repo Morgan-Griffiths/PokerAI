@@ -99,7 +99,7 @@ if __name__ == "__main__":
                         default='action',
                         metavar="['game_state,observation,action,reward']",
                         help='Chooses the type of data to look at')
-    parser.add_argument('--game',
+    parser.add_argument('--env',
                         default=pdt.GameTypes.KUHN,
                         metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.HOLDEM}]",
                         help='Which gametype')
@@ -111,11 +111,12 @@ if __name__ == "__main__":
         # 'type':args.type,
         # 'step':0,
         # 'poker_round':0,
-        # 'game':args.game,
+        # 'game':args.env,
         'training_round':args.run
     }
 
-    projection ={'hand':1,'value':1,'reward':1,'_id':0}
+    # projection ={'hand':1,'value':1,'reward':1,'_id':0}
+    projection ={'action':1,'_id':0}
     params = {
         'interval':100
     }
@@ -126,11 +127,13 @@ if __name__ == "__main__":
     Rewards over time. Action frequencies over time. Action frequencies given hand over time.
     Action frequencies given state over time.
     """
-    # actions = mongo.byActions(query,action_only=True)
+
+    gametype = args.env
+    data = mongo.get_data(query,projection)
+    actions = mongo.byActions(data,action_only=True)
     # rewards = mongo.byRewards(query)
     # actions,hands = mongo.actionByHand(query)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])
-    gametype = args.game
     def plot_critic_values():
         data = mongo.get_data(query,projection)
         rewards = []
@@ -160,6 +163,7 @@ if __name__ == "__main__":
         mongo = MongoDB()
         # SB
         data = mongo.get_data(query,projection)
+        # print(list(data))
         actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
@@ -172,7 +176,7 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-    plot_action_probabilities()
+    # plot_action_probabilities()
 
     def plot_betsize_probabilities():
         query = {
@@ -198,4 +202,4 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [size for size in unique_betsizes]
         plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
-    plot_betsize_probabilities()
+    # plot_betsize_probabilities()

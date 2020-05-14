@@ -18,7 +18,11 @@ Encountered a weird error with two stage networks, where if the action sequence 
 
 Flat network outputs, correctly choose betsize and actions as expected.
 
+One interesting aspect to multiple sizes is that it allows for many actions in a row, and given the network representation of only the last action,last betsize and current hand. The network had no way of telling how many raises in a row had happened. This caused learning to crator with small betsizes, because there was no way to solve the credit assignment problem. So stacksizes must be relatively small and betsizes large to avoid the possibility of multiple raises. This will be accounted for when tackling the full game of poker.
+
 The following graphs demonstrate the network approaching the solution.
+
+## Two betsizes
 
 ### SB
 
@@ -35,3 +39,21 @@ The following graphs demonstrate the network approaching the solution.
 ### BB betsizes
 
 ![Graph](assets/kuhn_betsize_probabilities_for_BB.png)
+
+## Three betsizes
+
+### SB
+
+![Graph](assets/kuhn_3betsize_Action_probabilities_for_SB.png)
+
+### BB
+
+![Graph](assets/kuhn_3betsize_Action_probabilities_for_BB.png)
+
+### SB betsizes
+
+![Graph](assets/kuhn_3betsize_probabilities_for_SB.png)
+
+### BB betsizes
+
+![Graph](assets/kuhn_3betsize_probabilities_for_BB.png)

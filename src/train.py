@@ -21,7 +21,7 @@ def train(env,agent,training_params):
         agent.learn(ml_inputs)
         for position in ml_inputs.keys():
             training_data[position].append(ml_inputs[position])
-        
+        training_data['action_records'].append(env.action_records)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))

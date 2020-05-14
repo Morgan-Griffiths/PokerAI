@@ -203,7 +203,7 @@ class Agent(object):
         # values = critic_output['value'][value_mask]
         # print('critic_inputs',critic_inputs['observations'])
         # print('pre values',values)
-        critic_loss = F.smooth_l1_loss(scaled_rewards.squeeze(1),critic_output['value'][value_mask])
+        critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),critic_output['value'][value_mask])
         # print('scaled_rewards',scaled_rewards)
         self.critic_optimizer.zero_grad()
         if 'betsize' in critic_output:
@@ -276,10 +276,10 @@ class Agent(object):
 
     def save_weights(self,path):
         directory = os.path.dirname(path)
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-        torch.save(self.local_actor.state_dict(), path + '_actor')
-        torch.save(self.local_critic.state_dict(), path + '_critic')
+        # if not os.path.exists(directory):
+        #     os.mkdir(directory)
+        # torch.save(self.local_actor.state_dict(), path + '_actor')
+        # torch.save(self.local_critic.state_dict(), path + '_critic')
 
     def update_networks(self):
         self.target_critic = Agent.soft_update_target(self.local_critic,self.target_critic,self.tau)

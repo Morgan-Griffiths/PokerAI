@@ -9,6 +9,7 @@ class Poker(object):
     def __init__(self,params):
         self.params = params
         self.game = params['game']
+        self.street = 3
         print(f'Initializating poker game {self.game}')
         self.state_params = params['state_params']
         self.ranks = params['state_params']['ranks']
@@ -25,7 +26,7 @@ class Poker(object):
         self.deck.shuffle()
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
-        self.players = Players(self.n_players,self.stacksizes,hands,self.state_params['to_act'])
+        self.players = Players(self.n_players,self.stacksizes,hands)
         if self.suits != None:
             self.board = self.deck.deal(5)
         self.history = History()
@@ -47,6 +48,13 @@ class Poker(object):
         self.determine_winner = func_dict[self.game]['determine_winner']
         self.return_state = func_dict[self.game]['return_state']
         self.return_betsize = betsize_funcs[self.rules.bettype]
+        # Records action frequencies per street
+        self.action_records = {
+            0:{i:0 for i in range(5)},
+            1:{i:0 for i in range(5)},
+            2:{i:0 for i in range(5)},
+            3:{i:0 for i in range(5)}
+        }
     
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
@@ -88,6 +96,12 @@ class Poker(object):
         self.game_turn.reset()
         self.deck.reset()
         self.deck.shuffle()
+        self.action_records = {
+            0:{i:0 for i in range(5)},
+            1:{i:0 for i in range(5)},
+            2:{i:0 for i in range(5)},
+            3:{i:0 for i in range(5)}
+        }
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
@@ -98,6 +112,9 @@ class Poker(object):
         action_mask,betsize_mask = self.action_mask(state)
         self.players.store_masks(action_mask,betsize_mask)
         return state,obs,self.game_over,action_mask,betsize_mask
+
+    def record_action(self,action):
+        self.action_records[self.street][action] += 1
     
     def increment_turn(self):
         self.players.increment()
@@ -135,6 +152,7 @@ class Poker(object):
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
         action_int = action.item()
+        self.record_action(action_int)
         bet_amount = self.return_betsize(action_int,betsize_category)
         self.history.add(self.players.current_player,action_int,bet_amount)
         self.pot.add(bet_amount)

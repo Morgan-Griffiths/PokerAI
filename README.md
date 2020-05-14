@@ -36,7 +36,7 @@ Additionally there is a sub library in hand_recognition if you want to test netw
 
 # Using the library
 
-Build the data and all the folders by ```python setup.py```
+Build the data and all the folders by ```python setup_hand_recognition.py```
 
 Build a specific dataset with ```python build_dataset.py -d <dataset>```
 
@@ -44,7 +44,7 @@ Modify poker/models/network_config.py to change which network to train. Add or m
 
 Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M train -e 10```
 Examine a network's output (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
-Train an RL agent on an env with ```python main.py --env <environment>```
+Train an RL agent on an env with ```python main.py --env <environment> -e <epochs>```
 Plot the RL training results with ```python visualize.py```
 
 # Hand recognition
