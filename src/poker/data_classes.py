@@ -186,6 +186,15 @@ class Players(object):
 
     def update_position_order(self,street):
         self.poker_positions = deque(pdt.Globals.HEADSUP_POSITION_DICT[street],maxlen=9)
+
+    def store_handstrengths(self,board):
+        board_cards = [[card.rank,card.suit] for card in board]
+        en_board = [encode(c) for c in board_cards]
+        for player in range(self.n_players):
+            position = self.initial_positions[player]
+            hand_cards = [[card.rank,card.suit] for card in self.players[position].hand]
+            en_hand = [encode(c) for c in hand_cards]
+            self.player_handstrength[position] = holdem_hand_rank(en_hand,en_board)
         
     def reset(self,hands:list):
         self.hands = hands
@@ -205,6 +214,7 @@ class Players(object):
         self.action_masks = {position:[] for position in self.poker_positions}
         self.betsize_masks = {position:[] for position in self.poker_positions}
         self.player_turns = {position:0 for position in self.poker_positions}
+        self.player_handstrength = {position:0 for position in self.poker_positions}
         
     def store_states(self,state:torch.Tensor,obs:torch.Tensor,player=None):
         position = self.current_player if player == None else player
@@ -303,6 +313,7 @@ class Players(object):
         for position in self.initial_positions:
             if len(self.actions[position]):
                 ml_inputs[position] = {
+                    'hand_strength':self.player_handstrength[position],
                     'game_states':self.game_states[position],
                     'observations':self.observations[position],
                     'actions':self.actions[position],

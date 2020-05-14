@@ -121,6 +121,7 @@ class MongoDB(object):
                 betsizes = poker_round['betsizes']
                 betsize_prob = poker_round['betsize_prob']
                 betsize_probs = poker_round['betsize_probs']
+                hand_strength = poker_round['hand_strength']
                 assert(isinstance(rewards,torch.Tensor))
                 assert(isinstance(actions,torch.Tensor))
                 assert(isinstance(action_prob,torch.Tensor))
@@ -132,8 +133,10 @@ class MongoDB(object):
                     hand = game_state[0,mapping['state']['hand']].view(-1)
                     vil_hand = game_state[0,mapping['observation']['vil_hand']].view(-1)
                     previous_action = game_state[:,mapping['state']['previous_action']].view(-1)
+                    street = game_state[:,mapping['state']['street']].view(-1)
                     state_json = {
                         'position':position,
+                        'street':street.tolist(),
                         'hand':hand.tolist(),
                         'vil_hand':vil_hand.tolist(),
                         'reward':rewards[step].tolist(),
@@ -143,7 +146,8 @@ class MongoDB(object):
                         'training_round':training_round,
                         'poker_round':i,
                         'step':step,
-                        'game':gametype
+                        'game':gametype,
+                        'hand_strength':hand_strength
                         }
                     if len(betsizes) > 0:
                         if betsizes[step][0].dim() > 1:
@@ -247,6 +251,39 @@ class MongoDB(object):
             return_data = MongoDB.pad_inputs(return_data,N)
         return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
         return return_data,unique_hands,unique_betsizes
+
+    def actionByHandStrength(self,data:'pymongo.cursor',params,pad=True):
+        """
+        Groups handstrengths by N categories. Where it grabs all actions contained within that category
+        hand_strengths: INT 0-7462
+        initial categories: < 1000 , < 2500, < 5000, the rest
+        """
+        hand_strength_categories = [0,1000,2500,5000,7463]
+        hand_strengths = []
+        actions = []
+        for point in data:
+            hand_strengths.append(np.array(point['hand_strength']))
+            actions.append(np.array(point['action'][0]))
+        hand_strengths = np.vstack(hand_strengths)
+        actions = np.vstack(actions)
+        
+        unique_hand_strengths,hand_counts = np.lib.arraysetops.unique(hand_strengths,return_counts=True)
+        unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)
+        num_features = len(action_counts)
+        print('unique_hand_strengths and counts',unique_hand_strengths,hand_counts)
+        print('unique_actions and counts',unique_actions,action_counts)
+        return_data = []
+        N = 0
+        # Group hand strengths
+        for i,category in enumerate(hand_strength_categories[1:]):
+            mask = np.where((hand_strengths < category) & (hand_strengths >= hand_strength_categories[i]))
+            return_data.append(actions[mask])
+            N = max(N,actions[mask].shape[0])
+            print(f'Number of hands in category {i} Between {hand_strength_categories[i]} and {category}: {actions[mask].shape[0]}')
+        if pad == True:
+            return_data = MongoDB.pad_inputs(return_data,N)
+        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        return return_data,hand_strength_categories,unique_actions
 
     def actionByHand(self,data:'pymongo.cursor',params,pad=True):
         hands = []

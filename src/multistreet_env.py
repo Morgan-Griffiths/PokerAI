@@ -293,6 +293,8 @@ class MSPoker(object):
                     assert(isinstance(raw_ml[position]['action_probs'][0],torch.Tensor))
                     assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
                     # assert(isinstance(raw_ml[position]['values'][0],torch.Tensor))
+
+                    raw_ml[position]['hand_strength'] = raw_ml[position]['hand_strength']
                     raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(1,-1,self.state_space)
                     raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(1,-1,self.observation_space)
                     raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(1,-1,1)
@@ -347,6 +349,8 @@ class MSPoker(object):
         return self.players.current_player
 
     def determine_output(self):
+        """Determines winner, allots pot to winner, records handstrengths for each player"""
+        self.players.store_handstrengths(self.board)
         if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             self.players.update_stack(self.pot.value)
         else:
