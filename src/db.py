@@ -14,8 +14,10 @@ class MongoDB(object):
     def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype):
         if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN:
             self.store_kuhn_data(training_data,mapping,training_round,gametype)
-        elif gametype == pdt.Holdem:
+        elif gametype == pdt.GameTypes.HOLDEM:
             self.store_holdem_data(training_data,mapping,training_round,gametype)
+        else:
+            raise ValueError('Improper gametype')
 
     def store_kuhn_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str):
         """
@@ -105,40 +107,62 @@ class MongoDB(object):
         Reward:
         training_run,round,step,reward
         """
-        print('holdem')
-        positions = training_data.keys()
+        keys = training_data.keys()
+        positions = [position for position in keys if position in ['SB','BB'] ]   
         for position in positions:
             for i,poker_round in enumerate(training_data[position]):
                 game_states = poker_round['game_states']
                 observations = poker_round['observations']
                 actions = poker_round['actions']
+                action_prob = poker_round['action_prob']
                 action_probs = poker_round['action_probs']
                 rewards = poker_round['rewards']
+                values = poker_round['values']
+                betsizes = poker_round['betsizes']
+                betsize_prob = poker_round['betsize_prob']
+                betsize_probs = poker_round['betsize_probs']
                 assert(isinstance(rewards,torch.Tensor))
-                assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(actions,torch.Tensor))
+                assert(isinstance(action_prob,torch.Tensor))
+                assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(observations,torch.Tensor))
                 assert(isinstance(game_states,torch.Tensor))
                 for step,game_state in enumerate(game_states):
-                    hand = game_state[mapping['state']['hand']].long().numpy()
-                    vil_hand = game_state[mapping['observation']['vil_hand']].long().numpy()
-                    board = game_state[mapping['state']['board']].long().numpy()
-                    previous_action = int(game_state[mapping['state']['previous_action']])
+                    board = game_state[-1,mapping['state']['board']].view(-1)
+                    hand = game_state[0,mapping['state']['hand']].view(-1)
+                    vil_hand = game_state[0,mapping['observation']['vil_hand']].view(-1)
+                    previous_action = game_state[:,mapping['state']['previous_action']].view(-1)
                     state_json = {
                         'position':position,
                         'hand':hand.tolist(),
                         'vil_hand':vil_hand.tolist(),
-                        'board':board.tolist(),
-                        'reward':float(rewards[step]),
-                        'action':int(actions[step]),
-                        'action_probs':float(action_probs[step].detach()),
-                        'unit_vector':float(MongoDB.unit_vector(action_probs[step].detach())),
-                        'previous_action':previous_action,
+                        'reward':rewards[step].tolist(),
+                        'action':actions[step].tolist(),
+                        'action_probs':action_probs[step].detach().tolist(),
+                        'previous_action':previous_action.tolist(),
                         'training_round':training_round,
                         'poker_round':i,
                         'step':step,
                         'game':gametype
                         }
+                    if len(betsizes) > 0:
+                        if betsizes[step][0].dim() > 1:
+                            index = torch.arange(betsizes[step].size(0))
+                            state_json['betsizes'] = float(betsizes[step][index,actions[step]].detach())
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step][index,actions[step]].detach())
+                                state_json['betsize_probs'] = betsize_probs[step][index,actions[step]].detach().tolist()
+                        else:
+                            state_json['betsizes'] = betsizes[step].detach().tolist()
+                            if len(betsize_prob) > 0:
+                                state_json['betsize_prob'] = float(betsize_prob[step].detach())
+                                state_json['betsize_probs'] = betsize_probs[step].detach().tolist()
+                    if len(values) > 0:
+                        if len(values[step][0]) > 1:
+                            index = torch.arange(values[step].size(0))
+                            state_json['value'] = values[step][index,actions[step]].detach().tolist()
+                        else:
+                            state_json['value'] = float(values[step].detach())
                     self.db['game_data'].insert_one(state_json)
                     
     def get_data(self,query:dict,projection:dict):
@@ -175,9 +199,12 @@ class MongoDB(object):
                 if frequencies.shape[0] < num_features:
                     base = np.zeros(num_features)
                     mask = set(np.arange(num_features))&set(uniques)
+                    # print(uniques,base,mask,frequencies)
                     for i,loc in enumerate(mask):
                         base[int(loc)] = frequencies[i]
                     frequencies = base
+                    # print('frequencies',frequencies)
+                assert(len(frequencies) == num_features)
                 for j in range(len(frequencies)):
                     percentage_type[j].append(frequencies[j])
             percentages.append(percentage_type)
@@ -226,12 +253,9 @@ class MongoDB(object):
         actions = []
         for point in data:
             hands.append(np.array(point['hand']))
-            actions.append(np.array(point['action']))
-        hands = np.stack(hands)
-        actions = np.stack(actions)
-        R = hands.shape[0]
-        hands = hands.reshape(R,1)
-        actions = actions.reshape(R,1)
+            actions.append(np.array(point['action'][0]))
+        hands = np.vstack(hands)
+        actions = np.vstack(actions)
         unique_hands,hand_counts = np.lib.arraysetops.unique(hands,return_counts=True)
         unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)
         num_features = len(action_counts)
@@ -248,15 +272,16 @@ class MongoDB(object):
         return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
         return return_data,unique_hands,unique_actions
 
-    def byActions(self,params:dict,pad=True,action_only=False):
-        data = self.get_data(params)
+    def byActions(self,data:'pymongo.cursor',pad=True,action_only=False):
         actions = []
         probs = []
         for point in data:
-            actions.append(point['action'])
-            probs.append(point['action_probs'])
-
-        actions = np.array(actions)
+            actions.append(point['action'][0])
+            # probs.append(point['action_probs'])
+        actions = np.vstack(actions)
+        unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)
+        num_features = len(action_counts)
+        print('unique_actions and counts',unique_actions,action_counts)
         if action_only == False:
             probs = np.exp(np.array(probs))
             # sort according to action types

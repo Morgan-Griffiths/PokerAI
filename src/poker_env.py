@@ -9,6 +9,7 @@ class Poker(object):
     def __init__(self,params):
         self.params = params
         self.game = params['game']
+        self.street = 3
         print(f'Initializating poker game {self.game}')
         self.state_params = params['state_params']
         self.ranks = params['state_params']['ranks']
@@ -25,7 +26,7 @@ class Poker(object):
         self.deck.shuffle()
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
-        self.players = Players(self.n_players,self.stacksizes,hands,self.state_params['to_act'])
+        self.players = Players(self.n_players,self.stacksizes,hands)
         if self.suits != None:
             self.board = self.deck.deal(5)
         self.history = History()
@@ -47,6 +48,13 @@ class Poker(object):
         self.determine_winner = func_dict[self.game]['determine_winner']
         self.return_state = func_dict[self.game]['return_state']
         self.return_betsize = betsize_funcs[self.rules.bettype]
+        # Records action frequencies per street
+        self.action_records = {
+            0:{i:0 for i in range(5)},
+            1:{i:0 for i in range(5)},
+            2:{i:0 for i in range(5)},
+            3:{i:0 for i in range(5)}
+        }
     
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
@@ -88,6 +96,12 @@ class Poker(object):
         self.game_turn.reset()
         self.deck.reset()
         self.deck.shuffle()
+        self.action_records = {
+            0:{i:0 for i in range(5)},
+            1:{i:0 for i in range(5)},
+            2:{i:0 for i in range(5)},
+            3:{i:0 for i in range(5)}
+        }
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
@@ -95,39 +109,59 @@ class Poker(object):
         self.players.store_states(state,obs)
         if self.suits != None:
             self.board = self.deck.deal(5)
-        return state,obs,self.game_over
+        action_mask,betsize_mask = self.action_mask(state)
+        self.players.store_masks(action_mask,betsize_mask)
+        return state,obs,self.game_over,action_mask,betsize_mask
+
+    def record_action(self,action):
+        self.action_records[self.street][action] += 1
     
     def increment_turn(self):
         self.players.increment()
         self.game_turn.increment()
 
     def step(self,actor_outputs):
-        self.players.store_actor_outputs(actor_outputs)
         if self.rules.betsize == True:
             if self.rules.network_output == 'flat':
+                flat_outputs = {
+                    'action':actor_outputs['action_category'],
+                    'action_prob':actor_outputs['action_prob'],
+                    'action_probs':actor_outputs['action_probs'],
+                    'betsize':actor_outputs['betsize']
+                    }
+                self.players.store_actor_outputs(flat_outputs)
                 self.update_state(actor_outputs['action_category'],actor_outputs['betsize'])
+                state,obs = self.return_state(actor_outputs['action_category'])
             else:
+                self.players.store_actor_outputs(actor_outputs)
                 self.update_state(actor_outputs['action'],actor_outputs['betsize'])
+                state,obs = self.return_state(actor_outputs['action'])
         else:
+            self.players.store_actor_outputs(actor_outputs)
             self.update_state(actor_outputs['action'])
-        state,obs = self.return_state(actor_outputs['action'])
+            state,obs = self.return_state(actor_outputs['action'])
+        action_mask,betsize_mask = self.action_mask(state)
         done = self.game_over
         if done == False:
             self.players.store_states(state,obs)
+            self.players.store_masks(action_mask,betsize_mask)
         else:
             self.determine_winner()
-        return state,obs,done
+        return state,obs,done,action_mask,betsize_mask
     
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
-        # print('update_state betsize_category',betsize_category)
         action_int = action.item()
+        self.record_action(action_int)
         bet_amount = self.return_betsize(action_int,betsize_category)
         self.history.add(self.players.current_player,action_int,bet_amount)
         self.pot.add(bet_amount)
         self.players.update_stack(-bet_amount)
         self.increment_turn()
-    
+
+    def process_flat_actions(self,actions,probabilities,action_probs):
+        pass
+        
     def ml_inputs(self):
         raw_ml = self.players.get_inputs()
         positions = raw_ml.keys()
@@ -145,7 +179,6 @@ class Poker(object):
                 raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(-1,self.observation_space)
                 raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(-1,1)
                 raw_ml[position]['action_prob'] = torch.stack(raw_ml[position]['action_prob']).view(-1,1)
-                raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
                 raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(-1,1)
                 raw_ml[position]['action_masks'] = torch.stack(raw_ml[position]['action_masks']).view(-1,self.action_space)
                 raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(-1,self.betsize_space)
@@ -154,10 +187,14 @@ class Poker(object):
                     # [print(point.size()) for point in raw_ml[position]['betsizes']]
                     if self.rules.network_output == 'flat':
                         raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
+                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space - 2 + self.betsize_space)
                     else:
                         raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
                         raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(-1,1)
                         raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(-1,self.betsize_space)
+                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
+                else:
+                    raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
                 # raw_ml[position]['values'] = torch.stack(raw_ml[position]['values']).view(-1,1)
         return raw_ml
         
@@ -244,6 +281,7 @@ class Poker(object):
         state = torch.cat((current_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
         # Obs
         obs = torch.cat((current_hand.float(),vil_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
+        # print('obs',obs)
         return state,obs
 
     def action_mask(self,state):
@@ -298,27 +336,27 @@ class Poker(object):
     ## NO LIMIT ##
     def return_nolimit_betsize(self,action,betsize_category):
         """Betsize_category in NL is a float [0,1] representing percentage of pot"""
-        # print('action',action)
-        # print('betsize_category',betsize_category)
         if action > 1:
             if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
-                # print('self.history.last_betsize',self.history.last_betsize)
-                # print('self.history.penultimate_betsize',self.history.penultimate_betsize)
-                # print('self.players.current_stack',self.players.current_stack)
                 betsize = min(self.history.last_betsize - self.history.penultimate_betsize,self.players.current_stack)
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
                 betsize_value = self.rules.betsizes[betsize_category.long()] * self.pot.value
                 betsize = min(max(self.rules.minbet,betsize_value),self.players.current_stack)
+                # print('betsize_value',betsize_value)
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
                 betsize_value = self.rules.betsizes[betsize_category.long()] * self.pot.value
                 betsize = min(max(self.history.last_betsize * 2,betsize_value),self.players.current_stack)
+                # print('betsize_value',betsize_value)
         else:
             betsize = 0
+        # print('self.players.current_stack',self.players.current_stack)
+        # print('action',action)
+        # print('betsize',betsize)
         return torch.tensor([betsize])
             
     ## POT LIMIT
     def return_potlimit_betsize(self,action,betsize_category):
-        """Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
+        """TODO Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
         if action > 2:
             min_betsize = self.rules.minbet if action == 3 else self.history.last_betsize * 2
             betsize = min(max(min_betsize,self.rules.betsizes[betsize_category.long()] * self.pot.value),self.players.current_stack)

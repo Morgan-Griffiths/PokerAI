@@ -67,15 +67,17 @@ class BaselineAgent(object):
 class Agent(object):
     def __init__(self,nS,nO,nA,nB,seed,params):
         super().__init__()
-        print('Actor critic')
         self.nS = nS
         self.nO = nO
         self.nA = nA
         self.nB = nB
+        self.nC = nA - 2 + nB
         self.seed = seed
         self.epochs = params['epochs']+1
+        self.network_output = params['network_output']
         self.tau = params['TAU']
         self.max_reward = params['max_reward']
+        self.min_reward = params['min_reward']
         self.gradient_clip = params['CLIP_NORM']
         self.critic_type = params['critic_type']
         self.local_actor = params['actor_network'](seed,nS,nA,nB,params)
@@ -175,7 +177,10 @@ class Agent(object):
     def return_value_mask(self,actions):
         """Returns a mask that indexes Q values by the action taken"""
         M = actions.size(0)
-        value_mask = torch.zeros(M,self.nA)
+        if self.network_output == 'flat':
+            value_mask = torch.zeros(M,self.nC)
+        else:
+            value_mask = torch.zeros(M,self.nA)
         if actions.dim() > 1:
             actions = actions.squeeze(1)
         value_mask[torch.arange(M),actions] = 1
@@ -186,14 +191,20 @@ class Agent(object):
         mask = actions.gt(2).view(-1)
         return mask
 
+    def scale_rewards(self,rewards,factor=1):
+        """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
+        return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
+
     def qcritic_backward(self,critic_inputs:dict):
         """Computes critic grad update. Optionally computes betsize grad update in unison"""
         critic_output = self.local_critic(critic_inputs['observations'])
         value_mask = self.return_value_mask(critic_inputs['actions'])
-        scaled_rewards = critic_inputs['rewards']/self.max_reward
-        critic_loss = F.smooth_l1_loss(scaled_rewards.squeeze(1),critic_output['value'][value_mask])
+        scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
+        # values = critic_output['value'][value_mask]
+        # print('critic_inputs',critic_inputs['observations'])
+        # print('pre values',values)
+        critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),critic_output['value'][value_mask])
         # print('scaled_rewards',scaled_rewards)
-        # print('values',critic_output['value'],critic_output['value'][value_mask])
         self.critic_optimizer.zero_grad()
         if 'betsize' in critic_output:
             betsize_categories = critic_inputs['betsizes']
@@ -226,12 +237,6 @@ class Agent(object):
         actor_outputs: action,action_prob,action_probs,betsize,betsize_prob,betsize_probs
         """
         critic_outputs = self.target_critic(critic_inputs['observations'])
-        # actor_out = self.local_actor(actor_inputs['game_states'],actor_inputs['action_masks'])
-        # masked_values = critic_outputs['value'] * actor_inputs['action_masks'].long()
-        # expected_value = (actor_inputs['action_probs'] * masked_values[value_mask]).detach().sum(-1)
-        # advantages = critic_outputs['value'][value_mask] - expected_value
-        # policy_loss = (-actor_inputs['action_prob'].view(-1) * advantages).sum()
-        # Update betsize choice
         value_mask = self.return_value_mask(actor_inputs['actions'])
         values = critic_outputs['value']
         expected_value = (actor_inputs['action_probs'].view(-1) * values.view(-1)).detach().sum(-1)
@@ -271,10 +276,10 @@ class Agent(object):
 
     def save_weights(self,path):
         directory = os.path.dirname(path)
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-        torch.save(self.local_actor.state_dict(), path + '_actor')
-        torch.save(self.local_critic.state_dict(), path + '_critic')
+        # if not os.path.exists(directory):
+        #     os.mkdir(directory)
+        # torch.save(self.local_actor.state_dict(), path + '_actor')
+        # torch.save(self.local_critic.state_dict(), path + '_critic')
 
     def update_networks(self):
         self.target_critic = Agent.soft_update_target(self.local_critic,self.target_critic,self.tau)
