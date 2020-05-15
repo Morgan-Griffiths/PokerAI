@@ -184,6 +184,7 @@ class BaseHoldem(object):
         self.rule_params['bettype'] = LimitTypes.NO_LIMIT
         self.rule_params['mask_dict'] = ACTION_MASKS[5]
         self.rule_params['action_dict'] = ACTION_ORDER
+        self.rule_params['bets_per_street'] = 4
 
 class Holdem(object):
     def __init__(self):

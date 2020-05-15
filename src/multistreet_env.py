@@ -357,8 +357,14 @@ class MSPoker(object):
             hands = self.players.get_hands()
             hand1,hand2 = hands
             winner_idx = self.evaluator([hand1,hand2,self.board])
-            winner_position = self.players.initial_positions[winner_idx]
-            self.players.update_stack(self.pot.value,winner_position)
+            if winner_idx == 1:
+                self.players.update_stack(self.pot.value,'SB')
+            elif winner_idx == -1:
+                self.players.update_stack(self.pot.value,'BB')
+            else:
+                # Tie
+                self.players.update_stack(self.pot.value / 2,'SB')
+                self.players.update_stack(self.pot.value / 2,'BB')
         self.players.gen_rewards()
 
     def return_current_state(self,action=None):
