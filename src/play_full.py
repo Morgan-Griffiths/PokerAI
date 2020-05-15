@@ -46,24 +46,15 @@ class PlayEnv(object):
     def get_player_input_betsize(self,*args):
         action_mask,betsize_mask = args
         mask = torch.cat([action_mask[:-2],betsize_mask])
-        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
-        while player_input.isdigit() == False:
-            print('Invalid input, please enter a number or exit with ^C')
-            player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
-        action = torch.tensor(int(player_input)).unsqueeze(0)
-        return action
-        
-    def get_player_input_reg(self,*args):
-        action_mask = args[0]
         improper_input = True
-        player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
+        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
         while improper_input == True:
             while player_input.isdigit() == False:
                 print('Invalid input, please enter a number or exit with ^C')
-                player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
-            if int(player_input) not in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]:
+                player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
+            if int(player_input) not in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]:
                 print('Invalid action choice, please choose one of the following')
-                player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
+                player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
             else:
                 improper_input = False
         action = torch.tensor(int(player_input)).unsqueeze(0)
@@ -74,6 +65,7 @@ class PlayEnv(object):
         for e in range(self.training_params['epochs']):
             print(f'Hand {e}')
             state,obs,done,mask,betsize_mask = self.env.reset()
+            print('Street',env.street)
             print(f'state {state},done {done}')
             while not done:
                 print(f'current_player {self.env.current_player}')

@@ -538,12 +538,9 @@ class HoldemBaseline(nn.Module):
         h = torch.cat((out,padding),dim=1)
         # should be (b,64,88)
         action_logits = self.transformer(h)
-        # x = self.activation(self.fc1(h))
-        # x = self.activation(self.fc2(x)).view(B,-1)
-        # x = self.dropout(x)
-        # action_logits = self.fc3(x)
+        category_logits = self.noise(action_logits)
         
-        action_soft = F.softmax(action_logits,dim=-1)
+        action_soft = F.softmax(category_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
@@ -646,8 +643,9 @@ class HoldemQCritic(nn.Module):
         B,M,c = x.size()
         out = self.process_input(x)
         transformer_outs = []
-        for _ in range(M):
-            transformer_outs.append(self.transformer(out))
+        for i in range(M):
+            transformer_input = out[:,i,:].unsqueeze(1)
+            transformer_outs.append(self.transformer(transformer_input))
         h = torch.stack(transformer_outs).permute(1,0,2)
         # n_padding = self.max_length - M
         # padding = torch.zeros(B,n_padding,out.size(-1))
@@ -659,7 +657,7 @@ class HoldemQCritic(nn.Module):
         a = self.advantage_output(h)
         v = self.value_output(h)
         v = v.expand_as(a)
-        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+        q = v + a - a.mean(-1,keepdim=True).expand_as(a)
         outputs = {
             'value':q.squeeze(0)
             }

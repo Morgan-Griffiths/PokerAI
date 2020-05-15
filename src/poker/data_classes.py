@@ -418,11 +418,13 @@ class Rules(object):
 
     def multiple_actions(self,env):
         done = False
-        if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD] or (env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] and (env.action_records[env.street][pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] > 0)):
+        if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             done = True
-        elif len(env.history) > 1:
-            if (env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK] and env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]) or (env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] and env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]):
+        elif env.street == 0:
+            if (env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] and env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]) or (env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] and env.action_records[env.street][pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] > 0):
                 done = True
+        elif (env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK] and env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]) or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
+            done = True
         return done
         
     def two_actions(self,env):
