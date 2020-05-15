@@ -278,6 +278,61 @@ class TransformerBlock(nn.Module):
 
         return x
 
+class CTransformer(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+
+    def __init__(self, emb, heads, depth, seq_length, num_classes, max_pool=True, dropout=0.0, wide=False):
+        """
+        :param emb: Embedding dimension
+        :param heads: nr. of attention heads
+        :param depth: Number of transformer blocks
+        :param seq_length: Expected maximum sequence length
+        :param num_tokens: Number of tokens (usually words) in the vocabulary
+        :param num_classes: Number of classes.
+        :param max_pool: If true, use global max pooling in the last layer. If false, use global
+                         average pooling.
+        """
+        super().__init__()
+
+        self.max_pool = max_pool
+
+        # self.token_embedding = nn.Embedding(embedding_dim=emb, num_embeddings=num_tokens)
+        # self.pos_embedding = nn.Embedding(embedding_dim=emb, num_embeddings=seq_length)
+
+        tblocks = []
+        for i in range(depth):
+            tblocks.append(
+                TransformerBlock(emb=emb, heads=heads, seq_length=seq_length, mask=False, dropout=dropout, wide=wide))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.toprobs = nn.Linear(emb, num_classes)
+
+        self.do = nn.Dropout(dropout)
+
+    def forward(self, x):
+        """
+        :param x: A batch by sequence length integer tensor of token indices.
+        :return: predicted log-probability vectors for each token based on the preceding tokens.
+        """
+        # tokens = self.token_embedding(x)
+        # b, t, e = tokens.size()
+
+        # positions = self.pos_embedding(torch.arange(t, device=d()))[None, :, :].expand(b, t, e)
+        # x = tokens + positions
+        x = self.do(x)
+
+        x = self.tblocks(x)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        x = self.toprobs(x)
+
+        return F.log_softmax(x, dim=1)
+
+
 class ProcessHandBoard(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
@@ -441,60 +496,6 @@ class PreProcessPokerInputs(nn.Module):
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
-class CTransformer(nn.Module):
-    """
-    Transformer for classifying sequences
-    """
-
-    def __init__(self, emb, heads, depth, seq_length, num_tokens, num_classes, max_pool=True, dropout=0.0, wide=False):
-        """
-        :param emb: Embedding dimension
-        :param heads: nr. of attention heads
-        :param depth: Number of transformer blocks
-        :param seq_length: Expected maximum sequence length
-        :param num_tokens: Number of tokens (usually words) in the vocabulary
-        :param num_classes: Number of classes.
-        :param max_pool: If true, use global max pooling in the last layer. If false, use global
-                         average pooling.
-        """
-        super().__init__()
-
-        self.num_tokens, self.max_pool = num_tokens, max_pool
-
-        self.token_embedding = nn.Embedding(embedding_dim=emb, num_embeddings=num_tokens)
-        self.pos_embedding = nn.Embedding(embedding_dim=emb, num_embeddings=seq_length)
-
-        tblocks = []
-        for i in range(depth):
-            tblocks.append(
-                TransformerBlock(emb=emb, heads=heads, seq_length=seq_length, mask=False, dropout=dropout, wide=wide))
-
-        self.tblocks = nn.Sequential(*tblocks)
-
-        self.toprobs = nn.Linear(emb, num_classes)
-
-        self.do = nn.Dropout(dropout)
-
-    def forward(self, x):
-        """
-        :param x: A batch by sequence length integer tensor of token indices.
-        :return: predicted log-probability vectors for each token based on the preceding tokens.
-        """
-        tokens = self.token_embedding(x)
-        b, t, e = tokens.size()
-
-        positions = self.pos_embedding(torch.arange(t, device=d()))[None, :, :].expand(b, t, e)
-        x = tokens + positions
-        x = self.do(x)
-
-        x = self.tblocks(x)
-
-        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
-
-        x = self.toprobs(x)
-
-        return F.log_softmax(x, dim=1)
-
 ################################################
 #               Holdem Networks                #
 ################################################
@@ -517,10 +518,11 @@ class HoldemBaseline(nn.Module):
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise()
+        self.transformer = CTransformer(528,8,2,20,5)
 
         self.fc1 = nn.Linear(528,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(1280,self.combined_output)
+        self.fc3 = nn.Linear(64,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -532,10 +534,11 @@ class HoldemBaseline(nn.Module):
         padding = torch.zeros(B,n_padding,out.size(-1))
         h = torch.cat((out,padding),dim=1)
         # should be (b,64,88)
-        x = self.activation(self.fc1(h))
-        x = self.activation(self.fc2(x)).view(B,-1)
-        x = self.dropout(x)
-        action_logits = self.fc3(x)
+        action_logits = self.transformer(h)
+        # x = self.activation(self.fc1(h))
+        # x = self.activation(self.fc2(x)).view(B,-1)
+        # x = self.dropout(x)
+        # action_logits = self.fc3(x)
         
         action_soft = F.softmax(action_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
