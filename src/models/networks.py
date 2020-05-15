@@ -518,7 +518,10 @@ class HoldemBaseline(nn.Module):
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise()
-        self.transformer = CTransformer(528,8,2,20,5)
+        emb = 528
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
 
         self.fc1 = nn.Linear(528,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
@@ -630,6 +633,10 @@ class HoldemQCritic(nn.Module):
         self.fc1 = nn.Linear(528,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],nA)
+        emb = 528
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(5,1)
         self.advantage_output = nn.Linear(5,self.nA)
@@ -638,15 +645,19 @@ class HoldemQCritic(nn.Module):
         x = obs
         B,M,c = x.size()
         out = self.process_input(x)
+        transformer_outs = []
+        for _ in range(M):
+            transformer_outs.append(self.transformer(out))
+        h = torch.stack(transformer_outs).permute(1,0,2)
         # n_padding = self.max_length - M
         # padding = torch.zeros(B,n_padding,out.size(-1))
         # h = torch.cat((out,padding),dim=1)
-        x = self.activation(self.fc1(out))
-        x = self.activation(self.fc2(x))
-        x = self.activation(self.fc3(x))
-        x = self.dropout(x)
-        a = self.advantage_output(x)
-        v = self.value_output(x)
+        # x = self.activation(self.fc1(out))
+        # x = self.activation(self.fc2(x))
+        # x = self.activation(self.fc3(x))
+        # x = self.dropout(x)
+        a = self.advantage_output(h)
+        v = self.value_output(h)
         v = v.expand_as(a)
         q = v + a - a.mean(1,keepdim=True).expand_as(a)
         outputs = {
