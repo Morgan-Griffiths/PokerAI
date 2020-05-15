@@ -51,8 +51,6 @@ class MSPoker(object):
         if self.stacksize < 1:
             raise ValueError('Stacksize must be >= 1')
         self.blinds = [0.5,1]
-        self.nO = None
-        self.nS = None
 
     def initialize_functions(self):
         func_dict = {
