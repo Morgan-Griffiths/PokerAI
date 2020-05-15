@@ -276,10 +276,10 @@ class Agent(object):
 
     def save_weights(self,path):
         directory = os.path.dirname(path)
-        # if not os.path.exists(directory):
-        #     os.mkdir(directory)
-        # torch.save(self.local_actor.state_dict(), path + '_actor')
-        # torch.save(self.local_critic.state_dict(), path + '_critic')
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        torch.save(self.local_actor.state_dict(), path + '_actor')
+        torch.save(self.local_critic.state_dict(), path + '_critic')
 
     def update_networks(self):
         self.target_critic = Agent.soft_update_target(self.local_critic,self.target_critic,self.tau)
