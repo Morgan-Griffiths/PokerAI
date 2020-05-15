@@ -16,7 +16,15 @@ to build rust code, cd into rusteval and run
 ```
 cargo build --release
 ```
-(`brew install rust` if you don't have it.)
+
+If you don't have rust
+
+### Ubuntu
+```sudo apt install cargo```
+
+### OSX
+```brew install rust```
+
 
 ## MongoDB
 
@@ -36,7 +44,7 @@ Additionally there is a sub library in hand_recognition if you want to test netw
 
 # Using the library
 
-Build the data and all the folders by ```python setup_hand_recognition.py```
+Build the data and all the folders by ```python setup.py```
 
 Build a specific dataset with ```python build_dataset.py -d <dataset>```
 
