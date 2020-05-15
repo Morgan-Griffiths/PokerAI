@@ -51,6 +51,10 @@ class MSPoker(object):
         if self.stacksize < 1:
             raise ValueError('Stacksize must be >= 1')
         self.blinds = [0.5,1]
+        self.nO = None
+        self.nA = None
+        self.nB = None
+        self.nC = None
 
     def initialize_functions(self):
         func_dict = {
@@ -73,6 +77,8 @@ class MSPoker(object):
             2:{i:0 for i in range(5)},
             3:{i:0 for i in range(5)}
         }
+        self.nO = self.return_state()[1].size()[-1]
+        self.nS = self.return_state()[0].size()[-1]
     
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
@@ -118,6 +124,7 @@ class MSPoker(object):
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
+        self.players.reset_street_totals()
         self.action_records = {
             0:{i:0 for i in range(5)},
             1:{i:0 for i in range(5)},
@@ -330,11 +337,11 @@ class MSPoker(object):
     
     @property
     def state_space(self):
-        return self.return_state()[0].size()[-1]
+        return self.nS
     
     @property
     def observation_space(self):
-        return self.return_state()[1].size()[-1]
+        return self.nO
     
     @property
     def action_space(self):
@@ -347,6 +354,10 @@ class MSPoker(object):
     @property
     def current_player(self):
         return self.players.current_player
+
+    @property
+    def previous_player(self):
+        return self.players.previous_player
 
     def determine_output(self):
         """Determines winner, allots pot to winner, records handstrengths for each player"""
@@ -389,8 +400,8 @@ class MSPoker(object):
         vil_position = torch.tensor([pdt.Globals.POSITION_MAPPING[self.players.previous_player]]).float()
         ## If the last betsize is 0 then both are zero
         if self.history.last_betsize > 0:
-            to_call = self.history.last_betsize - self.history.penultimate_betsize
-            pot_odds = self.history.last_betsize - self.history.penultimate_betsize / self.pot.value
+            to_call = self.players.previous_street_total - self.players.current_street_total
+            pot_odds = to_call / (self.pot.value + to_call) # Because state is updated prior to retriving gamestate. The bet has already been added to the pot
         else:
             to_call = torch.tensor([0])
             pot_odds = torch.tensor([0])
@@ -461,9 +472,9 @@ class MSPoker(object):
                 betsize = min(max(self.rules.minbet,betsize_value),self.players.current_stack)
                 # print('betsize_value',betsize_value)
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
-                max_raise = (2 * self.players.villain_street_investment) + (self.pot.value - self.players.hero_street_investment)
+                max_raise = (2 * self.players.previous_street_total) + (self.pot.value - self.players.current_street_total)
                 betsize_value = self.rules.betsizes[betsize_category.long()] * max_raise
-                previous_bet = self.players.villain_street_investment - self.players.hero_street_investment
+                previous_bet = self.players.previous_street_total - self.players.current_street_total
                 betsize = min(max(previous_bet * 2,betsize_value),self.players.current_stack)
                 # print('betsize_value',betsize_value)
         else:

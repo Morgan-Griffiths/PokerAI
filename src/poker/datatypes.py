@@ -191,8 +191,9 @@ class Holdem(object):
         H = BaseHoldem()
         self.rule_params = H.rule_params
         self.state_params = H.state_params
-        self.state_params['stacksize'] = 5
-        self.rule_params['betsizes'] = T([0.5,1])
+        self.state_params['stacksize'] = 5.
+        self.state_params['pot']= 2.
+        self.rule_params['betsizes'] = T([0.5,1.])
         self.starting_street = 3
 
 class OmahaHI(object):

@@ -347,14 +347,6 @@ class Players(object):
         return stats
         
     @property
-    def hero_street_investment(self):
-        return self.players[self.current_player].street_total
-
-    @property
-    def villain_street_investment(self):
-        return self.players[self.previous_player].street_total
-
-    @property
     def to_showdown(self):
         """
         Only for HU.
@@ -373,6 +365,10 @@ class Players(object):
     @property
     def current_player(self):
         return self.poker_positions[0]
+
+    @property
+    def current_street_total(self):
+        return self.players[self.current_player].street_total
     
     @property
     def previous_player(self):
@@ -386,6 +382,10 @@ class Players(object):
     def previous_hand(self):
         return self.players[self.previous_player].hand
     
+    @property
+    def previous_street_total(self):
+        return self.players[self.previous_player].street_total
+
 class Rules(object):
     def __init__(self,params):
         self.load_rules(params)
