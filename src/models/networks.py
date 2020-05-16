@@ -26,7 +26,9 @@ def norm_frequencies(action_soft,mask):
 
 def combined_masks(action_mask,betsize_mask):
     """Combines action and betsize masks into flat mask for 1d network outputs"""
-    if action_mask.dim() > 1:
+    if action_mask.dim() > 2:
+        return torch.cat([action_mask[:,:,:-2],betsize_mask],dim=-1)
+    elif action_mask.dim() > 1:
         return torch.cat([action_mask[:,:-2],betsize_mask],dim=-1)
     else:
         return torch.cat([action_mask[:-2],betsize_mask])

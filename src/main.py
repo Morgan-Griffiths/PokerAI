@@ -7,6 +7,7 @@ from db import MongoDB
 import poker.datatypes as pdt
 from models.network_config import NetworkConfig,CriticType
 import time
+import multiprocessing as mp
 
 if __name__ == "__main__":
     import argparse
@@ -70,6 +71,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    print("Number of processors: ", mp.cpu_count())
     print(f'args {args}')
     tic = time.time()
     
