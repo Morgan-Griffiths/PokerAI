@@ -35,7 +35,8 @@ class MongoDB(object):
         Reward:
         training_run,round,step,reward
         """
-        positions = training_data.keys()
+        keys = training_data.keys()
+        positions = [position for position in keys if position in ['SB','BB']] 
         for position in positions:
             for i,poker_round in enumerate(training_data[position]):
                 game_states = poker_round['game_states']
@@ -222,8 +223,8 @@ class MongoDB(object):
         hands = []
         betsizes = []
         for point in data:
-            hands.append(np.array(point['hand']))
-            betsizes.append(np.array(point['betsizes']))
+            hands.append(point['hand'])
+            betsizes.append(point['betsizes'])
         hands = np.stack(hands)
         betsizes = np.stack(betsizes)
         betsize_mask = betsizes > -1
@@ -252,8 +253,8 @@ class MongoDB(object):
         hands = []
         actions = []
         for point in data:
-            hands.append(np.array(point['hand']))
-            actions.append(np.array(point['action'][0]))
+            hands.append(point['hand'])
+            actions.append(point['action'])
         hands = np.vstack(hands)
         actions = np.vstack(actions)
         unique_hands,hand_counts = np.lib.arraysetops.unique(hands,return_counts=True)
@@ -276,7 +277,7 @@ class MongoDB(object):
         actions = []
         probs = []
         for point in data:
-            actions.append(point['action'][0])
+            actions.append(point['action'])
             # probs.append(point['action_probs'])
         actions = np.vstack(actions)
         unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)
