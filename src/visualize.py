@@ -129,8 +129,8 @@ if __name__ == "__main__":
     """
 
     gametype = args.env
-    data = mongo.get_data(query,projection)
-    actions = mongo.byActions(data,action_only=True)
+    # data = mongo.get_data(query,projection)
+    # actions = mongo.byActions(data,action_only=True)
     # rewards = mongo.byRewards(query)
     # actions,hands = mongo.actionByHand(query)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])

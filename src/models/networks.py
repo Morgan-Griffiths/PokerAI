@@ -54,23 +54,43 @@ class NetworkFunctions(object):
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """Unwraps flat action into action_category and betsize_category"""
         # print(action,previous_action)
-        actions_output = torch.zeros(action.size(0),self.nA)
-        betsizes = torch.zeros(action.size(0),self.nB)
+        actions = torch.zeros(self.nA)
+        betsizes = torch.zeros(self.nB)
         # actions[action[action < 3]] = 1
-        # for i,action in enumerate(actions):
         if action < 3:
-            actions_output[:,action] = 1
+            actions[action] = 1
         elif previous_action == 5 or previous_action == 0: # Unopened
-            actions_output[:,3] = 1
+            actions[3] = 1
             bet_category = action - 3
-            betsizes[:,bet_category] = 1
+            betsizes[bet_category] = 1
         else: # facing bet or raise
-            actions_output[:,4] = 1
+            actions[4] = 1
             bet_category = action - 3
-            betsizes[:,bet_category] = 1
-        int_actions = torch.argmax(actions_output, dim=-1)
-        int_betsizes = torch.argmax(betsizes, dim=-1)
+            betsizes[bet_category] = 1
+        int_actions = torch.argmax(actions, dim=0).unsqueeze(-1)
+        int_betsizes = torch.argmax(betsizes, dim=0).unsqueeze(-1)
         return int_actions,int_betsizes
+
+    # def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
+    #     """Unwraps flat action into action_category and betsize_category"""
+    #     # print(action,previous_action)
+    #     actions_output = torch.zeros(action.size(0),self.nA)
+    #     betsizes = torch.zeros(action.size(0),self.nB)
+    #     # actions[action[action < 3]] = 1
+    #     # for i,action in enumerate(actions):
+    #     if action < 3:
+    #         actions_output[:,action] = 1
+    #     elif previous_action == 5 or previous_action == 0: # Unopened
+    #         actions_output[:,3] = 1
+    #         bet_category = action - 3
+    #         betsizes[:,bet_category] = 1
+    #     else: # facing bet or raise
+    #         actions_output[:,4] = 1
+    #         bet_category = action - 3
+    #         betsizes[:,bet_category] = 1
+    #     int_actions = torch.argmax(actions_output, dim=-1)
+    #     int_betsizes = torch.argmax(betsizes, dim=-1)
+    #     return int_actions,int_betsizes
 
 ################################################
 #                Helper Layers                 #
