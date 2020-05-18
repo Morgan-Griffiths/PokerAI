@@ -25,9 +25,9 @@ if __name__ == "__main__":
                         type=str,
                         help='Which agent to train')
     parser.add_argument('--env',
-                        default=pdt.GameTypes.HOLDEM,
+                        default=pdt.GameTypes.HISTORICALKUHN,
                         type=str,
-                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HOLDEM}]",
+                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HISTORICALKUHN},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to train in')
     parser.add_argument('--no-clean',
                         default=True,
@@ -40,7 +40,7 @@ if __name__ == "__main__":
                         action='store_false',
                         help='Stores training data in database')
     parser.add_argument('-e','--epochs',
-                        default=200,
+                        default=1000,
                         type=int,
                         help='Number of training epochs')
     parser.add_argument('--critic',

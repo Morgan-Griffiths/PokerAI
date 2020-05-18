@@ -94,8 +94,8 @@ class Agent(object):
             self.actor_backward = self.reg_actor_backward
             self.critique = self.reg_critique
 
-        self.actor_optimizer = optim.Adam(self.local_actor.parameters(), lr=1e-8,weight_decay=params['L2'])
-        self.critic_optimizer = optim.Adam(self.local_critic.parameters(), lr=1e-5)
+        self.actor_optimizer = optim.Adam(self.local_actor.parameters(), lr=1e-5,weight_decay=params['L2'])
+        self.critic_optimizer = optim.Adam(self.local_critic.parameters(), lr=1e-4)
         # Copy the weights from local to target
         hard_update(self.local_critic,self.target_critic)
         hard_update(self.local_actor,self.target_actor)
@@ -200,7 +200,6 @@ class Agent(object):
         critic_output = self.local_critic(critic_inputs['observations'])
         value_mask = self.return_value_mask(critic_inputs['actions'])
         scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
-        # pre_value = critic_output['value'][value_mask]
         # print('critic_inputs',critic_inputs['observations'])
         critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),critic_output['value'][value_mask])
         # print('scaled_rewards',scaled_rewards)
@@ -222,6 +221,7 @@ class Agent(object):
         self.critic_optimizer.step()
         Agent.soft_update(self.local_critic,self.target_critic,self.tau)
         # Assert learning
+        # pre_value = critic_output['value'][value_mask]
         # critic_output = self.local_critic(critic_inputs['observations'])
         # value_mask = self.return_value_mask(critic_inputs['actions'])
         # scaled_rewards = (critic_inputs['rewards']/self.max_reward).squeeze(1)
@@ -240,8 +240,7 @@ class Agent(object):
         values = critic_outputs['value']
         expected_value = (actor_inputs['action_probs'].view(-1) * values.view(-1)).detach().sum(-1)
         advantages = values[value_mask] - expected_value
-        policy_loss = (-actor_inputs['action_prob'].view(-1) * advantages).sum() / 10
-        pre_probs = actor_inputs['action_probs']
+        policy_loss = (-actor_inputs['action_prob'].view(-1) * advantages).sum()
         self.actor_optimizer.zero_grad()
         # select all instances of bets
         if 'betsize' in critic_outputs:
@@ -264,9 +263,10 @@ class Agent(object):
         torch.nn.utils.clip_grad_norm_(self.local_actor.parameters(), self.gradient_clip)
         self.actor_optimizer.step()
         Agent.soft_update(self.local_actor,self.target_actor,self.tau)
-        actor_out = self.local_actor(actor_inputs['game_states'],actor_inputs['action_masks'],actor_inputs['betsize_masks'])
-        post_probs = actor_out['action_probs']
-        print('post')
+        # pre_probs = actor_inputs['action_probs']
+        # actor_out = self.local_actor(actor_inputs['game_states'],actor_inputs['action_masks'],actor_inputs['betsize_masks'])
+        # post_probs = actor_out['action_probs']
+        # print('post')
 
     def load_weights(self,path):
         self.local_actor.load_state_dict(torch.load(path + '_actor'))

@@ -22,6 +22,7 @@ class CardDataset(object):
     def generate_dataset(self,params):
         """
         Hands in test set may or may not match hands in training set.
+        Builds regression datasets with a target of win,loss,tie [1,-1,0]
         """
         if params['datatype'] == dt.DataTypes.THIRTEENCARD:
             trainX,trainY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
@@ -86,6 +87,8 @@ class CardDataset(object):
 
     def build_hand_classes(self,params):
         """
+        Builds categorical targets of hand class.
+
         |Hand Value|Unique|Distinct|
         |Straight Flush |40      |10|
         |Four of a Kind |624     |156|

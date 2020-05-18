@@ -54,21 +54,22 @@ class NetworkFunctions(object):
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """Unwraps flat action into action_category and betsize_category"""
         # print(action,previous_action)
-        actions = torch.zeros(self.nA)
-        betsizes = torch.zeros(self.nB)
+        actions_output = torch.zeros(action.size(0),self.nA)
+        betsizes = torch.zeros(action.size(0),self.nB)
         # actions[action[action < 3]] = 1
+        # for i,action in enumerate(actions):
         if action < 3:
-            actions[action] = 1
+            actions_output[:,action] = 1
         elif previous_action == 5 or previous_action == 0: # Unopened
-            actions[3] = 1
+            actions_output[:,3] = 1
             bet_category = action - 3
-            betsizes[bet_category] = 1
+            betsizes[:,bet_category] = 1
         else: # facing bet or raise
-            actions[4] = 1
+            actions_output[:,4] = 1
             bet_category = action - 3
-            betsizes[bet_category] = 1
-        int_actions = torch.argmax(actions, dim=0).unsqueeze(0)
-        int_betsizes = torch.argmax(betsizes, dim=0).unsqueeze(0)
+            betsizes[:,bet_category] = 1
+        int_actions = torch.argmax(actions_output, dim=-1)
+        int_betsizes = torch.argmax(betsizes, dim=-1)
         return int_actions,int_betsizes
 
 ################################################
@@ -284,7 +285,6 @@ class CTransformer(nn.Module):
     """
     Transformer for classifying sequences
     """
-
     def __init__(self, emb, heads, depth, seq_length, num_classes, max_pool=True, dropout=0.0, wide=False):
         """
         :param emb: Embedding dimension
@@ -833,6 +833,171 @@ class BetsizeCritic(nn.Module):
 ################################################
 #            Flat Betsize Networks             #
 ################################################
+
+class PreProcessHistory(nn.Module):
+    def __init__(self,params,critic=False):
+        super().__init__()
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,63)
+        self.betsize_fc = nn.Linear(1,64)
+        self.initialize(critic)
+
+    def initialize(self,critic):
+        if critic:
+            self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
+            self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
+            self.conv = nn.Sequential(
+                nn.Conv1d(2, 32, kernel_size=3, stride=1),
+                nn.BatchNorm1d(32),
+                nn.ReLU(inplace=True)
+            )
+            self.forward = self.forward_critic
+        else:
+            self.forward = self.forward_actor
+
+    def forward_critic(self,x):
+        M = x.size(0)
+        hand = x[0,self.mapping['observation']['rank']].long().unsqueeze(0)
+        vil_hand = x[0,self.mapping['observation']['vil_rank']].long().unsqueeze(0)
+        hands = torch.cat([hand,vil_hand],dim=-1)
+        hot_ranks = self.one_hot_kuhn[hands.long()]
+        if hot_ranks.dim() == 2:
+            hot_ranks = hot_ranks.unsqueeze(0)
+        h = self.conv(hot_ranks.float())
+        h = h.view(-1).unsqueeze(0).repeat(M,1)
+        # h.size(B,M,240)
+        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        a1 = self.action_emb(last_action)
+        # o.size(B,M,5)
+        last_betsize = x[:,self.mapping['observation']['previous_betsize']].float()
+        if last_betsize.dim() == 1:
+            last_betsize = last_betsize.unsqueeze(1)
+        # h.size(B,M,128)
+        combined = torch.cat([h,a1,last_betsize],dim=-1)
+        return combined
+
+    def forward_actor(self,x):
+        hand = x[:,self.mapping['state']['rank']].long()
+        hand = self.hand_emb(hand)
+        # h.size(B,M,240)
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        last_action_emb = self.action_emb(last_action)
+        # o.size(B,M,5)
+        previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
+        if previous_betsize.dim() == 1:
+            previous_betsize = previous_betsize.unsqueeze(1)
+        # h.size(B,M,128)
+        # b1 = self.betsize_fc(previous_betsize)
+        combined = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
+        return combined
+
+class FlatHistoricalActor(nn.Module):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        """
+        Network capable of processing any number of prior actions
+        Num Categories: nA (check,fold,call,bet,raise)
+        Num Betsizes: nB (various betsizes)
+        """
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
+        self.preprocess = PreProcessHistory(params)
+        self.max_length = 10
+        self.positional_emb = Embedder(self.max_length,191)
+        emb = 128
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
+        self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.noise = GaussianNoise(is_relative_detach=True)
+        self.fc1 = nn.Linear(128,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(64,self.combined_output)
+        
+    def forward(self,state,action_mask,betsize_mask):
+        last_state = state[-1].unsqueeze(0)
+        mask = combined_masks(action_mask,betsize_mask)
+        if mask.dim() > 1:
+            mask = mask[-1]
+        x = last_state
+        M,C = x.size()
+        out = self.preprocess(x)
+        # n_padding = self.max_length - M
+        # padding = torch.zeros(n_padding,out.size(-1))
+        # h = torch.cat((out,padding),dim=0)
+        # pos_emd = self.positional_emb(torch.arange(3))
+        # out = out + pos_emd
+        # x = (h + pos_emd).unsqueeze(0)
+        x = self.activation(self.fc1(out))
+        x = self.activation(self.fc2(x)).view(-1)
+        t_logits = self.fc3(x).unsqueeze(0)
+        # t_logits = self.transformer(x)
+        cateogry_logits = self.noise(t_logits)
+        action_soft = F.softmax(cateogry_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
+        last_action = state[-1,self.mapping['state']['previous_action']].long().unsqueeze(-1)
+        m = Categorical(action_probs)
+        action = m.sample()
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+        
+        outputs = {
+            'action':action,
+            'action_category':action_category,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs,
+            'betsize':betsize_category
+            }
+        return outputs
+
+class FlatHistoricalCritic(nn.Module):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.max_length = 10
+        emb = 528
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.combined_output)
+        self.preprocess = PreProcessHistory(params,critic=True)
+        self.seed = torch.manual_seed(seed)
+        self.use_embedding = params['embedding']
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,32)
+        self.action_emb = Embedder(6,32)
+        self.positional_embeddings = Embedder(self.max_length,64)
+
+        self.fc0 = nn.Linear(64,hidden_dims[0])
+        self.fc1 = nn.Linear(128,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.value_output = nn.Linear(64,1)
+        self.advantage_output = nn.Linear(64,self.combined_output)
+        
+    def forward(self,obs):
+        # last_obs = obs[-1].unsqueeze(0)
+        x = obs
+        M,C = x.size()
+        x = self.preprocess(x)
+        # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        q_input = x.view(M,-1)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(1,keepdim=True).expand_as(a)
+
+        outputs = {'value':q }
+        return outputs
 
 class FlatBetsizeActor(nn.Module):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):

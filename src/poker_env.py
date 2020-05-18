@@ -37,6 +37,7 @@ class Poker(object):
             pdt.GameTypes.KUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
             pdt.GameTypes.COMPLEXKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
             pdt.GameTypes.BETSIZEKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
+            pdt.GameTypes.HISTORICALKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_historical_kuhn_state},
             pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_holdem,'return_state':self.return_holdem_state},
             pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED'
         }
@@ -111,6 +112,7 @@ class Poker(object):
             self.board = self.deck.deal(5)
         action_mask,betsize_mask = self.action_mask(state)
         self.players.store_masks(action_mask,betsize_mask)
+        self.history.add(self.players.current_player,5,0)
         return state,obs,self.game_over,action_mask,betsize_mask
 
     def record_action(self,action):
@@ -143,7 +145,11 @@ class Poker(object):
         action_mask,betsize_mask = self.action_mask(state)
         done = self.game_over
         if done == False:
-            self.players.store_states(state,obs)
+            if state.size(0) > 1:
+                self.players.store_states(state[-1,:].unsqueeze(0),obs[-1,:].unsqueeze(0))
+                # self.players.store_masks(action_mask[-1,:],betsize_mask[-1,:])
+            else:
+                self.players.store_states(state,obs)
             self.players.store_masks(action_mask,betsize_mask)
         else:
             self.determine_winner()
@@ -158,9 +164,6 @@ class Poker(object):
         self.pot.add(bet_amount)
         self.players.update_stack(-bet_amount)
         self.increment_turn()
-
-    def process_flat_actions(self,actions,probabilities,action_probs):
-        pass
         
     def ml_inputs(self):
         raw_ml = self.players.get_inputs()
@@ -265,6 +268,30 @@ class Poker(object):
         state = torch.cat((current_hand.float(),board.float(),action.float())).unsqueeze(0)
         # Obs
         obs = torch.cat((current_hand.float(),vil_hand.float(),board.float(),action.float())).unsqueeze(0)
+        return state,obs
+
+    def encode_history(self):
+        points = []
+        for i in range(len(self.history)): #pdt.Globals.POSITION_MAPPING[self.history[i].player],
+            points.append(torch.tensor([self.history[i].action.item(),self.history[i].betsize]).unsqueeze(0).float())
+        return points
+
+    def return_historical_kuhn_state(self,action=None):
+        """
+        Current player's hand. Previous action, Previous betsize (Not always used by network)
+        """
+        points = self.encode_history()
+        if len(points) > 0:
+            B = len(self.history)
+            hist_points = torch.stack(points).squeeze(1)
+            current_hands = torch.tensor([card.rank for card in self.players.current_hand]).repeat(B,1).float()
+            vil_hands = torch.tensor([card.rank for card in self.players.previous_hand]).repeat(B,1).float()
+            state = torch.cat([current_hands,hist_points],dim=-1)
+            obs = torch.cat([current_hands,vil_hands,hist_points],dim=-1)
+            # state = torch.cat([hist_state,state],dim=-1)
+            # obs = torch.cat([hist_obs,obs],dim=-1)
+        else:
+            state,obs = self.return_kuhn_state(action)
         return state,obs
 
     def return_kuhn_state(self,action=None):

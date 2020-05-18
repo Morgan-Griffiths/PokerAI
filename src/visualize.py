@@ -176,7 +176,7 @@ if __name__ == "__main__":
         hand_labels = [f'Hand_strength category {i}' for i,hand in enumerate(hand_strength_categories)]
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_frequencies_for_{query["position"]}',actions,hand_labels,action_labels)
-    plot_handstrength_action_frequencies()
+    # plot_handstrength_action_frequencies()
 
     def plot_handstrength_action_probabilities():
         query = {
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-    # plot_hand_action_probabilities()
+    plot_hand_action_probabilities()
 
     def plot_betsize_probabilities():
         query = {
@@ -256,4 +256,4 @@ if __name__ == "__main__":
         hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
         action_labels = [size for size in unique_betsizes]
         plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
-    # plot_betsize_probabilities()
+    plot_betsize_probabilities()

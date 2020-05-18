@@ -33,6 +33,7 @@ class GameTypes:
     KUHN = 'kuhn'
     COMPLEXKUHN = 'complexkuhn'
     BETSIZEKUHN = 'betsizekuhn'
+    HISTORICALKUHN = 'historicalkuhn'
     HOLDEM = 'holdem'
     OMAHAHI = 'omaha_hi'
     OMAHAHILO = 'omaha_hi_lo'
@@ -40,6 +41,7 @@ class GameTypes:
 class Positions:
     SB = 'SB'
     BB = 'BB'
+    ALL = ['SB','BB']
 
 BLIND_DICT = {
     Positions.BB : T([1]),
@@ -123,8 +125,16 @@ class BetsizeKuhn:
         self.rule_params['mask_dict'] = ACTION_MASKS[5]
         self.rule_params['action_dict'] = ACTION_ORDER
         self.rule_params['bets_per_street'] = 2
-        self.rule_params['betsizes'] = T([0.5,1])
+        self.rule_params['betsizes'] = T([0.5,1.])
         self.rule_params['bettype'] = LimitTypes.NO_LIMIT
+
+class HistoricalKuhn:
+    def __init__(self):
+        self.starting_street = 1
+        K = BetsizeKuhn()
+        self.rule_params = K.rule_params
+        self.rule_params['betsizes'] = T([0.5,1.])
+        self.state_params = K.state_params
 
 class BaseHoldem(object):
     def __init__(self):
@@ -210,6 +220,7 @@ class Globals:
         GameTypes.KUHN:Kuhn(),
         GameTypes.COMPLEXKUHN:ComplexKuhn(),
         GameTypes.BETSIZEKUHN:BetsizeKuhn(),
+        GameTypes.HISTORICALKUHN:HistoricalKuhn(),
         GameTypes.HOLDEM:Holdem(),
         GameTypes.OMAHAHI:OmahaHI(),
     }
@@ -234,12 +245,12 @@ class Globals:
     HOLDEM_SUIT_DICT = {0:'s',1:'h',2:'d',3:'c'}
     BLIND_DICT = BLIND_DICT
     BETSIZE_DICT = {
-        1 : T([1]),
-        2: T([0.5,1]),
-        3: T([0.8,0.9,1]),
-        4: T([0.25,0.5,0.75,1]),
-        5: T([0.2,0.4,0.6,0.8,1]),
-        11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+        1 : T([1.]),
+        2: T([0.9,1.]),
+        3: T([0.8,0.9,1.]),
+        4: T([0.25,0.5,0.75,1.]),
+        5: T([0.2,0.4,0.6,0.8,1.]),
+        11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.])
     }
     # Takes street as key
     ADDITIONAL_BOARD_CARDS = {

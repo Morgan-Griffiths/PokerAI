@@ -41,6 +41,12 @@ class NetworkConfig(object):
                     CriticType.Q : FlatBetsizeCritic,
                     CriticType.REG : BaselineKuhnCritic
                 }},
+            pdt.GameTypes.HISTORICALKUHN : {
+                'actor':FlatHistoricalActor,
+                'critic':{
+                    CriticType.Q : FlatHistoricalCritic,
+                    CriticType.REG : BaselineKuhnCritic
+                }},
             pdt.GameTypes.HOLDEM : {
                 'actor':HoldemBaseline,
                 'critic':{

@@ -12,7 +12,7 @@ class MongoDB(object):
         self.db = client['poker']
 
     def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype):
-        if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN:
+        if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN or gametype == pdt.GameTypes.HISTORICALKUHN:
             self.store_kuhn_data(training_data,mapping,training_round,gametype)
         elif gametype == pdt.GameTypes.HOLDEM:
             self.store_holdem_data(training_data,mapping,training_round,gametype)
@@ -36,6 +36,7 @@ class MongoDB(object):
         training_run,round,step,reward
         """
         positions = training_data.keys()
+        positions = {position for position in positions if position in pdt.Positions.ALL}
         for position in positions:
             for i,poker_round in enumerate(training_data[position]):
                 game_states = poker_round['game_states']
@@ -54,10 +55,10 @@ class MongoDB(object):
                 assert(isinstance(action_probs,torch.Tensor))
                 assert(isinstance(observations,torch.Tensor))
                 assert(isinstance(game_states,torch.Tensor))
-                for step,game_state in enumerate(game_states):
-                    hand = int(game_state[mapping['state']['hand']])
-                    vil_hand = int(game_state[mapping['observation']['vil_hand']])
-                    previous_action = int(game_state[mapping['state']['previous_action']])
+                for step,observation in enumerate(observations):
+                    hand = int(observation[mapping['observation']['hand']])
+                    vil_hand = int(observation[mapping['observation']['vil_hand']])
+                    previous_action = int(observation[mapping['observation']['previous_action']])
                     state_json = {
                         'position':position,
                         'hand':hand,
@@ -290,7 +291,10 @@ class MongoDB(object):
         actions = []
         for point in data:
             hands.append(np.array(point['hand']))
-            actions.append(np.array(point['action'][0]))
+            if isinstance(point['action'],int):
+                actions.append(point['action'])
+            else:
+                actions.append(point['action'][0])
         hands = np.vstack(hands)
         actions = np.vstack(actions)
         unique_hands,hand_counts = np.lib.arraysetops.unique(hands,return_counts=True)
@@ -313,7 +317,10 @@ class MongoDB(object):
         actions = []
         probs = []
         for point in data:
-            actions.append(point['action'][0])
+            if isinstance(point['action'],int):
+                actions.append(point['action'])
+            else:
+                actions.append(point['action'][0])
             # probs.append(point['action_probs'])
         actions = np.vstack(actions)
         unique_actions,action_counts = np.lib.arraysetops.unique(actions,return_counts=True)

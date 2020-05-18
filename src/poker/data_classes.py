@@ -91,6 +91,9 @@ class History(object):
         for step in self.history:
             print(step.display())
 
+    def __getitem__(self,index):
+        return self.history[index]
+
     @property
     def last_betsize(self):
         if len(self.history) > 0:
@@ -461,7 +464,7 @@ def eval_omaha_hi(cards):
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
-        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN or self.game == pdt.GameTypes.BETSIZEKUHN :
+        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN or self.game == pdt.GameTypes.BETSIZEKUHN or self.game == pdt.GameTypes.HISTORICALKUHN:
             self.evaluate = eval_kuhn
         elif self.game == pdt.GameTypes.HOLDEM:
             self.evaluate = eval_holdem
