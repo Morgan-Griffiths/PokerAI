@@ -7,7 +7,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable as V
 from torch import optim
 
-from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic,hard_update
+from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic
+from models.model_utils import hard_update
 from models.buffers import PriorityReplayBuffer
 import poker.datatypes as pdt
 

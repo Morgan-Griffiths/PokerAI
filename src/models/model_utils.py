@@ -1,5 +1,29 @@
 import torch, os
 
+def hidden_init(layer):
+    fan_in = layer.weight.data.size()[0]
+    lim = 1. / np.sqrt(fan_in)
+    return (-lim, lim)
+
+def hard_update(source,target):
+    for target_param,param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(param.data)
+
+def norm_frequencies(action_soft,mask):
+    # with torch.no_grad():
+    action_masked = action_soft * mask
+    action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
+    return action_probs
+
+def combined_masks(action_mask,betsize_mask):
+    """Combines action and betsize masks into flat mask for 1d network outputs"""
+    if action_mask.dim() > 2:
+        return torch.cat([action_mask[:,:,:-2],betsize_mask],dim=-1)
+    elif action_mask.dim() > 1:
+        return torch.cat([action_mask[:,:-2],betsize_mask],dim=-1)
+    else:
+        return torch.cat([action_mask[:-2],betsize_mask])
+
 def mask_(matrices, maskval=0.0, mask_diagonal=True):
     """
     Masks out all values in the given batch of matrices where i <= j holds,
@@ -36,9 +60,3 @@ def here(subpath=None):
 
 def contains_nan(tensor):
     return bool((tensor != tensor).sum() > 0)
-
-def save_weights(self,network,path):
-    directory = os.path.dirname(path)
-    if not os.path.exists(directory):
-        os.mkdir(directory)
-    torch.save(network.state_dict(), path)
