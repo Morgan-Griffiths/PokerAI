@@ -606,14 +606,8 @@ class FlatBetsizeCritic(nn.Module):
         self.hand_emb = Embedder(5,32)
         self.action_emb = Embedder(6,32)
         self.positional_embeddings = Embedder(2,32)
-
-        self.conv = nn.Sequential(
-            nn.Conv1d(2, 32, kernel_size=3, stride=1),
-            nn.BatchNorm1d(32),
-            nn.ReLU(inplace=True)
-        )
         self.fc0 = nn.Linear(64,hidden_dims[0])
-        self.fc1 = nn.Linear(97,hidden_dims[0])
+        self.fc1 = nn.Linear(65,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.value_output = nn.Linear(64,1)
         self.advantage_output = nn.Linear(64,self.combined_output)
@@ -621,21 +615,15 @@ class FlatBetsizeCritic(nn.Module):
     def forward(self,obs):
         x = obs
         M,c = x.size()
-        hand = x[0,self.mapping['observation']['rank']].long().unsqueeze(0)
-        vil_hand = x[0,self.mapping['observation']['vil_rank']].long().unsqueeze(0)
-        hands = torch.cat([hand,vil_hand],dim=-1)
-        hot_ranks = self.one_hot_kuhn[hands.long()]
-        if hot_ranks.dim() == 2:
-            hot_ranks = hot_ranks.unsqueeze(0)
-        last_action = x[:,self.mapping['observation']['previous_action']].long()
-        last_betsize = x[:,self.mapping['observation']['previous_betsize']].float()
+        hand = x[0,self.mapping['state']['rank']].long().unsqueeze(0)
+        emb_hand = self.hand_emb(hand)
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        last_betsize = x[:,self.mapping['state']['previous_betsize']].float()
         if last_betsize.dim() == 1:
             last_betsize = last_betsize.unsqueeze(1)
         a1 = self.action_emb(last_action)
 
-        # print(hot_ranks.size())
-        h = self.conv(hot_ranks.float())
-        h = h.view(-1).unsqueeze(0).repeat(M,1)
+        h = emb_hand.view(-1).unsqueeze(0).repeat(M,1)
         # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
         x = torch.cat([h,a1,last_betsize],dim=-1)
         x = self.activation(self.fc1(x))

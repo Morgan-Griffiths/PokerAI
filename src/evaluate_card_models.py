@@ -9,7 +9,7 @@ from random import shuffle
 from collections import deque
 from itertools import combinations
 
-from utils.visualize import plot_data
+from visualize import plot_data
 from hand_recognition.data_loader import return_trainloader
 import hand_recognition.datatypes as dt
 from hand_recognition.networks import *

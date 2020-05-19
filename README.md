@@ -44,14 +44,16 @@ Additionally there is a sub library in hand_recognition if you want to test netw
 
 # Using the library
 
+```cd src```
+
 Build the data and all the folders by ```python setup.py```
 
 Build a specific dataset with ```python build_dataset.py -d <dataset>```
 
 Modify poker/models/network_config.py to change which network to train. Add or modify poker/models/networks.py to try different models.
 
-Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M train -e 10```
-Examine a network's output (loaded from the network_config) on a dataset with ```python cards.py -d <dataset> -M examine```
+Train a network for 10 epochs (loaded from the network_config) on a dataset with ```python evaluate_card_models.py -d <dataset> -M train -e 10```
+Examine a network's output (loaded from the network_config) on a dataset with ```python evaluate_card_models.py -d <dataset> -M examine```
 Train an RL agent on an env with ```python main.py --env <environment> -e <epochs>```
 Plot the RL training results with ```python visualize.py```
 
@@ -63,11 +65,11 @@ To build all the datasets run
 
 to train a network on a dataset
 
-```python cards.py -d <dataset> -M train -e 10```
+```python evaluate_card_models.py -d <dataset> -M train -e 10```
 
 to examine a trained network
 
-```python cards.py -d <dataset> -M examine```
+```python evaluate_card_models.py -d <dataset> -M examine```
 
 # Poker Environments
 
@@ -140,7 +142,6 @@ _Baseline performance_
 ![Graph](assets/Complex_Action_probabilities_for_BB.png)
 
 ## Limit holdem with full deck
-
 
 
 ## Added betsize

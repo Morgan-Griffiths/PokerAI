@@ -4,7 +4,7 @@ import poker.datatypes as pdt
 from full_poker.multistreet_env import MSPoker
 from kuhn.env import Poker
 from agents.agent import Agent,Priority_DQN,return_agent
-from utils.db import MongoDB
+from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 import time
 import torch.multiprocessing as mp
