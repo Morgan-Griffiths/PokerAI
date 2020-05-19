@@ -9,12 +9,11 @@ from random import shuffle
 from collections import deque
 from itertools import combinations
 
-from visualize import plot_data
-from agents.agent import CardAgent
-from data_loader import return_trainloader
+from utils.visualize import plot_data
+from hand_recognition.data_loader import return_trainloader
 import hand_recognition.datatypes as dt
-from models.networks import *
-from models.network_config import NetworkConfig
+from hand_recognition.networks import *
+from hand_recognition.network_config import NetworkConfig
 from hand_recognition.data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes
 
 """
@@ -37,75 +36,6 @@ def unspool(X):
             combined[:,i,:,:] = torch.cat((torch.stack(hcombo),torch.stack(bcombo)),dim=0).permute(1,0,2)
             i += 1
     return combined
-
-
-def multi_train(agent_params:list,training_params:dict,dataset_params:dict):
-    data = load_data(dataset_params['data_path'])
-    scores = []
-    for agent_param in agent_params:
-        print(f'New Agent params: {agent_param}')
-        agent = CardAgent(agent_param)
-        result = train_agent(data,agent,training_params)
-        scores.append(result)
-    return scores
-
-def train_agent(data:dict,agent,params):
-    train_means,val_means = [],[]
-    train_scores = deque(maxlen=50)
-    val_scores = deque(maxlen=50)
-    for i in range(1,101):
-        preds = agent(data['trainX'])
-        loss = agent.backward(preds,data['trainY'])
-        val_preds = agent.predict(data['valX'])
-        val_loss = F.smooth_l1_loss(val_preds,data['valY']).item()
-        train_scores.append(loss)
-        val_scores.append(val_loss)
-        train_means.append(np.mean(train_scores))
-        val_means.append(np.mean(val_scores))
-        if i % 10 == 0:
-            print(f'Episode: {i}, loss: {np.mean(train_scores)}, val loss: {np.mean(val_scores)}')
-    agent.save_weights()
-    return {'train_scores':train_means,'val_scores':val_means,'name':agent.agent_name}
-
-
-def graph_networks(results:list):
-    labels = ['Training Loss','Val Loss']
-    for result in results:
-        train_loss = result['train_scores']
-        val_loss = result['val_scores']
-        name = result['name']
-        plot_data(name,[train_loss,val_loss],labels)
-
-
-def evaluate_random_hands(dataset_params,agent_params,training_params):
-    Agent_paths = ['Conv(kernel2)',
-                'Conv(kernel2)_layer3',
-                'Conv(kernel13)',
-                'Conv(kernel13)_layer3',
-                'Embedding_FC']
-    Agent_networks = [CardClassification,
-                    CardClassification,
-                    CardClassification,
-                    CardClassification,
-                    CardClassificationV2]
-    permute_input = [False,False,True,True,False]
-    channel_list = [[13],[13,64,64],[2],[2,64,64],0]
-    kernel_list = [[2],[2,1,1],[13],[13,1,1],0]
-    layer_list = [1,3,1,3,0]
-    # Variations
-    agent_param_list = []
-    for i in range(0,len(Agent_networks)):
-        agent_params = copy.deepcopy(agent_params)
-        agent_params['network'] = Agent_networks[i]
-        agent_params['network_params']['kernel'] = kernel_list[i]
-        agent_params['network_params']['channels'] = channel_list[i]
-        agent_params['network_params']['conv_layers'] = layer_list[i]
-        agent_params['network_params']['permute'] = permute_input[i]
-        agent_params['save_path'] = Agent_paths[i]
-        agent_params['load_path'] = Agent_paths[i]
-        agent_param_list.append(agent_params)
-    results = multi_train(agent_param_list,training_params,dataset_params)
-    graph_networks(results)
 
 def train_network(data_dict,agent_params,training_params):
     net = training_params['network'](agent_params['network_params'])
@@ -269,7 +199,7 @@ if __name__ == "__main__":
                         help='Which dataset to train on')
     parser.add_argument('-M','--mode',
                         metavar=f"[{dt.Modes.TRAIN}, {dt.Modes.EXAMINE}]",
-                        help='Pick whether you want to train,build or examine a network',
+                        help='Pick whether you want to train or examine a network',
                         default='train',type=str)
     parser.add_argument('-r','--random',dest='randomize',
                         help='Randomize the dataset. (False -> the data is sorted)',

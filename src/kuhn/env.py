@@ -112,7 +112,7 @@ class Poker(object):
             self.board = self.deck.deal(5)
         action_mask,betsize_mask = self.action_mask(state)
         self.players.store_masks(action_mask,betsize_mask)
-        # self.history.add(self.players.current_player,5,0)
+        self.history.add(self.players.current_player,5,0)
         return state,obs,self.game_over,action_mask,betsize_mask
 
     def record_action(self,action):
@@ -125,6 +125,8 @@ class Poker(object):
     def step(self,actor_outputs):
         if self.rules.betsize == True:
             if self.rules.network_output == 'flat':
+                if 'value' in actor_outputs:
+                    self.players.store_values(actor_outputs)
                 flat_outputs = {
                     'action':actor_outputs['action_category'],
                     'action_prob':actor_outputs['action_prob'],
@@ -145,10 +147,10 @@ class Poker(object):
         action_mask,betsize_mask = self.action_mask(state)
         done = self.game_over
         if done == False:
-            # if state.size(0) > 1:
-            #     self.players.store_states(state[-1,:].unsqueeze(0),obs[-1,:].unsqueeze(0))
-            # else:
-            self.players.store_states(state,obs)
+            if state.size(0) > 1:
+                self.players.store_states(state[-1,:].unsqueeze(0),obs[-1,:].unsqueeze(0))
+            else:
+                self.players.store_states(state,obs)
             self.players.store_masks(action_mask,betsize_mask)
         else:
             self.determine_winner()

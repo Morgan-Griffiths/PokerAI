@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset,DataLoader
 from sklearn.model_selection import train_test_split,StratifiedKFold
 
-from utils import return_uniques
+from utils.utils import return_uniques
 
 class mathDataset(Dataset):
     """Boolean Logic dataset."""

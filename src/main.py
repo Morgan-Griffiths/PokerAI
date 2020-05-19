@@ -1,13 +1,13 @@
 from train import train
 from poker.config import Config
-from multistreet_env import MSPoker
-from poker_env import Poker
-from agents.agent import Agent,Priority_DQN,return_agent
-from db import MongoDB
 import poker.datatypes as pdt
+from full_poker.multistreet_env import MSPoker
+from kuhn.env import Poker
+from agents.agent import Agent,Priority_DQN,return_agent
+from utils.db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 import time
-import multiprocessing as mp
+import torch.multiprocessing as mp
 
 if __name__ == "__main__":
     import argparse
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--agent',
                         default='actor_critic',
-                        metavar="['actor','actor_critic']",
+                        metavar="['actor','actor_critic','combined_actor_critic]",
                         type=str,
                         help='Which agent to train')
     parser.add_argument('--env',
@@ -92,6 +92,7 @@ if __name__ == "__main__":
     agent_params['network'] = env_networks['actor']
     agent_params['actor_network'] = env_networks['actor']
     agent_params['critic_network'] = env_networks['critic'][args.critic]
+    agent_params['combined_network'] = env_networks['combined']
     agent_params['mapping'] = params['rule_params']['mapping']
     agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
     agent_params['min_reward'] = params['state_params']['stacksize']
@@ -128,7 +129,13 @@ if __name__ == "__main__":
     seed = 154
 
     agent = return_agent(args.agent,nS,nO,nA,nB,seed,agent_params)
-
+    # mp.set_start_method('spawn')
+    # processes = []
+    # for i in range(mp.cpu_count()): # No. of processes
+    #     p = mp.Process(target=train, args=(env,agent,training_params,))
+    #     p.start()
+    #     processes.append(p)
+    # for p in processes: p.join()
     action_data = train(env,agent,training_params)
     # print(action_data)
     if args.store:

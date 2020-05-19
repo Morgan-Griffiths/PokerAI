@@ -16,3 +16,20 @@ A key aspect of the critic's ability to correctly determine the outcome is the a
 
 The positional embedding seems to work best. Additionally, with the advent of changing the policy update function to **V(s,a) - E(s)** required changing the critic from Q(s,a) to Q(s) -> outputting values for each action A. Then selecting the corresponding action value and updating the action probability. Updating the value Q(s,a) by minimizing the distance Q(s,a) = R_a - Q(s,a)
 
+## The Unreliable Omniscient Critic
+
+When it comes to imperfect information games, you would think more information is always preferred. I have read many papers detailing such actor critic methods with an omniscient critic who has perfect information informing an actor's actions. Such as MADDPG, AlphaStar, to name a few. However i don't recall any of them mentioning that in fact omniscience can hinder learning substantially. Part of this i'm sure comes down to information theory and what is recoverable by the actor who can only see the partial state. But instead of being entirely vague about this, i will show a concrete example where it encourages non optimal play.
+
+Enter Kuhn poker. Kuhn poker has a deck of 3 cards A,K,Q. As you might expect, A > K > Q. If you hold an A, your opponent holds either K or Q with equal frequency. Player's take turns acting. The actions are the usual poker actions: Check,Bet,Fold,Raise,Call. Betsize is fixed at 1 (doesn't matter but makes the math simpler for our purposes). The current pot is 1. Each player has a stacksize of 2 Player 1 acts first. 
+
+Suppose we are player 1 and we hold a Q. Our opponent holds an A or K. If we bet 1 into 1, intuitively we can see that we need our bluff to work 50% of the time. 50% of the time our opponent will have an A and raise (effectively calling here), so its up to the remaining times Player 2 has a K that decide if we can bluff here or not. To call with a king only requires 33% equity. But if he calls with any fruequency then betting with a Q is negative expected value or -EV. So any fraction of calling kings above 0 makes betting a Q not profitable. This actually means that its better to reduce the betsize from 1.
+
+The optimal solution for Player 1 generally speaking, is to bet some fraction of Qs, all As. Check K and call or fold relative to our opponent's ratio of As to Qs. 
+
+Player 2 will also bet/raise A, bet some fraction of Q, check/call K. 
+
+From Player 2's perspective, if we hold a K and are facing a bet, Raising makes no sense as Player 1 will call A and fold Q. Effectively only costing us more money. But if we have an omniscient critic. When we hold K and are facing a Q, raising will always be of slightly higher value because of the times when our opponent called with a Q. When we hold a K and are facing an A, it will say fold. So we will be updated alternating between increasing raise and increasing fold. But the Actor has no way of telling what hand he is facing.
+
+Whereas if the critic is not omniscient, the values of both situations will be combined, and it will be clear that the value of calling should be around 0 if the opponent is balancing his range. Folding is 0, and Raising is negative. Which means the actor will be correctly updated towards balancing between folding and calling.
+
+I hope this simple example demonstrates how naively using more information in a critic in an imperfect information game can actually impede performance. It can still be used, but it would have to be used to update a model of the opponent's actions. Which could then be used to inform your own.

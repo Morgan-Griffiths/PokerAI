@@ -65,6 +65,7 @@ class Actions:
 class AgentTypes:
     ACTOR = 'actor'
     ACTOR_CRITIC = 'actor_critic'
+    COMBINED_ACTOR_CRITIC = 'combined_actor_critic'
 
 class Kuhn(object):
     def __init__(self):
