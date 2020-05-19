@@ -195,7 +195,7 @@ class Agent(object):
         mask = actions.gt(2).view(-1)
         return mask
 
-    def scale_rewards(self,rewards,factor=2):
+    def scale_rewards(self,rewards,factor=1):
         """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
         return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
         # return ((rewards + self.min_reward) / (self.max_reward + self.min_reward + 1)) * factor
@@ -206,7 +206,7 @@ class Agent(object):
         value_mask = self.return_value_mask(critic_inputs['actions'])
         scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
         # print('critic_inputs',critic_inputs['observations'])
-        critic_loss = F.l1_loss(scaled_rewards.view(value_mask.size(0)),critic_output['value'][value_mask],reduction='sum')
+        critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),critic_output['value'][value_mask],reduction='sum')
         # print('scaled_rewards',scaled_rewards)
         self.critic_optimizer.zero_grad()
         if 'betsize' in critic_output:
@@ -228,7 +228,6 @@ class Agent(object):
         # Assert learning
         # pre_value = critic_output['value'][value_mask]
         # critic_output = self.local_critic(critic_inputs['game_states'])
-        # value_mask = self.return_value_mask(critic_inputs['actions'])
         # post_value = critic_output['value'][value_mask]
         # print('post update values')
             
