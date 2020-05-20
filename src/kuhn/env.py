@@ -166,7 +166,7 @@ class Poker(object):
         self.players.update_stack(-bet_amount)
         self.increment_turn()
         
-    def ml_inputs(self):
+    def ml_inputs(self,serialize=False):
         raw_ml = self.players.get_inputs()
         positions = raw_ml.keys()
         # convert to torch
@@ -200,6 +200,10 @@ class Poker(object):
                 else:
                     raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space)
                 # raw_ml[position]['values'] = torch.stack(raw_ml[position]['values']).view(-1,1)
+                if serialize == True:
+                    raw_ml[position]['action_probs'] = raw_ml[position]['action_probs'].detach()
+                    raw_ml[position]['action_prob'] = raw_ml[position]['action_prob'].detach()
+
         return raw_ml
         
     @property

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from hand_recognition.datatypes import SUITS,RANKS
 
 class NetworkFunctions(object):
     def __init__(self,nA,nB):
@@ -417,14 +419,14 @@ class CTransformer(nn.Module):
 
         x = self.toprobs(x)
 
-        return x#F.log_softmax(x, dim=1)
+        return x #F.log_softmax(x, dim=1)
 
 
 class ProcessHandBoard(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
-        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
             nn.Conv1d(7, 16, kernel_size=1, stride=1),

@@ -97,7 +97,7 @@ class Agent(object):
             self.actor_backward = self.reg_actor_backward
             self.critique = self.reg_critique
 
-        self.actor_optimizer = optim.Adam(self.local_actor.parameters(), lr=1e-5,weight_decay=params['L2'])
+        self.actor_optimizer = optim.Adam(self.local_actor.parameters(), lr=1e-8,weight_decay=params['L2'])
         self.critic_optimizer = optim.Adam(self.local_critic.parameters(), lr=1e-4)
         # Copy the weights from local to target
         hard_update(self.local_critic,self.target_critic)

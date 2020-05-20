@@ -1,13 +1,14 @@
 from train import train
+from train_parallel import gather_trajectories
 from poker.config import Config
 import poker.datatypes as pdt
 from full_poker.multistreet_env import MSPoker
-from kuhn.env import Poker
-from agents.agent import Agent,Priority_DQN,return_agent
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 import time
 import torch.multiprocessing as mp
+from kuhn.env import Poker
+from agents.agent import return_agent
 
 if __name__ == "__main__":
     import argparse
@@ -68,6 +69,10 @@ if __name__ == "__main__":
                         dest='padding_maxlen',
                         type=int,
                         help='Size of padding')
+    parser.add_argument('--parallel',
+                        default=False,
+                        type=bool,
+                        help='Train in parallel')
 
     args = parser.parse_args()
 
@@ -78,14 +83,14 @@ if __name__ == "__main__":
     game_object = pdt.Globals.GameTypeDict[args.env]
     config = Config()
     config.agent = args.agent
-    params = {'game':args.env}
-    params['state_params'] = game_object.state_params
-    params['rule_params'] = game_object.rule_params
-    params['rule_params']['network_output'] = args.network_output
-    params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[args.betsize]
-    params['rule_params']['maxturns'] = args.padding_maxlen
-    params['rule_params']['padding'] = args.padding
-    params['starting_street'] = game_object.starting_street
+    env_params = {'game':args.env}
+    env_params['state_params'] = game_object.state_params
+    env_params['rule_params'] = game_object.rule_params
+    env_params['rule_params']['network_output'] = args.network_output
+    env_params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[args.betsize]
+    env_params['rule_params']['maxturns'] = args.padding_maxlen
+    env_params['rule_params']['padding'] = args.padding
+    env_params['starting_street'] = game_object.starting_street
     agent_params = config.agent_params
 
     env_networks = NetworkConfig.EnvModels[args.env]
@@ -93,9 +98,9 @@ if __name__ == "__main__":
     agent_params['actor_network'] = env_networks['actor']
     agent_params['critic_network'] = env_networks['critic'][args.critic]
     agent_params['combined_network'] = env_networks['combined']
-    agent_params['mapping'] = params['rule_params']['mapping']
-    agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
-    agent_params['min_reward'] = params['state_params']['stacksize']
+    agent_params['mapping'] = env_params['rule_params']['mapping']
+    agent_params['max_reward'] = env_params['state_params']['stacksize'] + env_params['state_params']['pot']
+    agent_params['min_reward'] = env_params['state_params']['stacksize']
     agent_params['epochs'] = int(args.epochs)
     agent_params['network_output'] = args.network_output
     agent_params['embedding_size'] = 32
@@ -104,7 +109,7 @@ if __name__ == "__main__":
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
 
     training_data = {}
-    for position in pdt.Globals.PLAYERS_POSITIONS_DICT[params['state_params']['n_players']]:
+    for position in pdt.Globals.PLAYERS_POSITIONS_DICT[env_params['state_params']['n_players']]:
         training_data[position] = []
     training_data['action_records'] = []
         
@@ -115,36 +120,44 @@ if __name__ == "__main__":
     training_params['agent_type'] = args.agent
     training_params['critic'] = args.critic
 
-    if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
-        env = MSPoker(params)
+    if args.parallel == True:
+        mp.set_start_method('spawn')
+
+        manager = mp.Manager()
+        return_dict = manager.dict()
+        processes = []
+        num_processes = mp.cpu_count()
+        for i in range(num_processes): # No. of processes
+            p = mp.Process(target=gather_trajectories, args=(agent_params,env_params,training_params,i,return_dict))
+            p.start()
+            processes.append(p)
+        for p in processes: 
+            p.join()
+        print(return_dict[0]['SB'][0])
+        print(return_dict[0]['BB'][0])
     else:
-        env = Poker(params)
+        if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
+            env = MSPoker(env_params)
+        else:
+            env = Poker(env_params)
 
-    nS = env.state_space
-    nO = env.observation_space
-    nA = env.action_space
-    nB = env.betsize_space
-    nC = nA - 2 + nB
-    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}, Flat Action Space {nC}')
-    seed = 154
-
-    agent = return_agent(args.agent,nS,nO,nA,nB,seed,agent_params)
-    # mp.set_start_method('spawn')
-    # processes = []
-    # for i in range(mp.cpu_count()): # No. of processes
-    #     p = mp.Process(target=train, args=(env,agent,training_params,))
-    #     p.start()
-    #     processes.append(p)
-    # for p in processes: p.join()
-    action_data = train(env,agent,training_params)
-    # print(action_data)
-    if args.store:
-        print('\nStoring training data')
-        mongo = MongoDB()
-        if args.clean:
-            print('Cleaning db')
-            mongo.clean_db()
-        mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
+        nS = env.state_space
+        nO = env.observation_space
+        nA = env.action_space
+        nB = env.betsize_space
+        nC = nA - 2 + nB
+        print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}, Flat Action Space {nC}')
+        seed = 154
+        agent = return_agent(training_params['agent_type'],nS,nO,nA,nB,seed,agent_params)
+        action_data = train(env,agent,training_params)
+        # print(action_data)
+        if args.store:
+            print('\nStoring training data')
+            mongo = MongoDB()
+            if args.clean:
+                print('Cleaning db')
+                mongo.clean_db()
+            mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
 
     toc = time.time()
     print(f'\nExecution took {(toc-tic)/60} minutes')

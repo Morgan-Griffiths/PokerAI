@@ -4,10 +4,10 @@ import numpy as np
 import os
 
 from poker.config import Config
-from poker_env import Poker
+from kuhn.env import Poker
 from poker.data_classes import Card,Evaluator
 import poker.datatypes as pdt
-from cardlib import winner,holdem_winner,encode
+from utils.cardlib import winner,holdem_winner,encode
 
 def run_env(env,case):
     step = 0
@@ -161,8 +161,8 @@ class TestEnv(unittest.TestCase):
     def TestRlEnvironments(self):
         os.system('python main.py --env kuhn -e 10 --no-clean --no-store')
         os.system('python main.py --env complexkuhn -e 10 --no-clean --no-store')
-        os.system('python main.py --env holdem -e 10 --no-clean --no-store')
         os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        # os.system('python main.py --env holdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
 

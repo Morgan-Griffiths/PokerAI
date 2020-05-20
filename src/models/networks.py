@@ -436,11 +436,11 @@ class FlatHistoricalActor(nn.Module):
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.preprocess = PreProcessHistory(params)
         self.max_length = 10
-        emb = 128
+        self.emb = 128
         n_heads = 8
         depth = 2
         self.positional_emb = Embedder(self.max_length,128)
-        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
+        self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
         self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.noise = GaussianNoise(is_relative_detach=True)
@@ -460,12 +460,16 @@ class FlatHistoricalActor(nn.Module):
         padding = torch.zeros(n_padding,out.size(-1))
         h = torch.cat((out,padding),dim=0)
         pos_emd = self.positional_emb(torch.arange(self.max_length))
-        h = h + pos_emd
-        # x = (h + pos_emd).unsqueeze(0)
-        x = self.activation(self.fc1(h))
-        x = self.activation(self.fc2(x)).view(-1)
-        t_logits = self.fc3(x).unsqueeze(0)
-        # t_logits = self.transformer(x)
+        padding_mask_o = torch.ones(M,self.emb)
+        padding_mask_z = torch.zeros(n_padding,self.emb)
+        padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
+        pos_emd = (pos_emd.view(-1) * padding_mask.view(-1)).view(h.size(0),self.emb)
+        # h = h + pos_emd
+        x = (h + pos_emd).unsqueeze(0)
+        # x = self.activation(self.fc1(h))
+        # x = self.activation(self.fc2(x)).view(-1)
+        # t_logits = self.fc3(x).unsqueeze(0)
+        t_logits = self.transformer(x)
         cateogry_logits = self.noise(t_logits)
         # distribution_inputs = F.log_softmax(cateogry_logits, dim=1) * mask
         action_soft = F.softmax(cateogry_logits,dim=-1)
@@ -501,8 +505,6 @@ class FlatHistoricalCritic(nn.Module):
         self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
-        self.hand_emb = Embedder(5,32)
-        self.action_emb = Embedder(6,32)
         self.positional_embeddings = Embedder(self.max_length,64)
 
         self.fc0 = nn.Linear(64,hidden_dims[0])
@@ -512,11 +514,9 @@ class FlatHistoricalCritic(nn.Module):
         self.advantage_output = nn.Linear(64,self.combined_output)
         
     def forward(self,state):
-        # last_obs = obs[-1].unsqueeze(0)
         x = state
         M,C = x.size()
         x = self.preprocess(x)
-        # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         q_input = x.view(M,-1)
@@ -777,30 +777,31 @@ class BaselineCritic(nn.Module):
         self.action_emb = Embedder(6,32)
         self.positional_embeddings = Embedder(2,32)
 
-        self.conv = nn.Sequential(
-            nn.Conv1d(2, 32, kernel_size=3, stride=1),
-            nn.BatchNorm1d(32),
-            nn.ReLU(inplace=True)
-        )
+        # self.conv = nn.Sequential(
+        #     nn.Conv1d(2, 32, kernel_size=3, stride=1),
+        #     nn.BatchNorm1d(32),
+        #     nn.ReLU(inplace=True)
+        # )
         self.fc0 = nn.Linear(64,hidden_dims[0])
-        self.fc1 = nn.Linear(96,hidden_dims[0])
+        self.fc1 = nn.Linear(64,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.value_output = nn.Linear(64,1)
         self.advantage_output = nn.Linear(64,self.nC)
         
-    def forward(self,obs):
-        x = obs
+    def forward(self,state):
+        x = state
         M,c = x.size()
-        hand = x[:,self.mapping['observation']['rank']].long()
-        vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
-        hands = torch.stack((hand,vil_hand)).permute(1,0)
-        last_action = x[:,self.mapping['observation']['previous_action']].long()
+        hand = x[:,self.mapping['state']['rank']].long()
+        emb_hand = self.hand_emb(hand)
+        # vil_hand = x[:,self.mapping['observation']['vil_rank']].long()
+        # hands = torch.stack((hand,vil_hand)).permute(1,0)
+        last_action = x[:,self.mapping['state']['previous_action']].long()
         a1 = self.action_emb(last_action)
-        hot_ranks = self.one_hot_kuhn[hands.long()]
-        if hot_ranks.dim() == 2:
-            hot_ranks = hot_ranks.unsqueeze(0)
-        h = self.conv(hot_ranks.float()).view(M,-1)
-        x = torch.cat([h,a1],dim=-1)
+        # hot_ranks = self.one_hot_kuhn[hands.long()]
+        # if hot_ranks.dim() == 2:
+        #     hot_ranks = hot_ranks.unsqueeze(0)
+        # h = self.conv(hot_ranks.float()).view(M,-1)
+        x = torch.cat([emb_hand,a1],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         x = x.view(M,-1)
