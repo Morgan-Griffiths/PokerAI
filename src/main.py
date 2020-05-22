@@ -1,14 +1,19 @@
+
+import time
+import torch.multiprocessing as mp
+import torch
+
 from train import train
-from train_parallel import gather_trajectories
+from train_parallel import gather_trajectories,train_shared_model
 from poker.config import Config
 import poker.datatypes as pdt
 from full_poker.multistreet_env import MSPoker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
-import time
-import torch.multiprocessing as mp
+from models.networks import FlatHistoricalActor,FlatHistoricalCritic
 from kuhn.env import Poker
 from agents.agent import return_agent
+from utils.utils import unpack_shared_dict
 
 if __name__ == "__main__":
     import argparse
@@ -71,7 +76,7 @@ if __name__ == "__main__":
                         help='Size of padding')
     parser.add_argument('--parallel',
                         default=False,
-                        type=bool,
+                        action='store_true',
                         help='Train in parallel')
 
     args = parser.parse_args()
@@ -105,6 +110,7 @@ if __name__ == "__main__":
     agent_params['network_output'] = args.network_output
     agent_params['embedding_size'] = 32
     agent_params['max_length'] = args.padding_maxlen
+    agent_params['historical_states'] = True if args.env == pdt.GameTypes.HISTORICALKUHN else False
 
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
 
@@ -120,33 +126,47 @@ if __name__ == "__main__":
     training_params['agent_type'] = args.agent
     training_params['critic'] = args.critic
 
+    if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
+        env = MSPoker(env_params)
+    else:
+        env = Poker(env_params)
+
+    nS = env.state_space
+    nO = env.observation_space
+    nA = env.action_space
+    nB = env.betsize_space
+    nC = nA - 2 + nB
+    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}, Flat Action Space {nC}')
+
     if args.parallel == True:
         mp.set_start_method('spawn')
-
-        manager = mp.Manager()
-        return_dict = manager.dict()
+        # offline training TODO
+        # manager = mp.Manager()
+        # return_dict = manager.dict()
+        # online training
+        seed = 123
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        actor = env_networks['actor'](seed,nS,nA,nB,agent_params)
+        critic = env_networks['critic'][args.critic](seed,nS,nA,nB,agent_params)
+        del env
+        actor.share_memory()#.to(device)
+        critic.share_memory()#.to(device)
         processes = []
         num_processes = mp.cpu_count()
+        if args.clean:
+            print('Cleaning db')
+            mongo = MongoDB()
+            mongo.clean_db()
+            del mongo
         for i in range(num_processes): # No. of processes
-            p = mp.Process(target=gather_trajectories, args=(agent_params,env_params,training_params,i,return_dict))
+            p = mp.Process(target=train_shared_model, args=(agent_params,env_params,training_params,i,actor,critic))
             p.start()
             processes.append(p)
         for p in processes: 
             p.join()
-        print(return_dict[0]['SB'][0])
-        print(return_dict[0]['BB'][0])
+        torch.save(actor.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_actor')
+        torch.save(critic.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_critic')
     else:
-        if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
-            env = MSPoker(env_params)
-        else:
-            env = Poker(env_params)
-
-        nS = env.state_space
-        nO = env.observation_space
-        nA = env.action_space
-        nB = env.betsize_space
-        nC = nA - 2 + nB
-        print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}, Flat Action Space {nC}')
         seed = 154
         agent = return_agent(training_params['agent_type'],nS,nO,nA,nB,seed,agent_params)
         action_data = train(env,agent,training_params)

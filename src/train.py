@@ -11,13 +11,13 @@ def train(env,agent,training_params):
     training_data = copy.deepcopy(training_params['training_data'])
     for e in range(training_params['epochs']):
         sys.stdout.write('\r')
-        state,obs,done,mask,betsize_mask = env.reset()
+        last_state,state,obs,done,mask,betsize_mask = env.reset()
         while not done:
             actor_outputs = agent(state,mask,betsize_mask) if env.rules.betsize == True else agent(state,mask)
-            if training_params['agent_type'] == pdt.AgentTypes.ACTOR_CRITIC:
-                critic_outputs = agent.critique(obs,actor_outputs['action'])
-                env.players.store_values(critic_outputs)
-            state,obs,done,mask,betsize_mask = env.step(actor_outputs)
+            # if training_params['agent_type'] == pdt.AgentTypes.ACTOR_CRITIC:
+            #     critic_outputs = agent.critique(obs,actor_outputs['action'])
+            #     env.players.store_values(critic_outputs)
+            last_state,state,obs,done,mask,betsize_mask = env.step(actor_outputs)
         ml_inputs = env.ml_inputs()
         agent.learn(ml_inputs)
         for position in ml_inputs.keys():

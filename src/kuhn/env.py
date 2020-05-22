@@ -16,6 +16,7 @@ class Poker(object):
         self.suits = params['state_params']['suits']
         self.evaluator = Evaluator(self.game)
         self.rules = Rules(self.params['rule_params'])
+        self.maxlen = 10
         # State attributes
         self.stacksize = self.state_params['stacksize']
         self.n_players = self.state_params['n_players']
@@ -56,7 +57,9 @@ class Poker(object):
             2:{i:0 for i in range(5)},
             3:{i:0 for i in range(5)}
         }
-    
+        self.nO = self.return_state()[1].size()[-1]
+        self.nS = self.return_state()[0].size()[-1]
+
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
         with open(path, 'wb') as handle:
@@ -106,14 +109,17 @@ class Poker(object):
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
+        self.history.add(self.players.current_player,5,0)
         state,obs = self.return_state()
+        player_state,player_obs = self.return_player_states(state,obs)
+        if self.game == pdt.GameTypes.HISTORICALKUHN:
+            self.players.store_history(player_state)
         self.players.store_states(state,obs)
         if self.suits != None:
             self.board = self.deck.deal(5)
         action_mask,betsize_mask = self.action_mask(state)
         self.players.store_masks(action_mask,betsize_mask)
-        self.history.add(self.players.current_player,5,0)
-        return state,obs,self.game_over,action_mask,betsize_mask
+        return state,player_state,obs,self.game_over,action_mask,betsize_mask
 
     def record_action(self,action):
         self.action_records[self.street][action] += 1
@@ -145,8 +151,11 @@ class Poker(object):
             self.update_state(actor_outputs['action'])
             state,obs = self.return_state(actor_outputs['action'])
         action_mask,betsize_mask = self.action_mask(state)
+        player_state,player_obs = self.return_player_states(state,obs)
         done = self.game_over
         if done == False:
+            if self.game == pdt.GameTypes.HISTORICALKUHN:
+                self.players.store_history(player_state)
             if state.size(0) > 1:
                 self.players.store_states(state[-1,:].unsqueeze(0),obs[-1,:].unsqueeze(0))
             else:
@@ -154,7 +163,7 @@ class Poker(object):
             self.players.store_masks(action_mask,betsize_mask)
         else:
             self.determine_winner()
-        return state,obs,done,action_mask,betsize_mask
+        return state,player_state,obs,done,action_mask,betsize_mask
     
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
@@ -179,6 +188,8 @@ class Poker(object):
                 assert(isinstance(raw_ml[position]['action_probs'][0],torch.Tensor))
                 assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
                 # assert(isinstance(raw_ml[position]['values'][0],torch.Tensor))
+                if self.game == pdt.GameTypes.HISTORICALKUHN:
+                    raw_ml[position]['historical_game_states'] = torch.stack(raw_ml[position]['historical_game_states']).view(-1,self.maxlen,self.state_space)
                 raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(-1,self.state_space)
                 raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(-1,self.observation_space)
                 raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(-1,1)
@@ -186,6 +197,7 @@ class Poker(object):
                 raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(-1,1)
                 raw_ml[position]['action_masks'] = torch.stack(raw_ml[position]['action_masks']).view(-1,self.action_space)
                 raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(-1,self.betsize_space)
+                # raw_ml[position]['full_states'] = torch.cat((hand,combined_states),dim=-1).view(-1,self.state_space)
                 if self.rules.betsize == True:
                     # print(raw_ml[position]['betsizes'])
                     # [print(point.size()) for point in raw_ml[position]['betsizes']]
@@ -219,11 +231,11 @@ class Poker(object):
     
     @property
     def state_space(self):
-        return self.return_state()[0].size()[-1]
+        return self.nS
     
     @property
     def observation_space(self):
-        return self.return_state()[1].size()[-1]
+        return self.nO
     
     @property
     def action_space(self):
@@ -281,6 +293,16 @@ class Poker(object):
             points.append(torch.tensor([self.history[i].action.item(),self.history[i].betsize]).unsqueeze(0).float())
         return points
 
+    def return_player_states(self,state,obs):
+        B = len(self.history)
+        n_padding = self.maxlen - B
+        assert (n_padding > 0)
+        padding = torch.zeros(n_padding,self.state_space)
+        obs_padding = torch.zeros(n_padding,self.observation_space)
+        player_state = torch.cat((state,padding),dim=0)
+        player_obs = torch.cat((obs,obs_padding),dim=0)
+        return player_state,player_obs
+
     def return_historical_kuhn_state(self,action=None):
         """
         Current player's hand. Previous action, Previous betsize (Not always used by network)
@@ -293,11 +315,15 @@ class Poker(object):
             vil_hands = torch.tensor([card.rank for card in self.players.previous_hand]).repeat(B,1).float()
             state = torch.cat([current_hands,hist_points],dim=-1)
             obs = torch.cat([current_hands,vil_hands,hist_points],dim=-1)
-            # state = torch.cat([hist_state,state],dim=-1)
-            # obs = torch.cat([hist_obs,obs],dim=-1)
         else:
             state,obs = self.return_kuhn_state(action)
+            n_padding = self.maxlen - 1
         return state,obs
+
+    def return_combined_state(self):
+        M = self.players.combined_states.size(0)
+        hand = torch.tensor(self.players.hand[self.current_player]).repeat(M).unsqueeze(-1).float()
+        raw_ml[position]['full_states'] = torch.cat((hand,combined_states),dim=-1).view(-1,self.state_space)
 
     def return_kuhn_state(self,action=None):
         """

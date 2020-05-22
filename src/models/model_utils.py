@@ -1,4 +1,20 @@
 import torch, os
+import numpy as np
+
+def strip_padding(x,maxlen):
+    assert(x.ndim == 3)
+    mask = np.where(x.sum(-1).numpy() == 0)
+    padding = np.unique(mask[0],return_counts=True)[1]
+    n_states = torch.tensor(maxlen - padding)
+    return x[:,:n_states,:]
+
+def padding_index(x,maxlen):
+    assert(x.ndim == 3)
+    mask = np.where(x.sum(-1).numpy() == 0)
+    padding = np.unique(mask[0],return_counts=True)[1]
+    n_states = torch.tensor(maxlen - padding)
+    return n_states
+
 
 def hidden_init(layer):
     fan_in = layer.weight.data.size()[0]

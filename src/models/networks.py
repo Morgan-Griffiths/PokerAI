@@ -4,12 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-
+from models.model_utils import padding_index
 from models.buffers import PriorityReplayBuffer,PriorityTree
 import hand_recognition.datatypes as dt
 
 from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,CTransformer,NetworkFunctions
-from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies
+from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
 ################################################
 #               Holdem Networks                #
@@ -429,9 +429,13 @@ class FlatHistoricalActor(nn.Module):
         """
         super().__init__()
         self.activation = activation
+        # self.seed = torch.manual_seed(seed)
         self.nS = nS
         self.nA = nA
         self.nB = nB
+
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,63)
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.preprocess = PreProcessHistory(params)
@@ -440,69 +444,103 @@ class FlatHistoricalActor(nn.Module):
         n_heads = 8
         depth = 2
         self.positional_emb = Embedder(self.max_length,128)
-        self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
-        self.seed = torch.manual_seed(seed)
+        self.lstm = nn.LSTM(self.emb, 128)
+        # self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
         self.mapping = params['mapping']
         self.noise = GaussianNoise(is_relative_detach=True)
         self.fc1 = nn.Linear(128,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(640,self.combined_output)
+        self.fc3 = nn.Linear(64,self.combined_output)
         
     def forward(self,state,action_mask,betsize_mask):
-        # last_state = state[-1].unsqueeze(0)
+        p_index = padding_index(state.unsqueeze(0),self.max_length)
+        last_state = state[p_index-1]
         mask = combined_masks(action_mask,betsize_mask)
-        if mask.dim() > 1:
-            mask = mask[-1]
-        x = state
-        M,C = x.size()
-        out = self.preprocess(x)
-        n_padding = self.max_length - M
-        padding = torch.zeros(n_padding,out.size(-1))
-        h = torch.cat((out,padding),dim=0)
-        pos_emd = self.positional_emb(torch.arange(self.max_length))
-        padding_mask_o = torch.ones(M,self.emb)
-        padding_mask_z = torch.zeros(n_padding,self.emb)
-        padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
-        pos_emd = (pos_emd.view(-1) * padding_mask.view(-1)).view(h.size(0),self.emb)
-        # h = h + pos_emd
-        x = (h + pos_emd).unsqueeze(0)
-        # x = self.activation(self.fc1(h))
-        # x = self.activation(self.fc2(x)).view(-1)
-        # t_logits = self.fc3(x).unsqueeze(0)
-        t_logits = self.transformer(x)
-        cateogry_logits = self.noise(t_logits)
-        # distribution_inputs = F.log_softmax(cateogry_logits, dim=1) * mask
+        x = last_state
+        hand = x[:,self.mapping['state']['rank']].long()
+        last_action = x[:,self.mapping['state']['previous_action']].long()
+        previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
+        if previous_betsize.dim() == 1:
+            previous_betsize = previous_betsize.unsqueeze(1)
+        hand = self.hand_emb(hand)
+        last_action_emb = self.action_emb(last_action)
+        x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        cateogry_logits = self.fc3(x)
+        cateogry_logits = self.noise(cateogry_logits)
         action_soft = F.softmax(cateogry_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
-        last_action = state[-1,self.mapping['state']['previous_action']].long().unsqueeze(-1)
         m = Categorical(action_probs)
         action = m.sample()
         action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
-        
         outputs = {
             'action':action,
             'action_category':action_category,
             'action_prob':m.log_prob(action),
-            'action_probs':m.probs,
+            'action_probs':action_probs,
             'betsize':betsize_category
             }
         return outputs
+        # mask = combined_masks(action_mask,betsize_mask)
+        # if mask.dim() > 1:
+        #     mask = mask[-1]
+        # x = state
+        # if x.dim() > 2:
+        #     x = x.squeeze(0)
+        # out = self.preprocess(x)
+        # M,C = out.size()
+        # n_padding = self.max_length - M
+        # padding = torch.zeros(n_padding,out.size(-1))
+        # h = torch.cat((out,padding),dim=0).unsqueeze(0)
+        # # pos_emd = self.positional_emb(torch.arange(self.max_length))
+        # padding_mask_o = torch.ones(M,self.emb)
+        # padding_mask_z = torch.zeros(n_padding,self.emb)
+        # padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
+        # # pos_emd = (pos_emd.view(-1) * padding_mask.view(-1)).view(h.size(0),self.emb)
+        # # h = h + pos_emd
+        # # x = (h + pos_emd).unsqueeze(0)
+        # # x = self.activation(self.fc1(h))
+        # # x = self.activation(self.fc2(x)).view(-1)
+        # # t_logits = self.fc3(x).unsqueeze(0)
+        # x,_ = self.lstm(h)
+        # x_stripped = (x.view(-1) * padding_mask.view(-1)).view(1,-1)
+        # t_logits = self.fc3(x.view(-1))
+        # # t_logits = self.transformer(x)
+        # cateogry_logits = self.noise(t_logits)
+        # # distribution_inputs = F.log_softmax(cateogry_logits, dim=1) * mask
+        # action_soft = F.softmax(cateogry_logits,dim=-1)
+        # action_probs = norm_frequencies(action_soft,mask)
+        # last_action = state[M-1,self.mapping['state']['previous_action']].long().unsqueeze(-1)
+        # m = Categorical(action_probs)
+        # action = m.sample()
+        # action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+        
+        # outputs = {
+        #     'action':action,
+        #     'action_category':action_category,
+        #     'action_prob':m.log_prob(action),
+        #     'action_probs':m.probs,
+        #     'betsize':betsize_category
+        #     }
+        # return outputs
 
 class FlatHistoricalCritic(nn.Module):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
+        # self.seed = torch.manual_seed(seed)
         self.nS = nS
         self.nA = nA
         self.nB = nB
         self.combined_output = nA - 2 + nB
         self.max_length = 10
-        emb = 528
+        emb = 128
         n_heads = 8
         depth = 2
-        # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.combined_output)
-        self.preprocess = PreProcessHistory(params,critic=False)
-        self.seed = torch.manual_seed(seed)
+        nA = 64
+        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,nA)
+        self.preprocess = PreProcessHistory(params,critic=True)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
         self.positional_embeddings = Embedder(self.max_length,64)
@@ -515,11 +553,14 @@ class FlatHistoricalCritic(nn.Module):
         
     def forward(self,state):
         x = state
-        M,C = x.size()
-        x = self.preprocess(x)
-        x = self.activation(self.fc1(x))
-        x = self.activation(self.fc2(x))
-        q_input = x.view(M,-1)
+        if x.ndim == 2:
+            x = x.unsqueeze(0)
+        x = self.preprocess(x).unsqueeze(0)
+        B,M,C = x.size()
+        q_input = self.transformer(x)
+        # x = self.activation(self.fc1(x))
+        # x = self.activation(self.fc2(x))
+        # q_input = x.view(M,-1)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)
@@ -541,8 +582,6 @@ class FlatBetsizeActor(nn.Module):
         self.nB = nB
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
-        
-        self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
@@ -598,7 +637,6 @@ class FlatBetsizeCritic(nn.Module):
         self.nB = nB
         self.combined_output = nA - 2 + nB
         
-        self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
         self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
@@ -649,7 +687,7 @@ class Baseline(nn.Module):
         self.nC = nC
         self.nA = nA
         
-        self.seed = torch.manual_seed(seed)
+        # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
@@ -697,7 +735,7 @@ class BaselineKuhnCritic(nn.Module):
         self.nC = nC
         self.nA = nA
         
-        self.seed = torch.manual_seed(seed)
+        # self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
         self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
@@ -768,7 +806,7 @@ class BaselineCritic(nn.Module):
         self.nC = nC
         self.nA = nA
         
-        self.seed = torch.manual_seed(seed)
+        # self.seed = torch.manual_seed(seed)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
         self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))

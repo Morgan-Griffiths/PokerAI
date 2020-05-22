@@ -21,3 +21,17 @@ def openpickle(path):
     with open(path, 'rb') as handle:
         b = pickle.load(handle)
     return b
+
+def unpack_shared_dict(shared):
+    combined_dict = {position: [] for position in ['SB','BB']}
+    keys = shared.keys()
+    for position in ['SB','BB']:
+        # for keyo in keys:
+        #     print(len(shared[keyo][position]))
+        for key in keys:
+            for i in range(len(shared[key][position])):
+                try:
+                    combined_dict[position].append(shared[key][position][i])
+                except:
+                    pass
+    return combined_dict

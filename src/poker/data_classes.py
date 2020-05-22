@@ -203,6 +203,7 @@ class Players(object):
         self.hands = hands
         self.poker_positions = deque(self.initial_positions,maxlen=9)
         self.players = {position:Player(hands[i],self.stacksizes[i].clone(),position,street_total=torch.tensor([0.])) for i,position in enumerate(self.poker_positions)}
+        self.player_hand = {position:hands[i][0].rank for i,position in enumerate(self.poker_positions)}
         self.game_states = {position:[] for position in self.poker_positions}
         self.observations = {position:[] for position in self.poker_positions}
         self.actions = {position:[] for position in self.poker_positions}
@@ -218,11 +219,16 @@ class Players(object):
         self.betsize_masks = {position:[] for position in self.poker_positions}
         self.player_turns = {position:0 for position in self.poker_positions}
         self.player_handstrength = {position:0 for position in self.poker_positions}
+        self.historical_game_states = {position:[] for position in self.poker_positions}
         
     def store_states(self,state:torch.Tensor,obs:torch.Tensor,player=None):
         position = self.current_player if player == None else player
         self.observations[position].append(copy.deepcopy(obs))
         self.game_states[position].append(copy.deepcopy(state))
+
+    def store_history(self,state:torch.Tensor,player=None):
+        position = self.current_player if player == None else player
+        self.historical_game_states[position].append(copy.deepcopy(state))
 
     def store_masks(self,action_mask:torch.Tensor,betsize_mask:torch.Tensor):
         # print(action_mask,betsize_mask)
@@ -292,7 +298,6 @@ class Players(object):
     def get_player(self,position):
         return self.players[position]
     
-    
     def get_hands(self):
         '''
         Later will take an argument for active players
@@ -316,7 +321,9 @@ class Players(object):
         for position in self.initial_positions:
             if len(self.actions[position]):
                 ml_inputs[position] = {
+                    'hand':self.player_hand[position],
                     'hand_strength':self.player_handstrength[position],
+                    'historical_game_states':self.historical_game_states[position],
                     'game_states':self.game_states[position],
                     'observations':self.observations[position],
                     'actions':self.actions[position],
