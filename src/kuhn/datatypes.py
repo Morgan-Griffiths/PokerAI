@@ -19,6 +19,21 @@ ACTION_MASKS = {
         4:T([0,1,1,0,1]),
         5:T([1,0,0,1,0])
         }}
+class VisualCategories:
+    BETSIZE='betsize'
+    ACTION='action'
+    REWARD='reward'
+    ALL=[BETSIZE,ACTION,REWARD]
+
+class VisualActionTypes:
+    FREQUENCY='frequency'
+    PROBABILITY='probability'
+    ALL=[FREQUENCY,PROBABILITY]
+
+class VisualHandTypes:
+    HAND='hand'
+    HANDSTRENGTH='handstrength'
+    ALL=[HAND,HANDSTRENGTH]
 
 class LimitTypes:
     POT_LIMIT = 'pot_limit'

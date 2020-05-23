@@ -10,6 +10,12 @@ label_dict = {5:['Check','Bet'],
             1:['Call','Raise','Fold'],
             4:['Betting','Checking']}
 
+
+HAND_LABELS_DICT = {
+    'frequency': lambda: [f'Hand_strength category {i}' for i,hand in enumerate(hands)],
+    'probability': lambda: [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+}
+
 colors = ['g','b','m','r','y']
 
 def plot_data(title:str,data:list,labels:list,path='assets/'):
@@ -70,6 +76,75 @@ def plot_frequencies(title:str,data:list,hand_labels:list,action_labels:list,pat
     # plt.legend()
     plt.close()
 
+
+def plot_betsize_probabilities(training_round=0):
+    query = {
+        'training_round':training_round
+    }
+    projection ={'betsizes':1,'hand':1,'_id':0}
+    params = {
+        'interval':100   
+    }
+    mongo = MongoDB()
+    # SB
+    for position in pdt.Positions.ALL:
+        query['position'] = position
+        data = mongo.get_data(query,projection)
+        betsize,unique_hands,unique_betsize = mongo.betsizeByHand(data,params)
+        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+        action_labels = [size for size in unique_betsize]
+        plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsize,hand_labels,action_labels)
+
+def plot_action_frequencies(actiontype,handtype,training_round=0):
+    print(actiontype,handtype)
+    query = {
+        'training_round':training_round
+    }
+    projection ={'action':1,'hand_strength':1,'hand':1,'_id':0}
+    data_params = {
+        'interval':100
+    }
+    mongo = MongoDB()
+    gametype = mongo.get_gametype(training_round)
+    for position in pdt.Positions.ALL:
+        query['position'] = position
+        data = mongo.get_data(query,projection)
+        if handtype == pdt.VisualHandTypes.HAND:
+            actions,hands,unique_actions = mongo.actionByHand(data,data_params)
+        else:
+            actions,hands,unique_actions = mongo.actionByHandStrength(data,data_params)
+        hand_labels = HAND_LABELS_DICT[handtype]()
+        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
+        plot_frequencies(f'{gametype}_action_{handtype}_for_{query["position"]}',actions,hand_labels,action_labels)
+
+def plot_critic_values(training_round=0):
+    query = {
+        'position':args.position,
+        'training_round':args.run
+    }
+    projection ={'hand':1,'value':1,'reward':1,'_id':0}
+    mongo = MongoDB()
+    gametype = mongo.get_gametype(training_round)
+
+    for position in pdt.Positions.ALL:
+        query['position'] = position
+        data = mongo.get_data(query,projection)
+        rewards = []
+        values = []
+        hands = []
+        for point in data:
+            rewards.append(point['reward'])
+            values.append(point['value'])
+            hands.append(point['hand'])
+        # plot value loss over time
+        interval = 25
+        critic_loss = np.array(values) - (np.array(rewards) / 2)
+        critic_loss_rolling_mean = []
+        for i in range(len(critic_loss)-interval):
+            critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
+        plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -95,165 +170,50 @@ if __name__ == "__main__":
                         default=pdt.Positions.SB,
                         metavar=f"[{pdt.Positions.SB},{pdt.Positions.BB}]",
                         help='Which position to look at')
-    parser.add_argument('--type',
-                        default='action',
-                        metavar="['game_state,observation,action,reward']",
+    parser.add_argument('--category',
+                        default=f'{pdt.VisualCategories.ACTION}',
+                        metavar=f"[{pdt.VisualCategories.ACTION},{pdt.VisualCategories.BETSIZE},{pdt.VisualCategories.REWARD}]",
                         help='Chooses the type of data to look at')
-    parser.add_argument('--env',
-                        default=pdt.GameTypes.KUHN,
-                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.HOLDEM}]",
-                        help='Which gametype')
+    parser.add_argument('--actiontype',
+                        default=f'{pdt.VisualActionTypes.FREQUENCY}',
+                        metavar=f"[{pdt.VisualActionTypes.FREQUENCY},{pdt.VisualActionTypes.PROBABILITY}]",
+                        help='Chooses the type of data to look at')
+    parser.add_argument('--handtype',
+                        default=f'{pdt.VisualHandTypes.HAND}',
+                        metavar=f"[{pdt.VisualHandTypes.HAND},{pdt.VisualHandTypes.HANDSTRENGTH}]",
+                        help='Chooses the type of data to look at')
 
     args = parser.parse_args()
     
-    query = {
-        'position':args.position,
-        # 'type':args.type,
-        # 'step':0,
-        # 'poker_round':0,
-        # 'game':args.env,
-        'training_round':args.run
-    }
+    # query = {
+    #     'position':args.position,
+    #     # 'type':args.type,
+    #     # 'step':0,
+    #     # 'poker_round':0,
+    #     # 'game':args.game,
+    #     'training_round':args.run
+    # }
 
-    # projection ={'hand':1,'value':1,'reward':1,'_id':0}
-    projection ={'action':1,'_id':0}
-    params = {
-        'interval':100
-    }
-    # projection = None
-    mongo = MongoDB()
-    """
-    Plots: 
-    Rewards over time. Action frequencies over time. Action frequencies given hand over time.
-    Action frequencies given state over time.
-    """
-
-    gametype = args.env
+    # # projection ={'hand':1,'value':1,'reward':1,'_id':0}
+    # projection ={'action':1,'_id':0}
+    # params = {
+    #     'interval':100
+    # }
+    # # projection = None
+    # mongo = MongoDB()
     # data = mongo.get_data(query,projection)
     # actions = mongo.byActions(data,action_only=True)
     # rewards = mongo.byRewards(query)
     # actions,hands = mongo.actionByHand(query)
     # plot_data(f'Rewards for {query["position"]}',[rewards],['Rewards'])
-    def plot_critic_values():
-        data = mongo.get_data(query,projection)
-        rewards = []
-        values = []
-        hands = []
-        for point in data:
-            rewards.append(point['reward'])
-            values.append(point['value'])
-            hands.append(point['hand'])
-        # plot value loss over time
-        interval = 25
-        critic_loss = np.array(values) - (np.array(rewards) / 2)
-        critic_loss_rolling_mean = []
-        for i in range(len(critic_loss)-interval):
-            critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
-        plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
-
-    def plot_handstrength_action_frequencies():
-        query = {
-            'position':args.position,
-            'training_round':args.run
-        }
-        projection ={'action':1,'hand_strength':1,'_id':0}
-        params = {
-            'interval':100
-        }
-        mongo = MongoDB()
-        # SB
-        data = mongo.get_data(query,projection)
-        # print(list(data))
-        actions,hand_strength_categories,unique_actions = mongo.actionByHandStrength(data,params)
-        hand_labels = [f'Hand_strength category {i}' for i,hand in enumerate(hand_strength_categories)]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_frequencies_for_{query["position"]}',actions,hand_labels,action_labels)
-        print('BB')
-        # BB
-        query['position'] = pdt.Positions.BB
-        data = mongo.get_data(query,projection)
-        actions,hand_strength_categories,unique_actions = mongo.actionByHandStrength(data,params)
-        hand_labels = [f'Hand_strength category {i}' for i,hand in enumerate(hand_strength_categories)]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_frequencies_for_{query["position"]}',actions,hand_labels,action_labels)
-    # plot_handstrength_action_frequencies()
-
-    def plot_handstrength_action_probabilities():
-        query = {
-            'position':args.position,
-            'training_round':args.run
-        }
-        projection ={'action_probs':1,'hand_strength':1,'_id':0}
-        params = {
-            'interval':100
-        }
-        mongo = MongoDB()
-        # SB
-        data = mongo.get_data(query,projection)
-        # print(list(data))
-        actions,hand_strength_categories,unique_actions = mongo.actionByHandStrength(data,params)
-        hand_labels = [f'Hand_strength category {i}' for i,hand in enumerate(hand_strength_categories)]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-        print('BB')
-        # BB
-        query['position'] = pdt.Positions.BB
-        data = mongo.get_data(query,projection)
-        actions,hand_strength_categories,unique_actions = mongo.actionByHandStrength(data,params)
-        hand_labels = [f'Hand_strength category {i}' for i,hand in enumerate(hand_strength_categories)]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-    # plot_handstrength_action_probabilities()
-
-    def plot_hand_action_probabilities():
-        query = {
-            'position':args.position,
-            'training_round':args.run
-        }
-        projection ={'action':1,'hand':1,'_id':0}
-        params = {
-            'interval':100
-        }
-        mongo = MongoDB()
-        # SB
-        data = mongo.get_data(query,projection)
-        # print(list(data))
-        actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
-        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-        print('BB')
-        # BB
-        query['position'] = pdt.Positions.BB
-        data = mongo.get_data(query,projection)
-        actions,unique_hands,unique_actions = mongo.actionByHand(data,params)
-        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
-        plot_frequencies(f'{gametype}_Action_probabilities_for_{query["position"]}',actions,hand_labels,action_labels)
-    plot_hand_action_probabilities()
-
-    def plot_betsize_probabilities():
-        query = {
-            'position':args.position,
-            'training_round':args.run
-        }
-        projection ={'betsizes':1,'hand':1,'_id':0}
-        params = {
-            'interval':100   
-        }
-        mongo = MongoDB()
-        # SB
-        data = mongo.get_data(query,projection)
-        betsize,unique_hands,unique_betsize = mongo.betsizeByHand(data,params)
-        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
-        action_labels = [size for size in unique_betsize]
-        plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsize,hand_labels,action_labels)
-
-        # BB
-        query['position'] = pdt.Positions.BB
-        data = mongo.get_data(query,projection)
-        betsizes,unique_hands,unique_betsizes = mongo.betsizeByHand(data,params)
-        hand_labels = [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
-        action_labels = [size for size in unique_betsizes]
-        plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsizes,hand_labels,action_labels)
-    # plot_betsize_probabilities()
+    assert(args.category in pdt.VisualCategories.ALL)
+    assert(args.actiontype in pdt.VisualActionTypes.ALL)
+    assert(args.handtype in pdt.VisualHandTypes.ALL)
+    if args.category == 'action':
+        plot_action_frequencies(args.actiontype,args.handtype,args.run)
+    elif args.category == 'betsize':
+        plot_betsize_probabilities(args.run)
+    elif args.category == 'reward':
+        plot_critic_values(args.run)
+    else:
+        raise ValueError('Category not supported')

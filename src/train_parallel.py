@@ -44,7 +44,7 @@ def train_shared_model(agent_params,env_params,training_params,id,actor,critic):
         ml_inputs = detach_ml(ml_inputs)
         for position in ml_inputs.keys():
             training_data[position].append(ml_inputs[position])
-        if e % print_every == 0:
+        if id == 0 and e % print_every == 0:
             print(f'PID {pid}, Epoch {e}')
     mongo = MongoDB()
     mongo.clean_db()

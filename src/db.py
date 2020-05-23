@@ -351,6 +351,16 @@ class MongoDB(object):
             rewards.append(point['reward'])
         return np.array(rewards)
 
+    def get_gametype(self,training_round):
+        query = {
+            'training_round':training_round,
+            'poker_round': 0,
+            'step': 0
+        }
+        projection ={'game':1,'_id':0}
+        data = self.get_data(query,projection)
+        return list(data)[0]['game']
+
     def close(self):
         self.client.close()
 
