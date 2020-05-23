@@ -33,3 +33,7 @@ From Player 2's perspective, if we hold a K and are facing a bet, Raising makes 
 Whereas if the critic is not omniscient, the values of both situations will be combined, and it will be clear that the value of calling should be around 0 if the opponent is balancing his range. Folding is 0, and Raising is negative. Which means the actor will be correctly updated towards balancing between folding and calling.
 
 I hope this simple example demonstrates how naively using more information in a critic in an imperfect information game can actually impede performance. It can still be used, but it would have to be used to update a model of the opponent's actions. Which could then be used to inform your own.
+
+## Fundamental truths about poker
+
+In poker i can just use a value network. Because if i always take the max its a deterministic function of action. The value of an action is tied to its frequency, so there is no 1 best move always. If the Q values of the actions are the same, a value network would choose the actions equally frequently, but the reason the values are the same may be because you only do one action significantly less frequently than the other. Choosing actions in a probabilistic manner is essential for solving poker. That requires an actor that probabilistically chooses actions, and updates those probabilities based on critic values. Which could be shared or separate weights. The critic is prone to bias if it knows the observation. So if the critic only has access to the state the critic could easily be contained within the same network.

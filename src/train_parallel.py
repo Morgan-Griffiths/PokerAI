@@ -1,5 +1,5 @@
 import os
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 import models.network_config as ng
 import copy
 import torch
@@ -34,7 +34,10 @@ def train_shared_model(agent_params,env_params,training_params,id,actor,critic):
     for e in range(1,training_params['epochs']+1):
         last_state,state,obs,done,mask,betsize_mask = env.reset()
         while not done:
-            actor_outputs = agent(state,mask,betsize_mask) if env.rules.betsize == True else agent(state,mask)
+            if env.game == pdt.GameTypes.HISTORICALKUHN:
+                actor_outputs = agent(state,mask,betsize_mask) if env.rules.betsize == True else agent(state,mask)
+            else:
+                actor_outputs = agent(last_state,mask,betsize_mask) if env.rules.betsize == True else agent(last_state,mask)
             last_state,state,obs,done,mask,betsize_mask = env.step(actor_outputs)
         ml_inputs = env.ml_inputs()
         agent.learn(ml_inputs)

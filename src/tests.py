@@ -3,10 +3,10 @@ import unittest
 import numpy as np
 import os
 
-from poker.config import Config
+from kuhn.config import Config
 from kuhn.env import Poker
-from poker.data_classes import Card,Evaluator
-import poker.datatypes as pdt
+from kuhn.data_classes import Card,Evaluator
+import kuhn.datatypes as pdt
 from utils.cardlib import winner,holdem_winner,encode
 
 def run_env(env,case):

@@ -1,5 +1,6 @@
 class Config(object):
     def __init__(self):
+        self.betsize_dict = {0:0,1:1,2:1,3:0,4:2}
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
         self.training_params = {

@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import numpy as np
 import torch
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 
 class MongoDB(object):
     def __init__(self):

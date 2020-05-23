@@ -5,8 +5,8 @@ import os
 from poker_env import Poker
 from multistreet_env import MSPoker
 from agents.agent import return_agent
-from poker.config import Config
-import poker.datatypes as pdt
+from kuhn.config import Config
+import kuhn.datatypes as pdt
 from models.network_config import NetworkConfig
 from models.networks import NetworkFunctions
 

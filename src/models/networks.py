@@ -348,7 +348,7 @@ class BetsizeCritic(nn.Module):
 ################################################
 
 class FlatAC(nn.Module):
-    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(256,128),activation=F.leaky_relu):
         """
         Network capable of processing any number of prior actions
         Num Categories: nA (check,fold,call,bet,raise)
@@ -371,7 +371,7 @@ class FlatAC(nn.Module):
         self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.noise = GaussianNoise(is_relative_detach=True)
-        self.fc1 = nn.Linear(128,hidden_dims[0])
+        self.fc1 = nn.Linear(513,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(1280,self.combined_output)
         self.value_output = nn.Linear(64,1)
@@ -440,90 +440,61 @@ class FlatHistoricalActor(nn.Module):
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.preprocess = PreProcessHistory(params)
         self.max_length = 10
-        self.emb = 128
+        self.emb = 512
         n_heads = 8
         depth = 2
         self.positional_emb = Embedder(self.max_length,128)
-        self.lstm = nn.LSTM(self.emb, 128)
+        self.lstm = nn.LSTM(self.emb, 256)
         # self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,self.combined_output,max_pool=False)
         self.mapping = params['mapping']
         self.noise = GaussianNoise(is_relative_detach=True)
         self.fc1 = nn.Linear(128,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(64,self.combined_output)
+        self.fc3 = nn.Linear(2560,self.combined_output)
         
     def forward(self,state,action_mask,betsize_mask):
-        p_index = padding_index(state.unsqueeze(0),self.max_length)
-        last_state = state[p_index-1]
         mask = combined_masks(action_mask,betsize_mask)
-        x = last_state
-        hand = x[:,self.mapping['state']['rank']].long()
-        last_action = x[:,self.mapping['state']['previous_action']].long()
-        previous_betsize = x[:,self.mapping['state']['previous_betsize']].float()
-        if previous_betsize.dim() == 1:
-            previous_betsize = previous_betsize.unsqueeze(1)
-        hand = self.hand_emb(hand)
-        last_action_emb = self.action_emb(last_action)
-        x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
-        x = self.activation(self.fc1(x))
-        x = self.activation(self.fc2(x))
-        cateogry_logits = self.fc3(x)
-        cateogry_logits = self.noise(cateogry_logits)
+        if mask.dim() > 1:
+            mask = mask[-1]
+        x = state
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+        out = self.preprocess(x)
+        M,C = out.size()
+        n_padding = self.max_length - M
+        padding = torch.zeros(n_padding,out.size(-1))
+        h = torch.cat((out,padding),dim=0).unsqueeze(0)
+        # pos_emd = self.positional_emb(torch.arange(self.max_length))
+        # padding_mask_o = torch.ones(M,self.emb)
+        # padding_mask_z = torch.zeros(n_padding,self.emb)
+        # padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
+        # pos_emd = (pos_emd.view(-1) * padding_mask.view(-1)).view(h.size(0),self.emb)
+        # h = h + pos_emd
+        # x = (h + pos_emd).unsqueeze(0)
+        # x = self.activation(self.fc1(h))
+        # x = self.activation(self.fc2(x)).view(-1)
+        # t_logits = self.fc3(x).unsqueeze(0)
+        x,_ = self.lstm(h)
+        # x_stripped = (x.view(-1) * padding_mask.view(-1)).view(1,-1)
+        t_logits = self.fc3(x.view(-1))
+        # t_logits = self.transformer(x)
+        cateogry_logits = self.noise(t_logits)
+        # distribution_inputs = F.log_softmax(cateogry_logits, dim=1) * mask
         action_soft = F.softmax(cateogry_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
+        last_action = state[M-1,self.mapping['state']['previous_action']].long().unsqueeze(-1)
         m = Categorical(action_probs)
         action = m.sample()
         action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+        
         outputs = {
             'action':action,
             'action_category':action_category,
             'action_prob':m.log_prob(action),
-            'action_probs':action_probs,
+            'action_probs':m.probs,
             'betsize':betsize_category
             }
         return outputs
-        # mask = combined_masks(action_mask,betsize_mask)
-        # if mask.dim() > 1:
-        #     mask = mask[-1]
-        # x = state
-        # if x.dim() > 2:
-        #     x = x.squeeze(0)
-        # out = self.preprocess(x)
-        # M,C = out.size()
-        # n_padding = self.max_length - M
-        # padding = torch.zeros(n_padding,out.size(-1))
-        # h = torch.cat((out,padding),dim=0).unsqueeze(0)
-        # # pos_emd = self.positional_emb(torch.arange(self.max_length))
-        # padding_mask_o = torch.ones(M,self.emb)
-        # padding_mask_z = torch.zeros(n_padding,self.emb)
-        # padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
-        # # pos_emd = (pos_emd.view(-1) * padding_mask.view(-1)).view(h.size(0),self.emb)
-        # # h = h + pos_emd
-        # # x = (h + pos_emd).unsqueeze(0)
-        # # x = self.activation(self.fc1(h))
-        # # x = self.activation(self.fc2(x)).view(-1)
-        # # t_logits = self.fc3(x).unsqueeze(0)
-        # x,_ = self.lstm(h)
-        # x_stripped = (x.view(-1) * padding_mask.view(-1)).view(1,-1)
-        # t_logits = self.fc3(x.view(-1))
-        # # t_logits = self.transformer(x)
-        # cateogry_logits = self.noise(t_logits)
-        # # distribution_inputs = F.log_softmax(cateogry_logits, dim=1) * mask
-        # action_soft = F.softmax(cateogry_logits,dim=-1)
-        # action_probs = norm_frequencies(action_soft,mask)
-        # last_action = state[M-1,self.mapping['state']['previous_action']].long().unsqueeze(-1)
-        # m = Categorical(action_probs)
-        # action = m.sample()
-        # action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
-        
-        # outputs = {
-        #     'action':action,
-        #     'action_category':action_category,
-        #     'action_prob':m.log_prob(action),
-        #     'action_probs':m.probs,
-        #     'betsize':betsize_category
-        #     }
-        # return outputs
 
 class FlatHistoricalCritic(nn.Module):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
@@ -535,11 +506,12 @@ class FlatHistoricalCritic(nn.Module):
         self.nB = nB
         self.combined_output = nA - 2 + nB
         self.max_length = 10
-        emb = 128
+        self.emb = 512
         n_heads = 8
-        depth = 2
-        nA = 64
-        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,nA)
+        depth = 4
+        nA = 128
+        self.lstm = nn.LSTM(self.emb, 128)
+        self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,nA)
         self.preprocess = PreProcessHistory(params,critic=True)
         self.use_embedding = params['embedding']
         self.mapping = params['mapping']
@@ -548,8 +520,8 @@ class FlatHistoricalCritic(nn.Module):
         self.fc0 = nn.Linear(64,hidden_dims[0])
         self.fc1 = nn.Linear(128,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.value_output = nn.Linear(64,1)
-        self.advantage_output = nn.Linear(64,self.combined_output)
+        self.value_output = nn.Linear(128,1)
+        self.advantage_output = nn.Linear(128,self.combined_output)
         
     def forward(self,state):
         x = state
@@ -557,6 +529,7 @@ class FlatHistoricalCritic(nn.Module):
             x = x.unsqueeze(0)
         x = self.preprocess(x).unsqueeze(0)
         B,M,C = x.size()
+        # q_input,_ = self.lstm(x)
         q_input = self.transformer(x)
         # x = self.activation(self.fc1(x))
         # x = self.activation(self.fc2(x))

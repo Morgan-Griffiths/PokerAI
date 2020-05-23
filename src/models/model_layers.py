@@ -236,9 +236,9 @@ class PreProcessHistory(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
         self.mapping = params['mapping']
-        self.hand_emb = Embedder(5,64)
-        self.action_emb = Embedder(6,63)
-        self.betsize_fc = nn.Linear(1,64)
+        self.hand_emb = Embedder(5,255)
+        self.action_emb = Embedder(6,256)
+        self.betsize_fc = nn.Linear(1,256)
         self.maxlen = 10
         self.initialize(critic)
 
@@ -261,17 +261,17 @@ class PreProcessHistory(nn.Module):
         hand = stripped_x[:,self.mapping['state']['rank']].long()
         h = self.hand_emb(hand)
         last_action = stripped_x[:,self.mapping['state']['previous_action']].long()
-        a1 = self.action_emb(last_action)
+        last_action_emb = self.action_emb(last_action)
         # o.size(B,M,5)
         last_betsize = stripped_x[:,self.mapping['state']['previous_betsize']].float()
         if last_betsize.dim() == 1:
             last_betsize = last_betsize.unsqueeze(1)
         # h.size(B,M,128)
-        combined = torch.cat([h,a1,last_betsize],dim=-1)
+        combined = torch.cat([h,last_action_emb,last_betsize],dim=-1)
         return combined
 
     def forward_actor(self,x):
-        stripped_x = strip_padding(x.unsqueeze(0),self.maxlen).squeeze(0)
+        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
         hand = stripped_x[:,self.mapping['state']['rank']].long()
         hand = self.hand_emb(hand)
         # h.size(B,M,240)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from db import MongoDB
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 
 label_dict = {5:['Check','Bet'],
             0:['Check','Bet'],

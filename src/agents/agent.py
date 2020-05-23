@@ -10,7 +10,7 @@ from torch import optim
 from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic
 from models.model_utils import hard_update
 from models.buffers import PriorityReplayBuffer
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

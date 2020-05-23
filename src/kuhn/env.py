@@ -2,8 +2,8 @@ import torch
 import pickle
 import copy
 
-from poker.data_classes import Rules,Evaluator,Pot,GameTurn,Deck,Players,History
-import poker.datatypes as pdt
+from kuhn.data_classes import Rules,Evaluator,Pot,GameTurn,Deck,Players,History
+import kuhn.datatypes as pdt
 
 class Poker(object):
     def __init__(self,params):

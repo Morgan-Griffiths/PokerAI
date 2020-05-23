@@ -1,4 +1,4 @@
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 from models.networks import *
 
 class CriticType:

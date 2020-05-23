@@ -1,5 +1,5 @@
 import os
-import poker.datatypes as pdt
+import kuhn.datatypes as pdt
 import models.network_config as ng
 import copy
 import torch
@@ -13,10 +13,10 @@ def train(env,agent,training_params):
         sys.stdout.write('\r')
         last_state,state,obs,done,mask,betsize_mask = env.reset()
         while not done:
-            actor_outputs = agent(state,mask,betsize_mask) if env.rules.betsize == True else agent(state,mask)
-            # if training_params['agent_type'] == pdt.AgentTypes.ACTOR_CRITIC:
-            #     critic_outputs = agent.critique(obs,actor_outputs['action'])
-            #     env.players.store_values(critic_outputs)
+            if env.game == pdt.GameTypes.HISTORICALKUHN:
+                actor_outputs = agent(state,mask,betsize_mask) if env.rules.betsize == True else agent(state,mask)
+            else:
+                actor_outputs = agent(last_state,mask,betsize_mask) if env.rules.betsize == True else agent(last_state,mask)
             last_state,state,obs,done,mask,betsize_mask = env.step(actor_outputs)
         ml_inputs = env.ml_inputs()
         agent.learn(ml_inputs)
