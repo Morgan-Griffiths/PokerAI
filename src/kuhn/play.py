@@ -5,8 +5,8 @@ import os
 from poker_env import Poker
 from multistreet_env import MSPoker
 from agents.agent import return_agent
-from poker.config import Config
-import poker.datatypes as pdt
+from kuhn.config import Config
+import kuhn.datatypes as pdt
 from models.network_config import NetworkConfig
 from models.networks import NetworkFunctions
 
@@ -40,8 +40,12 @@ class PlayEnv(object):
         self.helper_functions = NetworkFunctions(nA,nB)
         self.fake_prob = V(torch.tensor([0.]),requires_grad=True)
 
-        self.get_player_input = self.get_player_input_betsize
-        self.fake_probs = V(torch.Tensor(self.nC).fill_(0.),requires_grad=True) 
+        if self.env.rules.betsize == True:
+            self.get_player_input = self.get_player_input_betsize
+            self.fake_probs = V(torch.Tensor(self.nC).fill_(0.),requires_grad=True) 
+        else:
+            self.get_player_input = self.get_player_input_reg
+            self.fake_probs = V(torch.Tensor(self.nA).fill_(0.),requires_grad=True) 
 
     def get_player_input_betsize(self,*args):
         action_mask,betsize_mask = args
@@ -77,26 +81,40 @@ class PlayEnv(object):
             print(f'state {state},done {done}')
             while not done:
                 print(f'current_player {self.env.current_player}')
-                board = [[card.rank,card.suit] for card in self.env.board]
-                hand = [[card.rank,card.suit] for card in self.env.players.current_hand]
-                print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
-                print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
+                if len(env.players.current_hand) == 1:
+                    print(f'Current Hand {pdt.Globals.KUHN_CARD_DICT[self.env.players.current_hand[0].rank]}')
+                else:
+                    board = [[card.rank,card.suit] for card in self.env.board]
+                    hand = [[card.rank,card.suit] for card in self.env.players.current_hand]
+                    print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
+                    print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
+
                 if self.env.current_player == self.player_position:
-                    action = self.get_player_input(mask,betsize_mask)
-                    last_action = state[-1,-1,self.env.db_mapping['state']['previous_action']]
-                    print('last_action',last_action)
-                    action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
-                    print('action_category,betsize_category',action_category,betsize_category)
-                    outputs = {
-                        'action':action,
-                        'action_category':action_category,
-                        'betsize':betsize_category
-                        }
+                    if self.env.rules.betsize == True:
+                        action = self.get_player_input(mask,betsize_mask)
+                        last_action = state[-1,self.env.db_mapping['state']['previous_action']]
+                        print('last_action',last_action)
+                        action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+                        print('action_category,betsize_category',action_category,betsize_category)
+                        outputs = {
+                            'action':action,
+                            'action_category':action_category,
+                            'betsize':betsize_category
+                            }
+                    else:
+                        action = self.get_player_input(mask)
+                        outputs = {
+                            'action':action,
+                            'action_category':action
+                            }
                     outputs['action_prob']= self.fake_prob
                     outputs['action_probs']= self.fake_probs
                 else:
-                    outputs = agent(state,mask,betsize_mask)
-                    print(f'Action Probabilities {outputs["action_probs"]}')
+                    if env.rules.betsize == True:
+                        outputs = agent(state,mask,betsize_mask)
+                    else:
+                        outputs = agent(state,mask)
+                        print(f'log_probs {outputs["action_probs"]}')
                 print(f'Action {outputs["action"]}')
                 state,obs,done,mask,betsize_mask = env.step(outputs)
                 print(f'state {state},done {done}')
@@ -118,7 +136,7 @@ if __name__ == "__main__":
         """)
     parser.add_argument('--env',
                         default=pdt.GameTypes.HOLDEM,
-                        metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
+                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
     parser.add_argument('-p','--pos',
                         dest='position',

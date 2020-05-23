@@ -5,12 +5,12 @@ import torch
 
 from train import train
 from train_parallel import gather_trajectories,train_shared_model
-from poker.config import Config
-import poker.datatypes as pdt
-from poker.multistreet_env import MSPoker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import FlatHistoricalActor,FlatHistoricalCritic
+import kuhn.datatypes as pdt
+from kuhn.config import Config
+from kuhn.env import Poker
 from agents.agent import return_agent
 from utils.utils import unpack_shared_dict
 
@@ -25,17 +25,14 @@ if __name__ == "__main__":
         """)
 
     parser.add_argument('--agent',
-                        default=pdt.AgentTypes.SPLIT,
-                        metavar=f"[{pdt.AgentTypes.SPLIT},{pdt.AgentTypes.SINGLE},{pdt.AgentTypes.SPLIT_OBS}]",
+                        default='actor_critic',
+                        metavar="['actor','actor_critic','combined_actor_critic]",
                         type=str,
-                        help='Which type of actor critic to train with.\
-                        Split: Separate networks for actor and critic, both train on state\
-                        Single: 1 Network for actor and critic. trains on state\
-                        Split_obs: Separate networks for actor and critic, actor trains on state, critic trains on obs')
-    parser.add_argument('--game',
-                        default=pdt.GameTypes.OMAHAHI,
+                        help='Which agent to train')
+    parser.add_argument('--env',
+                        default=pdt.GameTypes.HISTORICALKUHN,
                         type=str,
-                        metavar=f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",
+                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HISTORICALKUHN}]",
                         help='Picks which type of poker env to train in')
     parser.add_argument('--no-clean',
                         default=True,
@@ -51,22 +48,31 @@ if __name__ == "__main__":
                         default=1000,
                         type=int,
                         help='Number of training epochs')
+    parser.add_argument('--critic',
+                        default='q',
+                        type=str,
+                        metavar="['q','reg']",
+                        help='Critic output types [nA,1]')
     parser.add_argument('--betsize',
                         default=2,
                         type=int,
                         metavar="[1-5 or 11]",
                         help='Number of betsizes the agent can make')
-    parser.add_argument('--output',
+    parser.add_argument('--N-output',
                         default='flat',
                         dest='network_output',
                         type=str,
-                        metavar=f"[{pdt.OutputTypes.FLAT},{pdt.OutputTypes.TIERED}]",
+                        metavar="['flat','tiered']",
                         help='Network output types. Controls whether betsize is combined with actions or not')
+    parser.add_argument('--padding',
+                        default=True,
+                        type=bool,
+                        help='To pad the network inputs')
     parser.add_argument('--maxlen',
                         default=20,
-                        dest='seq_maxlen',
+                        dest='padding_maxlen',
                         type=int,
-                        help='Max length of the history to feed into the agent.')
+                        help='Size of padding')
     parser.add_argument('--parallel',
                         default=False,
                         action='store_true',
@@ -78,12 +84,7 @@ if __name__ == "__main__":
     print(f'args {args}')
     tic = time.time()
     
-    assert(args.agent in f"[{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS}]",'Invalid agent selection')
-    assert(args.output in f"[{pdt.OutputTypes.FLAT},{pdt.OutputTypes.TIERED}]",'Invalid output selection')
-    assert(args.game in f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",'Invalid game selection')
-    game_object = pdt.Globals.GameTypeDict[args.game]
-
-
+    game_object = pdt.Globals.GameTypeDict[args.env]
     config = Config()
     config.agent = args.agent
     env_params = {'game':args.env}
@@ -124,10 +125,7 @@ if __name__ == "__main__":
     training_params['agent_type'] = args.agent
     training_params['critic'] = args.critic
 
-    if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
-        env = MSPoker(env_params)
-    else:
-        env = Poker(env_params)
+    env = Poker(env_params)
 
     nS = env.state_space
     nO = env.observation_space

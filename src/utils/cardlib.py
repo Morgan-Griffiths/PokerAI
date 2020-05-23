@@ -1,7 +1,6 @@
 import ctypes
 from sys import platform
 
-print(f'Running on {platform}')
 if platform == "linux" or platform == "linux2":
     # linux
     lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")

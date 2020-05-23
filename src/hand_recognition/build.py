@@ -6,8 +6,8 @@ from random import shuffle
 
 import hand_recognition.datatypes as dt
 from hand_recognition.data_utils import save_data,save_all
-from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
+from utils.cardlib import encode,decode,winner,hand_rank,rank
+from utils.card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
 
 class CardDataset(object):
     def __init__(self,params):
@@ -22,6 +22,7 @@ class CardDataset(object):
     def generate_dataset(self,params):
         """
         Hands in test set may or may not match hands in training set.
+        Builds regression datasets with a target of win,loss,tie [1,-1,0]
         """
         if params['datatype'] == dt.DataTypes.THIRTEENCARD:
             trainX,trainY = self.build_13card(params[dt.Globals.INPUT_SET_DICT['train']],params['encoding'])
@@ -86,6 +87,8 @@ class CardDataset(object):
 
     def build_hand_classes(self,params):
         """
+        Builds categorical targets of hand class.
+
         |Hand Value|Unique|Distinct|
         |Straight Flush |40      |10|
         |Four of a Kind |624     |156|

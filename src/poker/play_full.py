@@ -40,34 +40,21 @@ class PlayEnv(object):
         self.helper_functions = NetworkFunctions(nA,nB)
         self.fake_prob = V(torch.tensor([0.]),requires_grad=True)
 
-        if self.env.rules.betsize == True:
-            self.get_player_input = self.get_player_input_betsize
-            self.fake_probs = V(torch.Tensor(self.nC).fill_(0.),requires_grad=True) 
-        else:
-            self.get_player_input = self.get_player_input_reg
-            self.fake_probs = V(torch.Tensor(self.nA).fill_(0.),requires_grad=True) 
+        self.get_player_input = self.get_player_input_betsize
+        self.fake_probs = V(torch.Tensor(self.nC).fill_(0.),requires_grad=True) 
 
     def get_player_input_betsize(self,*args):
         action_mask,betsize_mask = args
         mask = torch.cat([action_mask[:-2],betsize_mask])
-        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
-        while player_input.isdigit() == False:
-            print('Invalid input, please enter a number or exit with ^C')
-            player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
-        action = torch.tensor(int(player_input)).unsqueeze(0)
-        return action
-        
-    def get_player_input_reg(self,*args):
-        action_mask = args[0]
         improper_input = True
-        player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
+        player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
         while improper_input == True:
             while player_input.isdigit() == False:
                 print('Invalid input, please enter a number or exit with ^C')
-                player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
-            if int(player_input) not in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]:
+                player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[self.BETSIZE_ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
+            if int(player_input) not in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]:
                 print('Invalid action choice, please choose one of the following')
-                player_input = input(f'Enter one of the following numbers {torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(action_mask)).numpy()[action_mask.numpy().astype(bool)]]}')
+                player_input = input(f'Enter one of the following numbers {torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]}, {[pdt.Globals.ACTION_DICT[action] for action in torch.arange(len(mask)).numpy()[mask.numpy().astype(bool)]]}')
             else:
                 improper_input = False
         action = torch.tensor(int(player_input)).unsqueeze(0)
@@ -78,43 +65,30 @@ class PlayEnv(object):
         for e in range(self.training_params['epochs']):
             print(f'Hand {e}')
             state,obs,done,mask,betsize_mask = self.env.reset()
+            print('Street',env.street)
             print(f'state {state},done {done}')
             while not done:
                 print(f'current_player {self.env.current_player}')
-                if len(env.players.current_hand) == 1:
-                    print(f'Current Hand {pdt.Globals.KUHN_CARD_DICT[self.env.players.current_hand[0].rank]}')
-                else:
-                    board = [[card.rank,card.suit] for card in self.env.board]
-                    hand = [[card.rank,card.suit] for card in self.env.players.current_hand]
-                    print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
-                    print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
-
+                board = [[card.rank,card.suit] for card in self.env.board]
+                hand = [[card.rank,card.suit] for card in self.env.players.current_hand]
+                print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
+                print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
                 if self.env.current_player == self.player_position:
-                    if self.env.rules.betsize == True:
-                        action = self.get_player_input(mask,betsize_mask)
-                        last_action = state[-1,self.env.db_mapping['state']['previous_action']]
-                        print('last_action',last_action)
-                        action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
-                        print('action_category,betsize_category',action_category,betsize_category)
-                        outputs = {
-                            'action':action,
-                            'action_category':action_category,
-                            'betsize':betsize_category
-                            }
-                    else:
-                        action = self.get_player_input(mask)
-                        outputs = {
-                            'action':action,
-                            'action_category':action
-                            }
+                    action = self.get_player_input(mask,betsize_mask)
+                    last_action = state[-1,-1,self.env.db_mapping['state']['previous_action']]
+                    print('last_action',last_action)
+                    action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
+                    print('action_category,betsize_category',action_category,betsize_category)
+                    outputs = {
+                        'action':action,
+                        'action_category':action_category,
+                        'betsize':betsize_category
+                        }
                     outputs['action_prob']= self.fake_prob
                     outputs['action_probs']= self.fake_probs
                 else:
-                    if env.rules.betsize == True:
-                        outputs = agent(state,mask,betsize_mask)
-                    else:
-                        outputs = agent(state,mask)
-                        print(f'log_probs {outputs["action_probs"]}')
+                    outputs = agent(state,mask,betsize_mask)
+                    print(f'Action Probabilities {outputs["action_probs"]}')
                 print(f'Action {outputs["action"]}')
                 state,obs,done,mask,betsize_mask = env.step(outputs)
                 print(f'state {state},done {done}')
@@ -136,7 +110,7 @@ if __name__ == "__main__":
         """)
     parser.add_argument('--env',
                         default=pdt.GameTypes.HOLDEM,
-                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HOLDEM}]",
+                        metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
     parser.add_argument('-p','--pos',
                         dest='position',

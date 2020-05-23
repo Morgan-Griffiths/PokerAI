@@ -73,6 +73,8 @@ class MSPoker(object):
             2:{i:0 for i in range(5)},
             3:{i:0 for i in range(5)}
         }
+        self.nO = self.return_state()[1].size()[-1]
+        self.nS = self.return_state()[0].size()[-1]
     
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
@@ -118,6 +120,7 @@ class MSPoker(object):
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
+        self.players.reset_street_totals()
         self.action_records = {
             0:{i:0 for i in range(5)},
             1:{i:0 for i in range(5)},
@@ -293,6 +296,8 @@ class MSPoker(object):
                     assert(isinstance(raw_ml[position]['action_probs'][0],torch.Tensor))
                     assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
                     # assert(isinstance(raw_ml[position]['values'][0],torch.Tensor))
+
+                    raw_ml[position]['hand_strength'] = raw_ml[position]['hand_strength']
                     raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(1,-1,self.state_space)
                     raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(1,-1,self.observation_space)
                     raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(1,-1,1)
@@ -328,11 +333,11 @@ class MSPoker(object):
     
     @property
     def state_space(self):
-        return self.return_state()[0].size()[-1]
+        return self.nS
     
     @property
     def observation_space(self):
-        return self.return_state()[1].size()[-1]
+        return self.nO
     
     @property
     def action_space(self):
@@ -346,15 +351,27 @@ class MSPoker(object):
     def current_player(self):
         return self.players.current_player
 
+    @property
+    def previous_player(self):
+        return self.players.previous_player
+
     def determine_output(self):
+        """Determines winner, allots pot to winner, records handstrengths for each player"""
+        self.players.store_handstrengths(self.board)
         if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             self.players.update_stack(self.pot.value)
         else:
             hands = self.players.get_hands()
             hand1,hand2 = hands
             winner_idx = self.evaluator([hand1,hand2,self.board])
-            winner_position = self.players.initial_positions[winner_idx]
-            self.players.update_stack(self.pot.value,winner_position)
+            if winner_idx == 1:
+                self.players.update_stack(self.pot.value,'SB')
+            elif winner_idx == -1:
+                self.players.update_stack(self.pot.value,'BB')
+            else:
+                # Tie
+                self.players.update_stack(self.pot.value / 2,'SB')
+                self.players.update_stack(self.pot.value / 2,'BB')
         self.players.gen_rewards()
 
     def return_current_state(self,action=None):
@@ -379,8 +396,8 @@ class MSPoker(object):
         vil_position = torch.tensor([pdt.Globals.POSITION_MAPPING[self.players.previous_player]]).float()
         ## If the last betsize is 0 then both are zero
         if self.history.last_betsize > 0:
-            to_call = self.history.last_betsize - self.history.penultimate_betsize
-            pot_odds = self.history.last_betsize - self.history.penultimate_betsize / self.pot.value
+            to_call = self.players.previous_street_total - self.players.current_street_total
+            pot_odds = to_call / (self.pot.value + to_call) # Because state is updated prior to retriving gamestate. The bet has already been added to the pot
         else:
             to_call = torch.tensor([0])
             pot_odds = torch.tensor([0])
@@ -451,9 +468,9 @@ class MSPoker(object):
                 betsize = min(max(self.rules.minbet,betsize_value),self.players.current_stack)
                 # print('betsize_value',betsize_value)
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
-                max_raise = (2 * self.players.villain_street_investment) + (self.pot.value - self.players.hero_street_investment)
+                max_raise = (2 * self.players.previous_street_total) + (self.pot.value - self.players.current_street_total)
                 betsize_value = self.rules.betsizes[betsize_category.long()] * max_raise
-                previous_bet = self.players.villain_street_investment - self.players.hero_street_investment
+                previous_bet = self.players.previous_street_total - self.players.current_street_total
                 betsize = min(max(previous_bet * 2,betsize_value),self.players.current_stack)
                 # print('betsize_value',betsize_value)
         else:
