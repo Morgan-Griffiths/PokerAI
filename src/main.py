@@ -5,9 +5,9 @@ import torch
 
 from train import train
 from train_parallel import gather_trajectories,train_shared_model
-from full_poker.config import Config
-import full_poker.datatypes as pdt
-from full_poker.multistreet_env import MSPoker
+from poker.config import Config
+import poker.datatypes as pdt
+from poker.multistreet_env import MSPoker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import FlatHistoricalActor,FlatHistoricalCritic

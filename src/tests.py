@@ -9,9 +9,9 @@ from kuhn.data_classes import Card,Evaluator
 import kuhn.datatypes as pdt
 from utils.cardlib import winner,holdem_winner,encode
 
-def run_env(env,case):
+def run_kuhn_env(env,case):
     step = 0
-    state,obs,done,mask,betsize_mask = env.reset()
+    last_state,state,obs,done,mask,betsize_mask = env.reset()
     while not done:
         action,action_prob,action_probs = case[step]
         actor_output = {
@@ -19,7 +19,7 @@ def run_env(env,case):
             'action_prob':action_prob,
             'action_probs':action_probs
         }
-        state,obs,done,mask,betsize_mask = env.step(actor_output)
+        last_state,state,obs,done,mask,betsize_mask = env.step(actor_output)
         step += 1
     return env
 
@@ -62,7 +62,7 @@ class TestEnv(unittest.TestCase):
         env = Poker(self.params)
         for i,case in enumerate(self.actions):
             print(f'Case {i}')
-            env = run_env(env,case)
+            env = run_kuhn_env(env,case)
         
     def testScenario(self):
         env = Poker(self.params)
@@ -82,7 +82,7 @@ class TestEnv(unittest.TestCase):
             for scenario in scenarios[i]:
                 state,obs,done = env.reset()
                 env.load_scenario(scenario)
-                env = run_env(env,case)
+                env = run_kuhn_env(env,case)
                 
         for i in range(len(self.actions)):
             print(f'Scenario {i}')
@@ -99,7 +99,7 @@ class TestEnv(unittest.TestCase):
         env = Poker(self.params)
         for i,case in enumerate(self.actions):
             print(f'Case {i}')
-            env = run_env(env,case)
+            env = run_kuhn_env(env,case)
             ml_inputs = env.ml_inputs()
             # print(f'ml_inputs {ml_inputs}')
 
@@ -133,7 +133,7 @@ class TestEnv(unittest.TestCase):
             self.assertTrue(np.array_equal(available_betsizes.numpy(),betsize_answers[i].numpy()))
         # for i,case in enumerate(self.actions):
         #     print(f'Case {i}')
-        #     env = run_env(env,case)
+        #     env = run_kuhn_env(env,case)
         #     ml_inputs = env.ml_inputs()
             # print(f'ml_inputs {ml_inputs}')
 
@@ -159,13 +159,14 @@ class TestEnv(unittest.TestCase):
         assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
     def TestRlEnvironments(self):
-        os.system('python main.py --env kuhn -e 10 --no-clean --no-store')
-        os.system('python main.py --env complexkuhn -e 10 --no-clean --no-store')
-        os.system('python main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env kuhn -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env complexkuhn -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env betsizekuhn -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 10 --parallel --no-clean --no-store')
         # os.system('python main.py --env holdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
-
 
 def envTestSuite():
     suite = unittest.TestSuite()

@@ -5,7 +5,6 @@ import torch
 
 from train import train
 from train_parallel import gather_trajectories,train_shared_model
-from full_poker.multistreet_env import MSPoker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import FlatHistoricalActor,FlatHistoricalCritic
@@ -33,7 +32,7 @@ if __name__ == "__main__":
     parser.add_argument('--env',
                         default=pdt.GameTypes.HISTORICALKUHN,
                         type=str,
-                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HISTORICALKUHN},{pdt.GameTypes.HOLDEM}]",
+                        metavar=f"[{pdt.GameTypes.KUHN},{pdt.GameTypes.COMPLEXKUHN},{pdt.GameTypes.BETSIZEKUHN},{pdt.GameTypes.HISTORICALKUHN}]",
                         help='Picks which type of poker env to train in')
     parser.add_argument('--no-clean',
                         default=True,
@@ -126,10 +125,7 @@ if __name__ == "__main__":
     training_params['agent_type'] = args.agent
     training_params['critic'] = args.critic
 
-    if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
-        env = MSPoker(env_params)
-    else:
-        env = Poker(env_params)
+    env = Poker(env_params)
 
     nS = env.state_space
     nO = env.observation_space
