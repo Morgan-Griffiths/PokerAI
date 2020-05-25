@@ -7,6 +7,7 @@ from kuhn.config import Config
 from kuhn.env import Poker
 from kuhn.data_classes import Card,Evaluator
 import kuhn.datatypes as pdt
+import poker.datatypes as hdt
 from utils.cardlib import winner,holdem_winner,encode
 
 def run_kuhn_env(env,case):
@@ -138,8 +139,8 @@ class TestEnv(unittest.TestCase):
             # print(f'ml_inputs {ml_inputs}')
 
     def testEvaluations(self):
-        omaha = Evaluator(pdt.GameTypes.OMAHAHI)
-        holdem = Evaluator(pdt.GameTypes.HOLDEM)
+        omaha = Evaluator(hdt.GameTypes.OMAHAHI)
+        holdem = Evaluator(hdt.GameTypes.HOLDEM)
         kuhn = Evaluator(pdt.GameTypes.KUHN)
 
         Q = Card(1,None)
@@ -159,11 +160,11 @@ class TestEnv(unittest.TestCase):
         assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
     def TestRlEnvironments(self):
-        os.system('python kuhn_main.py --env kuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env complexkuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env betsizekuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env historicalkuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env historicalkuhn -e 10 --parallel --no-clean --no-store')
+        os.system('python kuhn_main.py --env kuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env complexkuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env betsizekuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 5 --parallel --no-clean --no-store')
         # os.system('python main.py --env holdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
@@ -174,7 +175,7 @@ def envTestSuite():
     suite.addTest(TestEnv('testRepresentations'))
     suite.addTest(TestEnv('testEvaluations'))
     suite.addTest(TestEnv('testEnvFunctions'))
-    suite.addTest(TestEnv('TestRlEnvironments'))
+    # suite.addTest(TestEnv('TestRlEnvironments'))
     # suite.addTest(TestEnv('testScenario'))
     return suite
 

@@ -4,7 +4,6 @@ class Config(object):
         self.agent = 'actor_critic'
         self.training_params = {
                 'epochs':2500,
-                'action_index':1,
                 'training_round':0,
                 'save_dir':'checkpoints/RL'
             }
