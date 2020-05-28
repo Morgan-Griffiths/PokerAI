@@ -91,7 +91,7 @@ if __name__ == "__main__":
     env_params['rule_params']['network_output'] = args.network_output
     env_params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[args.betsize]
     env_params['starting_street'] = game_object.starting_street
-    env_params['maxlen'] = config.max_length
+    env_params['maxlen'] = config.maxlen
     agent_params = config.agent_params
 
     env_networks = NetworkConfig.EnvModels[args.game]
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     agent_params['min_reward'] = env_params['state_params']['stacksize']
     agent_params['epochs'] = int(args.epochs)
     agent_params['network_output'] = args.network_output
-    agent_params['maxlen'] = config.max_length
+    agent_params['maxlen'] = config.maxlen
     agent_params['game'] = args.game
     agent_params['frozen_layer_path'] = 'src/checkpoints/multiclass_categorization/HandRankClassification'
     agent_params['frozen_layer'] = True

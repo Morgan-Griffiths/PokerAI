@@ -130,23 +130,92 @@ class Holdem(object):
         self.rule_params['betsizes'] = T([0.5,1.])
         self.starting_street = 3
 
+
+class BaseOmaha(object):
+    def __init__(self):
+        self.starting_street = 0
+        self.state_params = {}
+        self.state_params['ranks'] = list(range(2,15))
+        self.state_params['suits'] = list(range(0,4))
+        self.state_params['cards_per_player'] = 4
+        self.state_params['n_players'] = 2
+        self.state_params['stacksize'] = 10
+        self.state_params['pot'] = 2
+        self.state_params['game_turn'] = 0
+        self.rule_params = {
+            'unopened_action' : T([5]),
+            'mask_dict' :  ACTION_MASKS,
+            'action_dict' : ACTION_ORDER,
+            'betsizes' : T([0.5,1.]),
+            'blinds': BLIND_DICT,
+            'bettype' : LimitTypes.POT_LIMIT,
+            'mapping': {
+                'state':{
+                    'suit':T([1,3,5,7]).long(),
+                    'rank':T([0,2,4,6]).long(),
+                    'hand':T([0,1,2,3,4,5,6,7]).long(),
+                    'board':T([8,9,10,11,12,13,14,15,16,17]).long(),
+                    'board_ranks':T([8,10,12,14,16]).long(),
+                    'board_suits':T([9,11,13,15,17]).long(),
+                    'street':T([18]).long(),
+                    'hero_position':T([19]).long(),
+                    'vil_position':T([20]).long(),
+                    'previous_action':T([21]).long(),
+                    'previous_betsize':T([22]).long(),
+                    'hero_stack':T([23]).long(),
+                    'villain_stack':T([24]).long(),
+                    'amnt_to_call':T([25]).long(),
+                    'pot_odds':T([26]).long(),
+                    'hand_board':T([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]).long(),
+                    'ordinal':T([18,19,20,21]).long(),
+                    'continuous':T([22,23,24,25,26]).long()
+                    },
+                'observation':{
+                    'suit':T([1,3,5,7]).long(),
+                    'rank':T([0,2,4,6]).long(),
+                    'hand':T([0,1,2,3,4,5,6,7]).long(),
+                    'vil_hand':T([8,9,10,11,12,13,14,15]).long(),
+                    'vil_ranks':T([8,10,12,14]).long(),
+                    'vil_suits':T([9,11,13,15]).long(),
+                    'board':T([16,17,18,19,20,21,22,23,24,25]).long(),
+                    'board_ranks':T([16,18,20,22,24]).long(),
+                    'board_suits':T([17,19,21,23,25]).long(),
+                    'street':T([26]).long(),
+                    'hero_position':T([27]).long(),
+                    'vil_position':T([28]).long(),
+                    'previous_action':T([29]).long(),
+                    'previous_betsize':T([30]).long(),
+                    'hero_stack':T([31]).long(),
+                    'villain_stack':T([32]).long(),
+                    'amnt_to_call':T([33]).long(),
+                    'pot_odds':T([34]).long(),
+                    'hand_board':T([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]).long(),
+                    'ordinal':T([26,27,28,29]).long(),
+                    'continuous':T([30,31,32,33,34]).long()
+                }
+            }
+        }
+
 class OmahaHI(object):
     def __init__(self):
-        ## NOT IMPLEMENTED ##
+        K = BaseOmaha()
         self.starting_street = 3
-        K = BaseHoldem()
         self.rule_params = K.rule_params
         self.state_params = K.state_params
-        self.rule_params['bettype'] = LimitTypes.POT_LIMIT
+        self.state_params['stacksize'] = 5.
+        self.state_params['pot']= 2.
+        self.rule_params['betsizes'] = T([0.5,1.])
 
 class OmahaHILO(object):
     def __init__(self):
         ## NOT IMPLEMENTED ##
-        self.starting_street = 0
         K = BaseHoldem()
+        self.starting_street = 0
         self.rule_params = K.rule_params
         self.state_params = K.state_params
-        self.rule_params['bettype'] = LimitTypes.POT_LIMIT
+        self.state_params['stacksize'] = 5.
+        self.state_params['pot']= 2.
+        self.rule_params['betsizes'] = T([0.5,1.])
 
 class Globals:
     GameTypeDict = {
@@ -203,6 +272,6 @@ class Globals:
     REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     HAND_LENGTH_DICT = {
         'holdem':2,
-        'omahahi':4,
-        'omahahilo':4
+        'omaha_hi':4,
+        'omaha_hi_lo':4
     }

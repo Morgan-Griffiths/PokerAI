@@ -348,8 +348,8 @@ class MSPoker(object):
         board_cards = torch.tensor([[card.rank,card.suit] for card in self.board]).view(-1).squeeze(0).float()
         board = torch.Tensor(10).fill_(0.)
         board[:board_cards.size(0)] = board_cards
-        historical_state_cards = torch.cat((current_hand,board)).repeat(L).view(1,L,14)
-        historical_obs_cards = torch.cat((current_hand,vil_hand,board)).repeat(L).view(1,L,18)
+        historical_state_cards = torch.cat((current_hand,board)).repeat(L).view(1,L,self.db_mapping['state']['hand_board'][-1] + 1)
+        historical_obs_cards = torch.cat((current_hand,vil_hand,board)).repeat(L).view(1,L,self.db_mapping['observation']['hand_board'][-1] + 1)
         pre_state = torch.cat((historical_state_cards,hist_state),dim=-1)
         pre_obs = torch.cat((historical_obs_cards,hist_obs),dim=-1)
 

@@ -45,5 +45,12 @@ class NetworkConfig(object):
                     CriticType.REG : HoldemBaselineCritic
                 },
                 'combined': FlatAC},
-            hdt.GameTypes.OMAHAHI : 'Not implemented',
+            hdt.GameTypes.OMAHAHI : {
+                'actor':HoldemBaseline,
+                'critic':{
+                    CriticType.Q : HoldemQCritic,
+                    CriticType.REG : HoldemBaselineCritic
+                },
+                'combined': FlatAC
+            },
         }
