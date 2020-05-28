@@ -497,16 +497,8 @@ class FlatHistoricalCritic(nn.Module):
         n_heads = 8
         depth = 4
         nA = 128
-        self.lstm = nn.LSTM(self.emb, 128)
         self.transformer = CTransformer(self.emb,n_heads,depth,self.max_length,nA)
         self.preprocess = PreProcessHistory(params,critic=True)
-        self.use_embedding = params['embedding']
-        self.mapping = params['mapping']
-        self.positional_embeddings = Embedder(self.max_length,64)
-
-        self.fc0 = nn.Linear(64,hidden_dims[0])
-        self.fc1 = nn.Linear(128,hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.value_output = nn.Linear(128,1)
         self.advantage_output = nn.Linear(128,self.combined_output)
         
@@ -516,11 +508,7 @@ class FlatHistoricalCritic(nn.Module):
             x = x.unsqueeze(0)
         x = self.preprocess(x).unsqueeze(0)
         B,M,C = x.size()
-        # q_input,_ = self.lstm(x)
         q_input = self.transformer(x)
-        # x = self.activation(self.fc1(x))
-        # x = self.activation(self.fc2(x))
-        # q_input = x.view(M,-1)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)

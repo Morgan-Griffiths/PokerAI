@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable as V
 from torch import optim
+import copy
 
 from models.networks import Baseline,Dueling_QNetwork,HoldemBaselineCritic,HoldemBaseline,BaselineKuhnCritic,BaselineCritic
 from models.model_utils import hard_update
@@ -546,8 +547,8 @@ class FullAgent(Agent):
         self.target_actor = params['actor_network'](seed,nS,nA,nB,params)
         self.target_critic = params['critic_network'](seed,nS,nA,nB,params)
         self.target_critic.eval()
-        # if params['frozen_layer'] == True:
-        #     self.update_weights(params)
+        if params['frozen_layer'] == True:
+            self.update_weights(params)
         print('critic_type',self.critic_type)
         if self.critic_type == 'q' or self.critic_type == 'single':
             self.critic_backward = self.qcritic_backward
@@ -570,15 +571,24 @@ class FullAgent(Agent):
     def update_weights(self,params):
         layer_weights = torch.load(params['frozen_layer_path'])
         layer_names = ['0.weight','0.bias','1.weight','1.bias','1.running_mean','1.running_var','1.num_batches_tracked']
-        suit_names = ['suit_conv'+layer for layer in layer_names]
-        rank_names = ['rank_conv'+layer for layer in layer_names]
+        suit_names = ['suit_conv.'+layer for layer in layer_names]
+        rank_names = ['rank_conv.'+layer for layer in layer_names]
         all_names = suit_names + rank_names
-        for name in all_names:
-            self.local_critic.process_inputs[name] = layer_weights[name]
-            self.local_actor.process_inputs[name] = layer_weights[name]
-            self.local_critic.process_inputs[name].requires_grad = False
-            self.local_actor.process_inputs[name].requires_grad = False
-            # param.requires_grad = False
+        for name, param in self.local_critic.process_input.hand_board.named_parameters():
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+        for name, param in self.local_actor.process_input.hand_board.named_parameters():
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+            # print(name, param.size())
+            # print(layer_weights[name].size())
+            # pass
+        # for name in all_names:
+        #     self.local_critic.process_input.hand_board.suit_conv[0] = layer_weights[name]
+        #     self.local_actor.process_inputs[name] = layer_weights[name]
+        #     self.local_critic.process_input.hand_board.suit_conv[0].requires_grad = False
+        #     self.local_actor.process_inputs[name].requires_grad = False
+        #     # param.requires_grad = False
     
     def learn(self,player_data):
         positions = player_data.keys()

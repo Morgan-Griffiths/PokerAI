@@ -33,7 +33,7 @@ if __name__ == "__main__":
                         Single: 1 Network for actor and critic. trains on state\
                         Split_obs: Separate networks for actor and critic, actor trains on state, critic trains on obs')
     parser.add_argument('--game',
-                        default=pdt.GameTypes.HOLDEM,
+                        default=pdt.GameTypes.OMAHAHI,
                         type=str,
                         metavar=f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",
                         help='Picks which type of poker env to train in')
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     agent_params['network_output'] = args.network_output
     agent_params['maxlen'] = config.maxlen
     agent_params['game'] = args.game
-    agent_params['frozen_layer_path'] = 'src/checkpoints/multiclass_categorization/HandRankClassification'
+    agent_params['frozen_layer_path'] = '/Users/morgan/Code/PokerAI/src/checkpoints/regression/PartialHandRegression'
     agent_params['frozen_layer'] = True
 
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
