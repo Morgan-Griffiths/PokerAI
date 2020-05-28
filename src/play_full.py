@@ -2,9 +2,8 @@ import torch
 from torch.autograd import Variable as V
 import numpy as np
 import os
-from poker_env import Poker
-from multistreet_env import MSPoker
-from agents.agent import return_agent
+from poker.multistreet_env import MSPoker
+from agents.agent import FullAgent
 from poker.config import Config
 import poker.datatypes as pdt
 from models.network_config import NetworkConfig
@@ -66,13 +65,13 @@ class PlayEnv(object):
             print(f'Hand {e}')
             state,obs,done,mask,betsize_mask = self.env.reset()
             print('Street',env.street)
-            print(f'state {state},done {done}')
+            print(f'state {state[0,0]},done {done}')
             while not done:
                 print(f'current_player {self.env.current_player}')
                 board = [[card.rank,card.suit] for card in self.env.board]
                 hand = [[card.rank,card.suit] for card in self.env.players.current_hand]
-                print(f'Current board {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in board]}')
-                print(f'Current Hand {[[pdt.Globals.HOLDEM_RANK_DICT[card[0]],pdt.Globals.HOLDEM_SUIT_DICT[card[1]]] for card in hand]}')
+                print(f'Current board {[[pdt.Globals.POKER_RANK_DICT[card[0]],pdt.Globals.POKER_SUIT_DICT[card[1]]] for card in board]}')
+                print(f'Current Hand {[[pdt.Globals.POKER_RANK_DICT[card[0]],pdt.Globals.POKER_SUIT_DICT[card[1]]] for card in hand]}')
                 if self.env.current_player == self.player_position:
                     action = self.get_player_input(mask,betsize_mask)
                     last_action = state[-1,-1,self.env.db_mapping['state']['previous_action']]
@@ -91,7 +90,7 @@ class PlayEnv(object):
                     print(f'Action Probabilities {outputs["action_probs"]}')
                 print(f'Action {outputs["action"]}')
                 state,obs,done,mask,betsize_mask = env.step(outputs)
-                print(f'state {state},done {done}')
+                print(f'state {state[0,env.game_turn.value]},done {done}')
             ml_inputs = env.ml_inputs()
             if player_position in ml_inputs:
                 player_inputs = ml_inputs[player_position]
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         Run RL experiments with varying levels of complexity in poker.\n\n
         Modify the traiing params via the config file.\n
         """)
-    parser.add_argument('--env',
+    parser.add_argument('--game',
                         default=pdt.GameTypes.HOLDEM,
                         metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
@@ -124,19 +123,20 @@ if __name__ == "__main__":
 
     config = Config()
     # config.agent = args.agent
-    # config.params['game'] = args.env
+    # config.params['game'] = args.game
 
-    game_object = pdt.Globals.GameTypeDict[args.env]
+    game_object = pdt.Globals.GameTypeDict[args.game]
     player_position = pdt.Globals.POSITION_DICT[args.position]
     
-    params = {'game':args.env}
+    params = {'game':args.game}
     params['state_params'] = game_object.state_params
+    params['maxlen'] = config.maxlen
     params['rule_params'] = game_object.rule_params
-    # params['state_params'] = pdt.Globals.GameTypeDict[args.env].state_params
-    # params['rule_params'] = pdt.Globals.GameTypeDict[args.env].rule_params
+    # params['state_params'] = pdt.Globals.GameTypeDict[args.game].state_params
+    # params['rule_params'] = pdt.Globals.GameTypeDict[args.game].rule_params
     training_params = config.training_params
     agent_params = config.agent_params
-    env_networks = NetworkConfig.EnvModels[args.env]
+    env_networks = NetworkConfig.EnvModels[args.game]
     agent_params['network'] = env_networks['actor']
     agent_params['actor_network'] = env_networks['actor']
     agent_params['critic_network'] = env_networks['critic']['q']
@@ -148,19 +148,17 @@ if __name__ == "__main__":
     params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[2]
     agent_params['network_output'] = 'flat'
     agent_params['embedding_size'] = 32
-    agent_params['max_length'] = 20
+    agent_params['maxlen'] = config.maxlen
+    agent_params['game'] = args.game
     params['starting_street'] = game_object.starting_street
 
     training_data = {}
     for position in pdt.Globals.PLAYERS_POSITIONS_DICT[params['state_params']['n_players']]:
         training_data[position] = []
     training_params['training_data'] = training_data
-    training_params['agent_name'] = f'{args.env}_baseline'
+    training_params['agent_name'] = f'{args.game}_baseline'
 
-    if args.env == pdt.GameTypes.HOLDEM:
-        env = MSPoker(params)
-    else:
-        env = Poker(params)
+    env = MSPoker(params)
 
     nS = env.state_space
     nO = env.observation_space
@@ -169,8 +167,8 @@ if __name__ == "__main__":
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}')
     seed = 154
 
-    agent = return_agent(config.agent,nS,nO,nA,nB,seed,agent_params)
-    agent.load_weights(os.path.join(training_params['save_dir'],training_params['agent_name']))
+    agent = FullAgent(nS,nO,nA,nB,seed,agent_params)
+    agent.load_weights(os.path.join(training_params['save_dir'],'Holdem'))
 
     play_env = PlayEnv(nA,nB,params['rule_params']['betsizes'],env,agent,training_params,player_position)
     action_data = play_env.play()

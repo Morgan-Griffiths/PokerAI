@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from hand_recognition.datatypes import SUITS,RANKS
+from poker.datatypes import Globals
 import numpy as np
 from models.model_utils import strip_padding
 
@@ -70,23 +71,30 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,critic=False):
+    def __init__(self,params,hand_length,hidden_dims=(15,32,32)):
         super().__init__()
+        self.hand_length = hand_length
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(7, 16, kernel_size=1, stride=1),
-            nn.BatchNorm1d(16),
+            nn.Conv1d(5+hand_length, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(7, 16, kernel_size=5, stride=1),
-            nn.BatchNorm1d(16),
+            nn.Conv1d(5+hand_length, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
-        self.max_length = params['max_length']
-        self.initialize(critic)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            self.bn_layers.append(nn.BatchNorm1d(64))
+        self.maxlen = params['maxlen']
+        self.forward = self.forward_actor
+        # self.initialize(critic)
 
     def initialize(self,critic):
         if critic:
@@ -100,21 +108,21 @@ class ProcessHandBoard(nn.Module):
         ranks = x[:,:,::2]
         suits = x[:,:,1::2]
         hero_ranks = ranks[:,:,:2]
-        villain_ranks = ranks[:,:,2:4]
-        board_ranks = ranks[:,:,4:]
+        # villain_ranks = ranks[:,:,2:4]
+        board_ranks = ranks[:,:,2:]
         hero_suits = suits[:,:,:2]
-        villain_suits = suits[:,:,2:4]
+        # villain_suits = suits[:,:,2:4]
         board_suits = suits[:,:,4:]
         hero_hand_ranks = torch.cat((hero_ranks,board_ranks),dim=-1)
         hero_hand_suits = torch.cat((hero_suits,board_suits),dim=-1)
-        villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
-        villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
+        # villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
+        # villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
         hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks]
         hero_hot_suits = self.one_hot_suits[hero_hand_suits]
-        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks]
-        villain_hot_suits = self.one_hot_suits[villain_hand_suits]
+        # villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks]
+        # villain_hot_suits = self.one_hot_suits[villain_hand_suits]
         hero_activations = []
-        villain_activations = []
+        # villain_activations = []
         for i in range(M):
             hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
             hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
@@ -128,17 +136,17 @@ class ProcessHandBoard(nn.Module):
 
     def forward_actor(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
-        B,M,C = x.size()
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
+        M,C = x.size()
+        ranks = x[:,::2]
+        suits = x[:,1::2]
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
         activations = []
         for i in range(M):
-            s = self.suit_conv(hot_suits[:,i,:].float())
-            r = self.rank_conv(hot_ranks[:,i,:].float())
+            s = self.suit_conv(hot_suits[i,:,:].unsqueeze(0).float())
+            r = self.rank_conv(hot_ranks[i,:,:].unsqueeze(0).float())
             activations.append(torch.cat((r,s),dim=-1))
-        return torch.stack(activations).view(B,M,-1)
+        return torch.stack(activations).view(M,-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
@@ -151,10 +159,10 @@ class ProcessOrdinal(nn.Module):
 
     def forward(self,x):
         order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,0].long())
-        hero_position = self.position_emb(x[:,:,1].long()) + order[0]
-        vil_position = self.position_emb(x[:,:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,3].long())
+        street = self.street_emb(x[:,0].long())
+        hero_position = self.position_emb(x[:,1].long()) + order[0]
+        vil_position = self.position_emb(x[:,2].long()) + order[1]
+        previous_action = self.action_emb(x[:,3].long())
         ordinal_output = torch.cat((street,hero_position,vil_position,previous_action),dim=-1)
         return ordinal_output
 
@@ -169,13 +177,13 @@ class ProcessContinuous(nn.Module):
         self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=5)
         
     def forward(self,x):
-        B,M,C = x.size()
+        M,C = x.size()
         # 
-        previous_betsize = x[:,:,0]
-        hero_stack = x[:,:,1]
-        villain_stack = x[:,:,2]
-        amnt_to_call = x[:,:,3]
-        pot_odds = x[:,:,4]
+        previous_betsize = x[:,0].unsqueeze(-1)
+        hero_stack = x[:,1].unsqueeze(-1)
+        villain_stack = x[:,2].unsqueeze(-1)
+        amnt_to_call = x[:,3].unsqueeze(-1)
+        pot_odds = x[:,4].unsqueeze(-1)
 
         order = self.order_emb(torch.arange(5))
         bets = []
@@ -184,24 +192,26 @@ class ProcessContinuous(nn.Module):
         calls = []
         odds = []
         for i in range(M):
-            bets.append(self.betsize_fc(previous_betsize[:,i]) + order[0])
-            heros.append(self.stack_fc(hero_stack[:,i]) + order[1])
-            villains.append(self.stack_fc(villain_stack[:,i]) + order[2])
-            calls.append(self.call_fc(amnt_to_call[:,i]) + order[3])
-            odds.append(self.odds_fc(pot_odds[:,i]) + order[4])
+            bets.append(self.betsize_fc(previous_betsize[i]) + order[0])
+            heros.append(self.stack_fc(hero_stack[i]) + order[1])
+            villains.append(self.stack_fc(villain_stack[i]) + order[2])
+            calls.append(self.call_fc(amnt_to_call[i]) + order[3])
+            odds.append(self.odds_fc(pot_odds[i]) + order[4])
         bet = torch.stack(bets)
         hero = torch.stack(heros)
         villain = torch.stack(villains)
         call = torch.stack(calls)
         odd = torch.stack(odds)
-        continuous_output = torch.stack((bet,hero,villain,call,odd),dim=-1).view(B,M,-1)
+        continuous_output = torch.stack((bet,hero,villain,call,odd),dim=-1).view(M,-1)
         return continuous_output
 
 class PreProcessPokerInputs(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
+        self.maxlen = params['maxlen']
         self.mapping = params['mapping']
-        self.hand_board = ProcessHandBoard(params,critic)
+        hand_length = Globals.HAND_LENGTH_DICT[params['game']]
+        self.hand_board = ProcessHandBoard(params,hand_length)
         self.continuous = ProcessContinuous(params)
         self.ordinal = ProcessOrdinal(params)
         self.initialize(critic)
@@ -213,21 +223,23 @@ class PreProcessPokerInputs(nn.Module):
             self.forward = self.forward_actor
 
     def forward_critic(self,x):
-        h = self.hand_board(x[:,:,self.mapping['state']['hand_board']].long())
+        h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
         # h.size(B,M,240)
-        o = self.continuous(x[:,:,self.mapping['state']['continuous'].long()])
+        o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
-        c = self.ordinal(x[:,:,self.mapping['state']['ordinal'].long()])
+        c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
     def forward_actor(self,x):
-        h = self.hand_board(x[:,:,self.mapping['state']['hand_board']].long())
+        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
+        M,C = stripped_x.size()
+        h = self.hand_board(stripped_x[:,self.mapping['state']['hand_board']].long())
         # h.size(B,M,240)
-        o = self.continuous(x[:,:,self.mapping['state']['continuous'].long()])
+        o = self.continuous(stripped_x[:,self.mapping['state']['continuous'].long()])
         # o.size(B,M,5)
-        c = self.ordinal(x[:,:,self.mapping['state']['ordinal'].long()])
+        c = self.ordinal(stripped_x[:,self.mapping['state']['ordinal'].long()])
         # h.size(B,M,128)
         combined = torch.cat((h,o,c),dim=-1)
         return combined

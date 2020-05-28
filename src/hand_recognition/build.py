@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from collections import deque
 import os
 from random import shuffle
 

@@ -3,8 +3,8 @@ import time
 import torch.multiprocessing as mp
 import torch
 
-from train import train
-from train_parallel import gather_trajectories,train_shared_model
+from kuhn_train import train
+from kuhn_train_parallel import gather_trajectories,train_shared_model
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import FlatHistoricalActor,FlatHistoricalCritic
@@ -123,7 +123,6 @@ if __name__ == "__main__":
     training_params['training_data'] = training_data
     training_params['agent_name'] = f'{args.env}_baseline'
     training_params['agent_type'] = args.agent
-    training_params['critic'] = args.critic
 
     env = Poker(env_params)
 

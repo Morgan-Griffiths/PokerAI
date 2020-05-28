@@ -12,8 +12,8 @@ label_dict = {5:['Check','Bet'],
 
 
 HAND_LABELS_DICT = {
-    'frequency': lambda: [f'Hand_strength category {i}' for i,hand in enumerate(hands)],
-    'probability': lambda: [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in unique_hands]
+    'frequency': lambda x: [f'Hand_strength category {i}' for i,hand in enumerate(x)],
+    'probability': lambda x: [f'Hand {pdt.Globals.KUHN_CARD_DICT[hand]}' for hand in x]
 }
 
 colors = ['g','b','m','r','y']
@@ -68,7 +68,7 @@ def plot_frequencies(title:str,data:list,hand_labels:list,action_labels:list,pat
         # axs[i].legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
         #   fancybox=True, shadow=True, ncol=5)
     # axs.legend()
-    fig.subplots_adjust(hspace=0.5)
+    fig.subplots_adjust(hspace=1)
     fig.savefig(f'{path+title}.png',bbox_inches='tight')
     # plt.title(title)
     # plt.xlabel('Epochs')
@@ -113,7 +113,7 @@ def plot_action_frequencies(actiontype,handtype,training_round=0):
             actions,hands,unique_actions = mongo.actionByHand(data,data_params)
         else:
             actions,hands,unique_actions = mongo.actionByHandStrength(data,data_params)
-        hand_labels = HAND_LABELS_DICT[handtype]()
+        hand_labels = HAND_LABELS_DICT[actiontype](hands)
         action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_action_{handtype}_for_{query["position"]}',actions,hand_labels,action_labels)
 

@@ -2,7 +2,7 @@ from torch import Tensor as T
 
 ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
 ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
-ACTION_MASK = {
+ACTION_MASKS = {
         0:T([1,0,0,1,0]),
         1:T([0,0,0,0,0]),
         2:T([1,0,0,0,1]),
@@ -48,6 +48,7 @@ class AgentTypes:
     SPLIT = 'split'
     SINGLE = 'single'
     SPLIT_OBS = 'split_obs'
+    ALL = [SPLIT,SINGLE,SPLIT_OBS]
 
 BLIND_DICT = {
     Positions.BB : T([1]),
@@ -69,7 +70,7 @@ class BaseHoldem(object):
             'unopened_action' : T([5]),
             'mask_dict' :  ACTION_MASKS,
             'action_dict' : ACTION_ORDER,
-            'betsizes' : BETSIZE_DICT[2],
+            'betsizes' : T([0.5,1.]),
             'blinds': BLIND_DICT,
             'bettype' : LimitTypes.LIMIT,
             'mapping': {
@@ -132,7 +133,7 @@ class Holdem(object):
 class OmahaHI(object):
     def __init__(self):
         ## NOT IMPLEMENTED ##
-        self.starting_street = 0
+        self.starting_street = 3
         K = BaseHoldem()
         self.rule_params = K.rule_params
         self.state_params = K.state_params
@@ -200,3 +201,8 @@ class Globals:
         3:Street.RIVER
     }
     REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
+    HAND_LENGTH_DICT = {
+        'holdem':2,
+        'omahahi':4,
+        'omahahilo':4
+    }

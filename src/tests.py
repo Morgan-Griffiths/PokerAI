@@ -169,7 +169,7 @@ class TestEnv(unittest.TestCase):
         # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
         # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
 
-def envTestSuite():
+def kuhnTestSuite():
     suite = unittest.TestSuite()
     suite.addTest(TestEnv('testRun'))
     suite.addTest(TestEnv('testRepresentations'))
@@ -179,7 +179,6 @@ def envTestSuite():
     # suite.addTest(TestEnv('testScenario'))
     return suite
 
-
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(envTestSuite())
+    runner.run(kuhnTestSuite())

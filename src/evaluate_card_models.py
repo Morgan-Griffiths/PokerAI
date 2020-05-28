@@ -1,4 +1,5 @@
 import torch.nn.functional as F
+from torch.nn import DataParallel
 import torch
 import numpy as np
 import os
@@ -39,6 +40,8 @@ def unspool(X):
 
 def train_network(data_dict,agent_params,training_params):
     net = training_params['network'](agent_params['network_params'])
+    if torch.cuda.device_count() > 1:
+        net = DataParallel(net)
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
@@ -46,6 +49,7 @@ def train_network(data_dict,agent_params,training_params):
     score_window = deque(maxlen=100)
     val_window = deque(maxlen=100)
     for epoch in range(training_params['epochs']):
+        sys.stdout.write('\r')
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
@@ -74,7 +78,12 @@ def train_network(data_dict,agent_params,training_params):
             val_window.append(val_loss.item())
             val_scores.append(np.mean(val_window))
             net.train()
-        print(f'Episode {epoch} loss {np.mean(score_window)}')
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
+        sys.stdout.flush()
+        sys.stdout.write(", epoch %d"% (epoch+1))
+        sys.stdout.flush()
+        sys.stdout.write(f", loss {np.mean(score_window):.2f}")
+    print('')
     # Save graphs
     loss_data = [scores,val_scores]
     loss_labels = ['Training_loss','Validation_loss']
@@ -195,7 +204,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS}]",
+                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
                         help='Which dataset to train on')
     parser.add_argument('-M','--mode',
                         metavar=f"[{dt.Modes.TRAIN}, {dt.Modes.EXAMINE}]",

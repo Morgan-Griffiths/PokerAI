@@ -24,36 +24,39 @@ class HoldemBaseline(nn.Module):
         self.nB = nB
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
-        self.max_length = params['max_length']
+        self.maxlen = params['maxlen']
         self.process_input = PreProcessPokerInputs(params)
         
-        self.seed = torch.manual_seed(seed)
+        # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise()
-        emb = 528
+        self.emb = 1248
         n_heads = 8
         depth = 2
-        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
+        self.lstm = nn.LSTM(self.emb, 128)
+        # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
 
         self.fc1 = nn.Linear(528,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(64,self.combined_output)
+        self.fc3 = nn.Linear(1280,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
         mask = combined_masks(action_mask,betsize_mask)
         x = state
-        B,M,c = x.size()
-        n_padding = self.max_length - M
-        out = self.process_input(x)
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+        out = self.process_input(x).unsqueeze(0)
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
         padding = torch.zeros(B,n_padding,out.size(-1))
         h = torch.cat((out,padding),dim=1)
-        # should be (b,64,88)
-        action_logits = self.transformer(h)
-        category_logits = self.noise(action_logits)
+        lstm_out,_ = self.lstm(h)
+        t_logits = self.fc3(lstm_out.view(-1))
+        category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
@@ -61,9 +64,6 @@ class HoldemBaseline(nn.Module):
         action = m.sample()
 
         action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.mapping['state']['previous_action']])
-        # print('state',state)
-        # print('action_category,betsize_category',action_category,betsize_category)
-        
         outputs = {
             'action':action,
             'action_category':action_category,
@@ -80,7 +80,7 @@ class HoldemBaselineCritic(nn.Module):
         self.nO = nO
         self.nA = nA
         
-        self.seed = torch.manual_seed(seed)
+        # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
 
         self.process_input = PreProcessPokerInputs(params,critic=True)
@@ -138,39 +138,26 @@ class HoldemQCritic(nn.Module):
         self.nO = nO
         self.nA = nA
         
-        self.process_input = PreProcessPokerInputs(params,critic=True)
-        self.seed = torch.manual_seed(seed)
-        self.max_length = params['max_length']
+        self.process_input = PreProcessPokerInputs(params)
+        self.maxlen = params['maxlen']
         self.mapping = params['mapping']
-        self.fc1 = nn.Linear(528,hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(hidden_dims[1],nA)
-        emb = 528
+        emb = 1248
         n_heads = 8
         depth = 2
-        self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,self.nA)
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(5,1)
         self.advantage_output = nn.Linear(5,self.nA)
 
-    def forward(self,obs):
-        x = obs
-        B,M,c = x.size()
-        out = self.process_input(x)
-        transformer_outs = []
-        for i in range(M):
-            transformer_input = out[:,i,:].unsqueeze(1)
-            transformer_outs.append(self.transformer(transformer_input))
-        h = torch.stack(transformer_outs).permute(1,0,2)
-        # n_padding = self.max_length - M
-        # padding = torch.zeros(B,n_padding,out.size(-1))
-        # h = torch.cat((out,padding),dim=1)
-        # x = self.activation(self.fc1(out))
-        # x = self.activation(self.fc2(x))
-        # x = self.activation(self.fc3(x))
-        # x = self.dropout(x)
-        a = self.advantage_output(h)
-        v = self.value_output(h)
+    def forward(self,state):
+        x = state
+        if x.ndim == 2:
+            x = x.unsqueeze(0)
+        out = self.process_input(x).unsqueeze(0)
+        B,M,c = out.size()
+        q_input = self.transformer(out)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
         v = v.expand_as(a)
         q = v + a - a.mean(-1,keepdim=True).expand_as(a)
         outputs = {

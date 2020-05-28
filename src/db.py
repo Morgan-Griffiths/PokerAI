@@ -8,18 +8,18 @@ class MongoDB(object):
         self.connect()
 
     def connect(self):
-        client = MongoClient('localhost', 27017)
-        self.db = client['poker']
+        self.client = MongoClient('localhost', 27017,maxPoolSize=10000)
+        self.db = self.client['poker']
 
-    def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype):
+    def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype,id=0,epochs=100):
         if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN or gametype == pdt.GameTypes.HISTORICALKUHN:
-            self.store_kuhn_data(training_data,mapping,training_round,gametype)
+            self.store_kuhn_data(training_data,mapping,training_round,gametype,id)
         elif gametype == pdt.GameTypes.HOLDEM:
-            self.store_holdem_data(training_data,mapping,training_round,gametype)
+            self.store_holdem_data(training_data,mapping,training_round,gametype,id)
         else:
             raise ValueError('Improper gametype')
 
-    def store_kuhn_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str):
+    def store_kuhn_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str,id:int,epochs:int):
         """
         training_data, contains all positions
         Poker db;
@@ -92,7 +92,7 @@ class MongoDB(object):
                             state_json['value'] = float(values[step].detach())
                     self.db['game_data'].insert_one(state_json)
 
-    def store_holdem_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str):
+    def store_holdem_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str,id:int,epochs:int):
         """
         training_data, contains all positions
         Poker db;
@@ -145,7 +145,7 @@ class MongoDB(object):
                         'action_probs':action_probs[step].detach().tolist(),
                         'previous_action':previous_action.tolist(),
                         'training_round':training_round,
-                        'poker_round':i,
+                        'poker_round':i + (id * epochs),
                         'step':step,
                         'game':gametype,
                         'hand_strength':hand_strength

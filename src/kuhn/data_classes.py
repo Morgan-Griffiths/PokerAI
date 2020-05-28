@@ -420,7 +420,6 @@ class Rules(object):
         self.mask_dict = params['mask_dict']
         self.bets_per_street = params['bets_per_street']
         self.db_mapping = params['mapping']
-        self.state_index = params['state_index']
         self.action_space = len(self.action_dict.keys())
         self.over = self.two_actions if self.bets_per_street == 1 else self.multiple_actions
 

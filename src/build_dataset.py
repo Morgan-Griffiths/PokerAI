@@ -20,9 +20,6 @@ if __name__ == "__main__":
                         default='handtype',type=str,
                         metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
                         help='Which dataset to train or build')
-    parser.add_argument('-m','--maxlen',
-                        help='maxlen of data deques for building data',
-                        default=1000,type=int)
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
                         default=None,type=str)
@@ -74,8 +71,8 @@ if __name__ == "__main__":
 
     dataset = CardDataset(dataset_params)
     if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        trainX,trainY = dataset.build_hand_ranks(5)
-        valX,valY = dataset.build_hand_ranks(1)
+        trainX,trainY = dataset.build_hand_ranks(100)
+        valX,valY = dataset.build_hand_ranks(10)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)

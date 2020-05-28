@@ -1,5 +1,6 @@
 import hand_recognition.datatypes as dt
 from torch.nn import CrossEntropyLoss,BCELoss,SmoothL1Loss
+from hand_recognition.networks import FiveCardClassification,HandClassification,TenCardClassificationV2,ThirteenCardV2,PartialHandRegression,BlockerClassification,HandRankClassification
 
 class NetworkConfig(object):
     DataModels = {
