@@ -111,7 +111,11 @@ def train_shared_model(agent_params,env_params,training_params,id,actor,critic):
     nC = nA - 2 + nB
     print_every = (training_params['epochs']+1) // 5
     seed = 154
-    agent = FullAgent(nS,nO,nA,nB,seed,agent_params,actor,critic)
+    if torch.cuda.device_count() > 1:
+        device = 'cuda:0' if id % 2 == 0 else 'cuda:1'
+    else:
+        device = 'cpu'
+    agent = FullAgent(nS,nO,nA,nB,seed,agent_params,actor,critic).to(device)
     training_data = copy.deepcopy(training_params['training_data'])
     for e in range(1,training_params['epochs']+1):
         state,obs,done,mask,betsize_mask = env.reset()
