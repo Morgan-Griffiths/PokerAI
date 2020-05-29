@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import numpy as np
 import torch
 import kuhn.datatypes as pdt
+import poker.datatypes as hdt
 
 class MongoDB(object):
     def __init__(self):
@@ -14,8 +15,8 @@ class MongoDB(object):
     def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype,id:int,epochs:int):
         if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN or gametype == pdt.GameTypes.HISTORICALKUHN:
             self.store_kuhn_data(training_data,mapping,training_round,gametype,id,epochs)
-        elif gametype == pdt.GameTypes.HOLDEM:
-            self.store_holdem_data(training_data,mapping,training_round,gametype,id,epochs)
+        elif gametype == hdt.GameTypes.HOLDEM or gametype == hdt.GameTypes.OMAHAHI:
+            self.store_full_data(training_data,mapping,training_round,gametype,id,epochs)
         else:
             raise ValueError('Improper gametype')
 
@@ -92,7 +93,7 @@ class MongoDB(object):
                             state_json['value'] = float(values[step].detach())
                     self.db['game_data'].insert_one(state_json)
 
-    def store_holdem_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str,id:int,epochs:int):
+    def store_full_data(self,training_data:dict,mapping:dict,training_round:int,gametype:str,id:int,epochs:int):
         """
         training_data, contains all positions
         Poker db;

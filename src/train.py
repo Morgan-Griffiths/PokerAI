@@ -24,5 +24,7 @@ def train(env,agent,training_params):
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
         sys.stdout.flush()
+    print(training_params['save_dir'])
+    print(training_params['agent_name'])
     agent.save_weights(os.path.join(training_params['save_dir'],training_params['agent_name']))
     return training_data

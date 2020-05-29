@@ -3,7 +3,8 @@ from sys import platform
 
 if platform == "linux" or platform == "linux2":
     # linux
-    lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
+    lib = ctypes.cdll.LoadLibrary('/home/shuza/Code/PokerAI/rusteval/target/release/librusteval.so')
+    # lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
 elif platform == "darwin":
     # OS X
     lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
