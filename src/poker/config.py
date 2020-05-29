@@ -30,5 +30,7 @@ class Config(object):
             'critic_type':'q',
             'embedding_size': 32,
             'actor_lr':1e-4,
-            'critic_lr':4e-7
+            'critic_lr':4e-7,
+            'frozen_layer_path' : '/Users/morgan/Code/PokerAI/src/checkpoints/regression/PartialHandRegression',
+            'frozen_layer' : True
         }

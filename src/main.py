@@ -106,8 +106,6 @@ if __name__ == "__main__":
     agent_params['network_output'] = args.network_output
     agent_params['maxlen'] = config.maxlen
     agent_params['game'] = args.game
-    agent_params['frozen_layer_path'] = '/Users/morgan/Code/PokerAI/src/checkpoints/regression/PartialHandRegression'
-    agent_params['frozen_layer'] = True
 
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
 

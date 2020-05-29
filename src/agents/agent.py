@@ -570,25 +570,12 @@ class FullAgent(Agent):
             
     def update_weights(self,params):
         layer_weights = torch.load(params['frozen_layer_path'])
-        layer_names = ['0.weight','0.bias','1.weight','1.bias','1.running_mean','1.running_var','1.num_batches_tracked']
-        suit_names = ['suit_conv.'+layer for layer in layer_names]
-        rank_names = ['rank_conv.'+layer for layer in layer_names]
-        all_names = suit_names + rank_names
         for name, param in self.local_critic.process_input.hand_board.named_parameters():
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
         for name, param in self.local_actor.process_input.hand_board.named_parameters():
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
-            # print(name, param.size())
-            # print(layer_weights[name].size())
-            # pass
-        # for name in all_names:
-        #     self.local_critic.process_input.hand_board.suit_conv[0] = layer_weights[name]
-        #     self.local_actor.process_inputs[name] = layer_weights[name]
-        #     self.local_critic.process_input.hand_board.suit_conv[0].requires_grad = False
-        #     self.local_actor.process_inputs[name].requires_grad = False
-        #     # param.requires_grad = False
     
     def learn(self,player_data):
         positions = player_data.keys()
@@ -698,3 +685,21 @@ class FullAgent(Agent):
             out.append(actor_out)
         out = torch.stack(out).squeeze(1)
         return out
+
+class BetAgent(object):
+    def __init__(self):
+        pass
+
+    def __call__(self,state,action_mask,betsize_mask):
+        if betsize_mask.sum() > 0:
+            action = torch.argmax(betsize_mask,dim=-1) + 3
+        else:
+            action = torch.argmax(action_mask,dim=-1)
+        actor_outputs = {
+            'action':action,
+            'action_category':torch.argmax(action_mask,dim=-1),
+            'action_probs':torch.zeros(5).fill_(2.),
+            'action_prob':torch.tensor([1.]),
+            'betsize' : torch.argmax(betsize_mask,dim=-1)
+        }
+        return actor_outputs
