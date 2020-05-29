@@ -151,9 +151,6 @@ class TestEnv(unittest.TestCase):
         os.system('python kuhn_main.py --env betsizekuhn -e 2 --no-clean --no-store')
         os.system('python kuhn_main.py --env historicalkuhn -e 2 --no-clean --no-store')
         os.system('python kuhn_main.py --env historicalkuhn -e 5 --parallel --no-clean --no-store')
-        # os.system('python main.py --env holdem -e 10 --no-clean --no-store')
-        # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
-        # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
 
 def kuhnTestSuite():
     suite = unittest.TestSuite()

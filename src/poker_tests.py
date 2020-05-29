@@ -261,6 +261,10 @@ class TestEnv(unittest.TestCase):
         assert(holdem([holdem_hand,holdem_hand2,holdem_board]) == 1)
         assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
+    def testRunouts(self):
+        os.system('python main.py --game holdem -e 5 --no-clean --no-store')
+        os.system('python main.py --game omaha_hi -e 5 --no-clean --no-store')
+
 def pokerTestSuite():
     suite = unittest.TestSuite()
     suite.addTest(TestEnv('testInitialization'))
@@ -270,6 +274,7 @@ def pokerTestSuite():
     suite.addTest(TestEnv('testBetRaiseCall'))
     suite.addTest(TestEnv('testEvaluations'))
     suite.addTest(TestEnv('testML'))
+    suite.addTest(TestEnv('testRunouts'))
     return suite
 
 
