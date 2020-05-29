@@ -172,7 +172,7 @@ if __name__ == "__main__":
             if args.clean:
                 print('Cleaning db')
                 mongo.clean_db()
-            mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
+            mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game,0,training_params['epochs'])
 
     toc = time.time()
     print(f'\nExecution took {(toc-tic)/60} minutes')

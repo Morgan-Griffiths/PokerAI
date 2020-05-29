@@ -48,7 +48,7 @@ def train_shared_model(agent_params,env_params,training_params,id,actor,critic):
             print(f'PID {pid}, Epoch {e}')
     mongo = MongoDB()
     mongo.clean_db()
-    mongo.store_data(training_data,env.db_mapping,training_params['training_round'],env.game)
+    mongo.store_data(training_data,env.db_mapping,training_params['training_round'],env.game,id,training_params['epochs'])
 
 def gather_trajectories(agent_params,env_params,training_params,id,return_dict):
     pid = os.getpid()

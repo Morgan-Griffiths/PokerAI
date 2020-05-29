@@ -279,7 +279,8 @@ class Agent(object):
 
     def qcritic_backward(self,critic_inputs:dict):
         """Computes critic grad update. Optionally computes betsize grad update in unison"""
-        values = self.local_critic(critic_inputs['game_states'])['value']
+        critic_output = self.local_critic(critic_inputs['game_states'])
+        values = critic_output['value']
         scaled_rewards = self.scale_rewards(critic_inputs['rewards'])
         value_mask = self.return_value_mask(critic_inputs['actions'])
         critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),values[value_mask],reduction='sum')

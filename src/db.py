@@ -11,11 +11,11 @@ class MongoDB(object):
         self.client = MongoClient('localhost', 27017,maxPoolSize=10000)
         self.db = self.client['poker']
 
-    def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype,id=0,epochs=100):
+    def store_data(self,training_data:dict,mapping:dict,training_round:int,gametype,id:int,epochs:int):
         if gametype == pdt.GameTypes.COMPLEXKUHN or gametype == pdt.GameTypes.KUHN or gametype == pdt.GameTypes.BETSIZEKUHN or gametype == pdt.GameTypes.HISTORICALKUHN:
-            self.store_kuhn_data(training_data,mapping,training_round,gametype,id)
+            self.store_kuhn_data(training_data,mapping,training_round,gametype,id,epochs)
         elif gametype == pdt.GameTypes.HOLDEM:
-            self.store_holdem_data(training_data,mapping,training_round,gametype,id)
+            self.store_holdem_data(training_data,mapping,training_round,gametype,id,epochs)
         else:
             raise ValueError('Improper gametype')
 

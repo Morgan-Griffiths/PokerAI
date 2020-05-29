@@ -158,7 +158,7 @@ def kuhnTestSuite():
     suite.addTest(TestEnv('testRepresentations'))
     suite.addTest(TestEnv('testEvaluations'))
     suite.addTest(TestEnv('testEnvFunctions'))
-    # suite.addTest(TestEnv('TestRlEnvironments'))
+    suite.addTest(TestEnv('TestRlEnvironments'))
     # suite.addTest(TestEnv('testScenario'))
     return suite
 
