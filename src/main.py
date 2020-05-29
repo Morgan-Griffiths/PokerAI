@@ -4,7 +4,7 @@ import torch.multiprocessing as mp
 import torch
 
 from train import train
-from train_parallel import gather_trajectories,train_shared_model
+from train_parallel import train_shared_model
 from poker.config import Config
 import poker.datatypes as pdt
 from poker.multistreet_env import MSPoker
@@ -78,37 +78,35 @@ if __name__ == "__main__":
     print(f'args {args}')
     tic = time.time()
     
-    assert(args.agent in f"[{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS}]",'Invalid agent selection')
-    assert(args.output in f"[{pdt.OutputTypes.FLAT},{pdt.OutputTypes.TIERED}]",'Invalid output selection')
-    assert(args.game in f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",'Invalid game selection')
+    assert args.agent in f"[{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS}]",'Invalid agent selection'
+    assert args.network_output in f"[{pdt.OutputTypes.FLAT},{pdt.OutputTypes.TIERED}]",'Invalid output selection'
+    assert args.game in f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",'Invalid game selection'
+
     game_object = pdt.Globals.GameTypeDict[args.game]
-
-
     config = Config()
     config.agent = args.agent
-    env_params = {'game':args.env}
+    env_params = {'game':args.game}
     env_params['state_params'] = game_object.state_params
     env_params['rule_params'] = game_object.rule_params
     env_params['rule_params']['network_output'] = args.network_output
     env_params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[args.betsize]
-    env_params['rule_params']['maxturns'] = args.padding_maxlen
-    env_params['rule_params']['padding'] = args.padding
     env_params['starting_street'] = game_object.starting_street
+    env_params['maxlen'] = config.maxlen
     agent_params = config.agent_params
 
-    env_networks = NetworkConfig.EnvModels[args.env]
+    env_networks = NetworkConfig.EnvModels[args.game]
     agent_params['network'] = env_networks['actor']
     agent_params['actor_network'] = env_networks['actor']
-    agent_params['critic_network'] = env_networks['critic'][args.critic]
+    agent_params['critic_network'] = env_networks['critic']['q']
     agent_params['combined_network'] = env_networks['combined']
     agent_params['mapping'] = env_params['rule_params']['mapping']
     agent_params['max_reward'] = env_params['state_params']['stacksize'] + env_params['state_params']['pot']
     agent_params['min_reward'] = env_params['state_params']['stacksize']
     agent_params['epochs'] = int(args.epochs)
     agent_params['network_output'] = args.network_output
-    agent_params['embedding_size'] = 32
-    agent_params['max_length'] = args.padding_maxlen
-    agent_params['historical_states'] = True if args.env == pdt.GameTypes.HISTORICALKUHN else False
+    agent_params['maxlen'] = config.maxlen
+    agent_params['game'] = args.game
+    agent_params['frozen_layer'] = True if args.game == 'omaha_hi' else False
 
     print(f'Training the following networks {agent_params["critic_network"].__name__},{agent_params["actor_network"].__name__}')
 
@@ -120,14 +118,10 @@ if __name__ == "__main__":
     training_params = config.training_params
     training_params['epochs'] = int(args.epochs)
     training_params['training_data'] = training_data
-    training_params['agent_name'] = f'{args.env}_baseline'
+    training_params['agent_name'] = f'{args.game}_baseline'
     training_params['agent_type'] = args.agent
-    training_params['critic'] = args.critic
 
-    if args.env == pdt.GameTypes.HOLDEM or args.env == pdt.GameTypes.OMAHAHI:
-        env = MSPoker(env_params)
-    else:
-        env = Poker(env_params)
+    env = MSPoker(env_params)
 
     nS = env.state_space
     nO = env.observation_space
@@ -142,10 +136,13 @@ if __name__ == "__main__":
         # manager = mp.Manager()
         # return_dict = manager.dict()
         # online training
+        mongo = MongoDB()
+        mongo.clean_db()
+        mongo.close()
         seed = 123
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        actor = env_networks['actor'](seed,nS,nA,nB,agent_params)
-        critic = env_networks['critic'][args.critic](seed,nS,nA,nB,agent_params)
+        actor = agent_params['actor_network'](seed,nS,nA,nB,agent_params)
+        critic = agent_params['critic_network'](seed,nS,nA,nB,agent_params)
         del env
         actor.share_memory()#.to(device)
         critic.share_memory()#.to(device)
@@ -162,8 +159,8 @@ if __name__ == "__main__":
             processes.append(p)
         for p in processes: 
             p.join()
-        torch.save(actor.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_actor')
-        torch.save(critic.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_critic')
+        torch.save(actor.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Holdem' + '_actor')
+        torch.save(critic.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Holdem' + '_critic')
     else:
         seed = 154
         agent = return_agent(training_params['agent_type'],nS,nO,nA,nB,seed,agent_params)
@@ -175,7 +172,7 @@ if __name__ == "__main__":
             if args.clean:
                 print('Cleaning db')
                 mongo.clean_db()
-            mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game)
+            mongo.store_data(action_data,env.db_mapping,training_params['training_round'],env.game,0,training_params['epochs'])
 
     toc = time.time()
     print(f'\nExecution took {(toc-tic)/60} minutes')

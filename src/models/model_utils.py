@@ -15,7 +15,6 @@ def padding_index(x,maxlen):
     n_states = torch.tensor(maxlen - padding)
     return n_states
 
-
 def hidden_init(layer):
     fan_in = layer.weight.data.size()[0]
     lim = 1. / np.sqrt(fan_in)

@@ -35,19 +35,16 @@ class Poker(object):
 
     def initialize_functions(self):
         func_dict = {
-            pdt.GameTypes.KUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
-            pdt.GameTypes.COMPLEXKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
-            pdt.GameTypes.BETSIZEKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_kuhn_state},
-            pdt.GameTypes.HISTORICALKUHN : {'determine_winner':self.determine_kuhn,'return_state':self.return_historical_kuhn_state},
-            pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_holdem,'return_state':self.return_holdem_state},
-            pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED'
+            pdt.GameTypes.KUHN : {'return_state':self.return_kuhn_state},
+            pdt.GameTypes.COMPLEXKUHN : {'return_state':self.return_kuhn_state},
+            pdt.GameTypes.BETSIZEKUHN : {'return_state':self.return_kuhn_state},
+            pdt.GameTypes.HISTORICALKUHN : {'return_state':self.return_historical_kuhn_state}
         }
         betsize_funcs = {
             pdt.LimitTypes.LIMIT : self.return_limit_betsize,
             pdt.LimitTypes.NO_LIMIT : self.return_nolimit_betsize,
             pdt.LimitTypes.POT_LIMIT : self.return_potlimit_betsize,
         }
-        self.determine_winner = func_dict[self.game]['determine_winner']
         self.return_state = func_dict[self.game]['return_state']
         self.return_betsize = betsize_funcs[self.rules.bettype]
         # Records action frequencies per street
@@ -95,17 +92,17 @@ class Poker(object):
         """
         resets env state to initial state (can be preloaded).
         """
-        self.history.reset()
-        self.pot.reset()
-        self.game_turn.reset()
-        self.deck.reset()
-        self.deck.shuffle()
         self.action_records = {
             0:{i:0 for i in range(5)},
             1:{i:0 for i in range(5)},
             2:{i:0 for i in range(5)},
             3:{i:0 for i in range(5)}
         }
+        self.history.reset()
+        self.pot.reset()
+        self.game_turn.reset()
+        self.deck.reset()
+        self.deck.shuffle()
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
@@ -260,9 +257,9 @@ class Poker(object):
             self.players.update_stack(self.pot.value,winner_position)
         self.players.gen_rewards()
 
-    def determine_kuhn(self):
+    def determine_winner(self):
         """
-        Two cases, showdown and none showdown.
+        Two cases, showdown and none showdown. There are no ties in Kuhn.
         """
         if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             self.players.update_stack(self.pot.value)
@@ -319,12 +316,7 @@ class Poker(object):
             state,obs = self.return_kuhn_state(action)
             n_padding = self.maxlen - 1
         return state,obs
-
-    def return_combined_state(self):
-        M = self.players.combined_states.size(0)
-        hand = torch.tensor(self.players.hand[self.current_player]).repeat(M).unsqueeze(-1).float()
-        raw_ml[position]['full_states'] = torch.cat((hand,combined_states),dim=-1).view(-1,self.state_space)
-
+        
     def return_kuhn_state(self,action=None):
         """
         Current player's hand. Previous action, Previous betsize (Not always used by network)

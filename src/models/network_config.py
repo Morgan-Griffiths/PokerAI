@@ -1,4 +1,5 @@
 import kuhn.datatypes as pdt
+import poker.datatypes as hdt
 from models.networks import *
 
 class CriticType:
@@ -37,12 +38,19 @@ class NetworkConfig(object):
                 },
                 'combined': FlatAC
                 },
-            pdt.GameTypes.HOLDEM : {
+            hdt.GameTypes.HOLDEM : {
                 'actor':HoldemBaseline,
                 'critic':{
                     CriticType.Q : HoldemQCritic,
                     CriticType.REG : HoldemBaselineCritic
                 },
                 'combined': FlatAC},
-            pdt.GameTypes.OMAHAHI : 'Not implemented',
+            hdt.GameTypes.OMAHAHI : {
+                'actor':HoldemBaseline,
+                'critic':{
+                    CriticType.Q : HoldemQCritic,
+                    CriticType.REG : HoldemBaselineCritic
+                },
+                'combined': FlatAC
+            },
         }

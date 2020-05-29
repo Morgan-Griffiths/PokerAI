@@ -2,9 +2,9 @@ class Config(object):
     def __init__(self):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
+        self.maxlen = 10
         self.training_params = {
                 'epochs':2500,
-                'action_index':1,
                 'training_round':0,
                 'save_dir':'checkpoints/RL'
             }
@@ -27,5 +27,10 @@ class Config(object):
             'network':None,
             'critic_network':None,
             'actor_network':None,
-            'critic_type':'q'
+            'critic_type':'q',
+            'embedding_size': 32,
+            'actor_lr':1e-4,
+            'critic_lr':4e-7,
+            'frozen_layer_path' : '/Users/morgan/Code/PokerAI/src/checkpoints/regression/PartialHandRegression',
+            'frozen_layer' : False
         }

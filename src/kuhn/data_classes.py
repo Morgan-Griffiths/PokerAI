@@ -417,12 +417,9 @@ class Rules(object):
         self.num_betsizes = len(self.betsizes)
         self.unopened_action = params['unopened_action']
         self.action_dict = params['action_dict']
-        self.betsize_dict = params['betsize_dict']
         self.mask_dict = params['mask_dict']
         self.bets_per_street = params['bets_per_street']
         self.db_mapping = params['mapping']
-        self.action_index = params['action_index'] # Indexes into game_state. Important for masking actions
-        self.state_index = params['state_index']
         self.action_space = len(self.action_dict.keys())
         self.over = self.two_actions if self.bets_per_street == 1 else self.multiple_actions
 
@@ -448,37 +445,10 @@ def eval_kuhn(cards):
     ranks = [card.rank for card in hand1+hand2]
     return np.argmax(ranks)
 
-def eval_holdem(cards):
-    hand1,hand2,board = cards
-    hand1 = [[card.rank,card.suit] for card in hand1]
-    hand2 = [[card.rank,card.suit] for card in hand2]
-    board = [[card.rank,card.suit] for card in board]
-    en_hand1 = [encode(c) for c in hand1]
-    en_hand2 = [encode(c) for c in hand2]
-    en_board = [encode(c) for c in board]
-    return holdem_winner(en_hand1,en_hand2,en_board)
-
-def eval_omaha_hi(cards):
-    hand1,hand2,board = cards
-    hand1 = [[card.rank,card.suit] for card in hand1]
-    hand2 = [[card.rank,card.suit] for card in hand2]
-    board = [[card.rank,card.suit] for card in board]
-    en_hand1 = [encode(c) for c in hand1]
-    en_hand2 = [encode(c) for c in hand2]
-    en_board = [encode(c) for c in board]
-    return  winner(en_hand1,en_hand2,en_board)
-
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
-        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN or self.game == pdt.GameTypes.BETSIZEKUHN or self.game == pdt.GameTypes.HISTORICALKUHN:
-            self.evaluate = eval_kuhn
-        elif self.game == pdt.GameTypes.HOLDEM:
-            self.evaluate = eval_holdem
-        elif self.game == pdt.GameTypes.OMAHAHI:
-            self.evaluate = eval_omaha_hi
-        else:
-            raise ValueError('Game type not supported')
+        self.evaluate = eval_kuhn
         
     def __call__(self,cards):
         return self.evaluate(cards)

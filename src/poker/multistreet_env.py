@@ -22,6 +22,12 @@ Step output is
 State,Obs,done,Action_mask,Betsize_mask
 
 State,Obs output is stacked gamestate representations
+
+Actor outputs: 
+Action_category is always one of the 5 general actions (fold,call,raise,bet,check)
+Action is in the shape of nC. Combined actions and betsizes.
+Action_probs: Shape (nC)
+Action_prob: log_prob of choose the action it picked.
 """
 
 class MSPoker(object):
@@ -33,13 +39,14 @@ class MSPoker(object):
         self.evaluator = Evaluator(self.game)
         self.rules = Rules(self.params['rule_params'])
         # State attributes
+        self.maxlen = self.params['maxlen']
         self.starting_street = self.params['starting_street'] # Number range(0,4)
         self.street = self.starting_street
-        self.stacksize = self.state_params['stacksize']
         self.n_players = self.state_params['n_players']
+        self.stacksize = self.state_params['stacksize']
+        self.stacksizes = torch.Tensor(self.n_players).fill_(self.stacksize)
         self.pot = Pot(self.state_params['pot'])
         self.game_turn = GameTurn(self.state_params['game_turn'])
-        self.stacksizes = torch.Tensor(self.n_players).fill_(self.stacksize)
         self.deck = Deck(self.state_params['ranks'],self.state_params['suits'])
         self.deck.shuffle()
         cards = self.deck.deal(self.state_params['cards_per_player'] * self.n_players)
@@ -53,18 +60,11 @@ class MSPoker(object):
         self.blinds = [0.5,1]
 
     def initialize_functions(self):
-        func_dict = {
-            pdt.GameTypes.HOLDEM : {'determine_winner':self.determine_output,'return_state':self.return_current_state},
-            pdt.GameTypes.OMAHAHI : 'NOT IMPLEMENTED',
-            pdt.GameTypes.OMAHAHILO : 'NOT IMPLEMENTED'
-        }
         betsize_funcs = {
             pdt.LimitTypes.LIMIT : self.return_limit_betsize,
             pdt.LimitTypes.NO_LIMIT : self.return_nolimit_betsize,
             pdt.LimitTypes.POT_LIMIT : self.return_potlimit_betsize,
         }
-        self.determine_winner = func_dict[self.game]['determine_winner']
-        self.return_state = func_dict[self.game]['return_state']
         self.return_betsize = betsize_funcs[self.rules.bettype]
         # Records action frequencies per street
         self.action_records = {
@@ -73,8 +73,8 @@ class MSPoker(object):
             2:{i:0 for i in range(5)},
             3:{i:0 for i in range(5)}
         }
-        self.nO = self.return_state()[1].size()[-1]
-        self.nS = self.return_state()[0].size()[-1]
+        self.nO = self.return_last_state()[1].size()[-1]
+        self.nS = self.return_last_state()[0].size()[-1]
     
     def save_state(self,path=None):
         path = self.params['save_path'] if path is None else path
@@ -111,6 +111,12 @@ class MSPoker(object):
         """
         resets env state to initial state (can be preloaded).
         """
+        self.action_records = {
+            0:{i:0 for i in range(5)},
+            1:{i:0 for i in range(5)},
+            2:{i:0 for i in range(5)},
+            3:{i:0 for i in range(5)}
+        }
         self.history.reset()
         self.pot.reset()
         self.game_turn.reset()
@@ -121,20 +127,17 @@ class MSPoker(object):
         hands = [cards[player * self.state_params['cards_per_player']:(player+1) * self.state_params['cards_per_player']] for player in range(self.n_players)]
         self.players.reset(hands)
         self.players.reset_street_totals()
-        self.action_records = {
-            0:{i:0 for i in range(5)},
-            1:{i:0 for i in range(5)},
-            2:{i:0 for i in range(5)},
-            3:{i:0 for i in range(5)}
-        }
         if self.street == 0:
             self.initialize_blinds()
         self.board = self.deck.initialize_board(self.starting_street)
-        state,obs = self.initialize_state()
-        self.players.store_states(state,obs)
-        action_mask,betsize_mask = self.action_mask(state)
+        last_state,last_obs,global_state = self.initialize_state()
+        self.players.store_states(last_state,last_obs,global_state)
+        full_state,full_obs = self.return_full_state()
+        self.players.store_history(full_state,full_obs)
+        action_mask,betsize_mask = self.action_mask(last_state)
         self.players.store_masks(action_mask,betsize_mask)
-        return state,obs,self.game_over,action_mask,betsize_mask
+        self.players.store_dones(self.game_over)
+        return full_state,full_obs,self.game_over,action_mask,betsize_mask
 
     def initialize_state(self):
         """
@@ -198,14 +201,15 @@ class MSPoker(object):
 
             BB_state = torch.cat((BB_state_unopened,BB_state_SB,BB_current_state),dim=1)
             BB_obs = torch.cat((BB_obs_unopened,BB_obs_SB,BB_current_obs),dim=1)
-            self.players.store_states(BB_state,BB_obs,player='BB')
+            BB_global_state = torch.cat((street,SB_position,BB_position,BB_action,BB_betsize,SB_stack,BB_stack,BB_to_call,current_pot_odds)).unsqueeze(0).unsqueeze(0)
+            self.players.store_states(BB_state,BB_obs,BB_global_state,player='BB')
             self.history.add(self.players.players['SB'],SB_action,SB_betsize)
             self.history.add(self.players.players['BB'],BB_action,BB_betsize)
         else:
             SB_state = torch.cat((SB_hand,board,street,SB_position,BB_position,self.rules.unopened_action,torch.tensor([0.]),SB_stack,BB_stack,SB_to_call,SB_pot_odds)).unsqueeze(0).unsqueeze(0)
             SB_obs = torch.cat((SB_hand,BB_hand,board,street,SB_position,BB_position,self.rules.unopened_action,torch.tensor([0.]),SB_stack,BB_stack,SB_to_call,SB_pot_odds)).unsqueeze(0).unsqueeze(0)
-            
-        return SB_state,SB_obs
+        SB_global_state = torch.cat((street,SB_position,BB_position,self.rules.unopened_action,torch.tensor([0.]),SB_stack,BB_stack,SB_to_call,SB_pot_odds)).unsqueeze(0).unsqueeze(0)
+        return SB_state,SB_obs,SB_global_state
 
     def initialize_blinds(self):
         for position,blind in pdt.Globals.BLIND_DICT.items():
@@ -216,62 +220,56 @@ class MSPoker(object):
         new_cards = self.deck.deal_board(street)
         for card in new_cards:
             self.board.append(card) 
+
+    def record_action(self,action):
+        self.action_records[self.street][action] += 1
     
     def increment_turn(self):
         self.players.increment()
         self.game_turn.increment()
 
-    def increment_street(self,showdown=False):
+    def increment_street(self):
         self.street += 1
-        assert self.street > pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER]
+        assert not self.street > pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER],'Street is greater than river'
         # clear previous street totals
         self.players.reset_street_totals()
         # update board
         self.update_board(self.street)
         # update positions
         self.players.update_position_order(self.street)
-        if showdown == True:
+        # Fast forward to river if allin
+        if self.players.to_showdown == True:
             for _ in range(pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER] - self.street):
                 self.street += 1
                 self.update_board(self.street)
                 
-    def return_full_state(self,state,obs):
-        """
-        Takes in the last state and concats it with all the states for that player so far. 
-        Returns in the form: (b,m,c)
-        """
-        if len(self.players.game_states[self.players.current_player]) > 0:
-            hist_game_states = torch.stack(self.players.game_states[self.players.current_player],dim=0).squeeze(1).permute(1,0,2)
-            hist_obs = torch.stack(self.players.observations[self.players.current_player],dim=0).squeeze(1).permute(1,0,2)
-            return torch.cat([hist_game_states,state],dim=1),torch.cat([hist_obs,obs],dim=1)
-        else:
-            return state,obs
-
     def step(self,actor_outputs):
         self.players.store_actor_outputs(actor_outputs)
         self.update_state(actor_outputs['action_category'],actor_outputs['betsize'])
-        state,obs = self.return_state(actor_outputs['action_category'])
-        if self.round_over and self.street != pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER]:
-            # Check for allins -> accelerate to final
-            # deal board, get new state,obs with unopened action, reset player street totals
-            self.increment_street(showdown=self.players.to_showdown)
-            new_state,new_obs = self.return_state()
-            state = torch.cat([state,new_state])
-            obs = torch.cat([obs,new_obs])
-        action_mask,betsize_mask = self.action_mask(state)
-        full_state,full_obs = self.return_full_state(state,obs)
+        last_state,last_obs,global_state = self.return_last_state(actor_outputs['action_category'])
         done = self.game_over
         if done == False:
-            self.players.store_states(state,obs) 
+            self.players.store_states(last_state,last_obs,global_state)
+            if self.round_over and self.street != pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER]:
+                # Check for allins -> accelerate to final
+                # deal board, get new state,obs with unopened action, reset player street totals
+                self.increment_street()
+                last_state,last_obs,global_state = self.return_last_state()
+                self.players.store_states(last_state,last_obs,global_state)
+            action_mask,betsize_mask = self.action_mask(last_state)
+            full_state,full_obs = self.return_full_state()
+            self.players.store_dones(done)
+            self.players.store_history(full_state,full_obs)
             self.players.store_masks(action_mask,betsize_mask)
-        else: 
-            self.determine_winner()
+        else:
+            action_mask,betsize_mask = self.action_mask(last_state)
+            full_state,full_obs = self.return_full_state()
+            self.determine_outcome()
         return full_state,full_obs,done,action_mask,betsize_mask
     
     def update_state(self,action,betsize_category=None):
         """Updates the current environment state by processing the current action."""
         action_int = action.item()
-        # record action
         self.record_action(action_int)
         bet_amount = self.return_betsize(action_int,betsize_category)
         self.history.add(self.players.current_player,action_int,bet_amount)
@@ -279,83 +277,7 @@ class MSPoker(object):
         self.players.update_stack(-bet_amount)
         self.increment_turn()
 
-    def record_action(self,action):
-        self.action_records[self.street][action] += 1
-
-    def ml_inputs(self):
-        raw_ml = self.players.get_inputs()
-        positions = raw_ml.keys()
-        # convert to torch
-        for position in positions:
-            if position in raw_ml:
-                if len(raw_ml[position]['game_states']):
-                    assert(isinstance(raw_ml[position]['game_states'][0],torch.Tensor))
-                    assert(isinstance(raw_ml[position]['observations'][0],torch.Tensor))
-                    assert(isinstance(raw_ml[position]['actions'][0],torch.Tensor))
-                    assert(isinstance(raw_ml[position]['action_prob'][0],torch.Tensor))
-                    assert(isinstance(raw_ml[position]['action_probs'][0],torch.Tensor))
-                    assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
-                    # assert(isinstance(raw_ml[position]['values'][0],torch.Tensor))
-
-                    raw_ml[position]['hand_strength'] = raw_ml[position]['hand_strength']
-                    raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(1,-1,self.state_space)
-                    raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(1,-1,self.observation_space)
-                    raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(1,-1,1)
-                    raw_ml[position]['action_prob'] = torch.stack(raw_ml[position]['action_prob']).view(1,-1,1)
-                    raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(1,-1,1)
-                    raw_ml[position]['action_masks'] = torch.stack(raw_ml[position]['action_masks']).view(1,-1,self.action_space)
-                    raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(1,-1,self.betsize_space)
-
-                    if self.rules.network_output == 'flat':
-                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(1,-1,1)
-                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(1,-1,self.action_space - 2 + self.betsize_space)
-                    else:
-                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(1,-1,1)
-                        raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(1,-1,1)
-                        raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(1,-1,self.betsize_space)
-                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(1,-1,self.action_space)
-        return raw_ml
-        
-    @property
-    def db_mapping(self):
-        """
-        Required for inserting the data into mongodb properly
-        """
-        return self.rules.db_mapping
-
-    @property
-    def round_over(self):
-        return self.rules.over(self)
-
-    @property
-    def game_over(self):
-        return self.rules.over(self) and self.street == pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER]
-    
-    @property
-    def state_space(self):
-        return self.nS
-    
-    @property
-    def observation_space(self):
-        return self.nO
-    
-    @property
-    def action_space(self):
-        return self.rules.action_space
-
-    @property
-    def betsize_space(self):
-        return self.rules.num_betsizes
-
-    @property
-    def current_player(self):
-        return self.players.current_player
-
-    @property
-    def previous_player(self):
-        return self.players.previous_player
-
-    def determine_output(self):
+    def determine_outcome(self):
         """Determines winner, allots pot to winner, records handstrengths for each player"""
         self.players.store_handstrengths(self.board)
         if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
@@ -374,7 +296,7 @@ class MSPoker(object):
                 self.players.update_stack(self.pot.value / 2,'BB')
         self.players.gen_rewards()
 
-    def return_current_state(self,action=None):
+    def return_last_state(self,action=None):
         """
         (will eventually need active, allin)
         STATE: P1 Hand,Board,street,P1 position,P2 position,Previous_action,Previous_betsize,P1 Stack,P2 Stack,Amnt to call,Pot odds
@@ -403,6 +325,36 @@ class MSPoker(object):
             pot_odds = torch.tensor([0])
         state = torch.cat((current_hand,board,street,current_position,vil_position,torch.tensor([self.history.last_action]).float(),self.history.last_betsize.float(),self.players.current_stack.unsqueeze(-1).float(),self.players.previous_stack.unsqueeze(-1).float(),to_call.float(),pot_odds.float())).unsqueeze(0).unsqueeze(0)
         obs = torch.cat((current_hand,vil_hand,board,street,current_position,vil_position,torch.tensor([self.history.last_action]).float(),self.history.last_betsize.float(),self.players.current_stack.unsqueeze(-1).float(),self.players.previous_stack.unsqueeze(-1).float(),to_call.float(),pot_odds.float())).unsqueeze(0).unsqueeze(0)
+        global_state = torch.cat((street,current_position,vil_position,torch.tensor([self.history.last_action]).float(),self.history.last_betsize.float(),self.players.current_stack.unsqueeze(-1).float(),self.players.previous_stack.unsqueeze(-1).float(),to_call.float(),pot_odds.float())).unsqueeze(0).unsqueeze(0)
+        return state,obs,global_state
+
+    def return_hist_states(self):
+        hist_states = torch.stack(self.players.global_states,dim=0).squeeze(1).permute(1,0,2)
+        hist_obs = torch.stack(self.players.global_states,dim=0).squeeze(1).permute(1,0,2)
+        return hist_states,hist_obs
+
+    def return_full_state(self,action = None):
+        # combine and pad
+        hist_state,hist_obs = self.return_hist_states()
+
+        L = hist_state.size(1)
+        n_padding = self.maxlen - L
+        assert n_padding > 0
+        padding = torch.zeros(1,n_padding,self.state_space)
+        obs_padding = torch.zeros(1,n_padding,self.observation_space)
+
+        current_hand = torch.tensor([[card.rank,card.suit] for card in self.players.current_hand]).view(-1).squeeze(0).float()
+        vil_hand = torch.tensor([[card.rank,card.suit] for card in self.players.previous_hand]).view(-1).squeeze(0).float()
+        board_cards = torch.tensor([[card.rank,card.suit] for card in self.board]).view(-1).squeeze(0).float()
+        board = torch.Tensor(10).fill_(0.)
+        board[:board_cards.size(0)] = board_cards
+        historical_state_cards = torch.cat((current_hand,board)).repeat(L).view(1,L,self.db_mapping['state']['hand_board'][-1] + 1)
+        historical_obs_cards = torch.cat((current_hand,vil_hand,board)).repeat(L).view(1,L,self.db_mapping['observation']['hand_board'][-1] + 1)
+        pre_state = torch.cat((historical_state_cards,hist_state),dim=-1)
+        pre_obs = torch.cat((historical_obs_cards,hist_obs),dim=-1)
+
+        state = torch.cat((pre_state,padding),dim=1)
+        obs = torch.cat((pre_obs,obs_padding),dim=1)
         return state,obs
 
     def action_mask(self,state):
@@ -418,6 +370,43 @@ class MSPoker(object):
             available_categories[pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] = 0
         return available_categories,available_betsizes
 
+    def ml_inputs(self):
+        """Stacks and returns the hand attributes for training and storage."""
+        raw_ml = self.players.get_inputs()
+        positions = raw_ml.keys()
+        # convert to torch
+        for position in positions:
+            if position in raw_ml:
+                if len(raw_ml[position]['game_states']):
+                    assert(isinstance(raw_ml[position]['game_states'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['observations'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['actions'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['action_prob'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['action_probs'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['rewards'][0],torch.Tensor))
+                    assert(isinstance(raw_ml[position]['historical_game_states'][0],torch.Tensor))
+                    
+                    raw_ml[position]['historical_game_states'] = torch.stack(raw_ml[position]['historical_game_states']).view(-1,self.maxlen,self.state_space)
+                    raw_ml[position]['hand_strength'] = raw_ml[position]['hand_strength']
+                    raw_ml[position]['game_states'] = torch.stack(raw_ml[position]['game_states']).view(1,-1,self.state_space)
+                    raw_ml[position]['observations'] = torch.stack(raw_ml[position]['observations']).view(1,-1,self.observation_space)
+                    raw_ml[position]['actions'] = torch.stack(raw_ml[position]['actions']).view(1,-1,1)
+                    raw_ml[position]['action_prob'] = torch.stack(raw_ml[position]['action_prob']).view(1,-1,1)
+                    raw_ml[position]['rewards'] = torch.stack(raw_ml[position]['rewards']).view(1,-1,1)
+                    raw_ml[position]['dones'] = torch.stack(raw_ml[position]['dones']).view(1,-1,1)
+                    raw_ml[position]['action_masks'] = torch.stack(raw_ml[position]['action_masks']).view(1,-1,self.action_space)
+                    raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(1,-1,self.betsize_space)
+
+                    if self.rules.network_output == 'flat':
+                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(1,-1,1)
+                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(1,-1,self.action_space - 2 + self.betsize_space)
+                    else:
+                        raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(1,-1,1)
+                        raw_ml[position]['betsize_prob'] = torch.stack(raw_ml[position]['betsize_prob']).view(1,-1,1)
+                        raw_ml[position]['betsize_probs'] = torch.stack(raw_ml[position]['betsize_probs']).view(1,-1,self.betsize_space)
+                        raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(1,-1,self.action_space)
+        return raw_ml
+
 ################################################
 #                  BETSIZES                    #
 ################################################
@@ -427,15 +416,20 @@ class MSPoker(object):
         # STREAMLINE THIS
         possible_betsizes = torch.zeros((self.rules.num_betsizes))
         if self.history.last_betsize > 0:
+            # Facing a Raise
             if self.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
                 previous_betsize = self.history.last_betsize - self.history.penultimate_betsize
             else:
                 previous_betsize = self.history.last_betsize
             if previous_betsize < self.players.current_stack:
                 # player allin is always possible if stack > betsize.
+                min_raise = 2 * previous_betsize
+                max_raise = self.pot.value + previous_betsize
                 for i,betsize in enumerate(self.rules.betsizes,0):
                     possible_betsizes[i] = 1
-                    if betsize * self.pot.value >= self.players.current_stack:
+                    if i == 0 and min_raise >= self.players.current_stack:
+                        break
+                    elif max_raise * betsize >= self.players.current_stack:
                         break
         elif state[-1,-1,self.rules.db_mapping['state']['previous_action']] == 5 or state[-1,-1,self.rules.db_mapping['state']['previous_action']] == 0:
             for i,betsize in enumerate(self.rules.betsizes,0):
@@ -488,6 +482,41 @@ class MSPoker(object):
             betsize = min(max(min_betsize,self.rules.betsizes[betsize_category.long()] * self.pot.value),self.players.current_stack)
         else:
             betsize = 0
-        print('betsize',betsize)
         return torch.tensor([betsize])
         
+    @property
+    def db_mapping(self):
+        """Required for inserting the data into mongodb properly"""
+        return self.rules.db_mapping
+
+    @property
+    def round_over(self):
+        return self.rules.over(self)
+
+    @property
+    def game_over(self):
+        return self.rules.over(self) and self.street == pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER]
+    
+    @property
+    def state_space(self):
+        return self.nS
+    
+    @property
+    def observation_space(self):
+        return self.nO
+    
+    @property
+    def action_space(self):
+        return self.rules.action_space
+
+    @property
+    def betsize_space(self):
+        return self.rules.num_betsizes
+
+    @property
+    def current_player(self):
+        return self.players.current_player
+
+    @property
+    def previous_player(self):
+        return self.players.previous_player

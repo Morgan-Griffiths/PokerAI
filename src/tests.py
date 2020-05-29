@@ -7,6 +7,7 @@ from kuhn.config import Config
 from kuhn.env import Poker
 from kuhn.data_classes import Card,Evaluator
 import kuhn.datatypes as pdt
+import poker.datatypes as hdt
 from utils.cardlib import winner,holdem_winner,encode
 
 def run_kuhn_env(env,case):
@@ -138,37 +139,20 @@ class TestEnv(unittest.TestCase):
             # print(f'ml_inputs {ml_inputs}')
 
     def testEvaluations(self):
-        omaha = Evaluator(pdt.GameTypes.OMAHAHI)
-        holdem = Evaluator(pdt.GameTypes.HOLDEM)
         kuhn = Evaluator(pdt.GameTypes.KUHN)
-
         Q = Card(1,None)
         K = Card(2,None)
         assert(kuhn([[K],[Q]]) == 0)
         assert(kuhn([[Q],[K]]) == 1)
-        hand = [Card(14,'c'),Card(2,'c'),Card(2,'d'),Card(5,'c')]
-        hand2 = [Card(7,'s'),Card(5,'c'),Card(14,'h'),Card(10,'h')]
-        PLO_board = [Card(10,'c'),Card(2,'h'),Card(4,'c'),Card(13,'c'),Card(4,'h')]
-        assert(omaha([hand,hand2,PLO_board]) == 1)
-        assert(omaha([hand2,hand,PLO_board]) == -1)
-        # Holdem
-        holdem_hand = [Card(14,'c'),Card(2,'s')]
-        holdem_hand2 = [Card(12,'c'),Card(5,'s')]
-        holdem_board = [Card(10,'c'),Card(2,'c'),Card(4,'c'),Card(13,'c'),Card(4,'h')]
-        assert(holdem([holdem_hand,holdem_hand2,holdem_board]) == 1)
-        assert(holdem([holdem_hand2,holdem_hand,holdem_board]) == -1)
 
     def TestRlEnvironments(self):
-        os.system('python kuhn_main.py --env kuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env complexkuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env betsizekuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env historicalkuhn -e 10 --no-clean --no-store')
-        os.system('python kuhn_main.py --env historicalkuhn -e 10 --parallel --no-clean --no-store')
-        # os.system('python main.py --env holdem -e 10 --no-clean --no-store')
-        # os.system('python main.py --env multistreetholdem -e 10 --no-clean --no-store')
-        # os.system('python main.py --env omaha -e 10 --no-clean --no-store')
+        os.system('python kuhn_main.py --env kuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env complexkuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env betsizekuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 2 --no-clean --no-store')
+        os.system('python kuhn_main.py --env historicalkuhn -e 5 --parallel --no-clean --no-store')
 
-def envTestSuite():
+def kuhnTestSuite():
     suite = unittest.TestSuite()
     suite.addTest(TestEnv('testRun'))
     suite.addTest(TestEnv('testRepresentations'))
@@ -178,7 +162,6 @@ def envTestSuite():
     # suite.addTest(TestEnv('testScenario'))
     return suite
 
-
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(envTestSuite())
+    runner.run(kuhnTestSuite())

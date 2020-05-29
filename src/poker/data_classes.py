@@ -5,11 +5,12 @@ from collections import deque
 from random import shuffle
 import copy
 
-import kuhn.datatypes as pdt
+import poker.datatypes as pdt
 from utils.cardlib import winner,encode,decode,holdem_hand_rank,holdem_winner
 
 class Action(object):
-    def __init__(self,action):
+    def __init__(self,action:int):
+        assert isinstance(action,int),f'action type incorrect {type(action)}'
         self.action = action
         
     def item(self):
@@ -24,24 +25,21 @@ class Card(object):
         self.suit = suit
         
     def __str__(self):
-        printable = f'Rank {self.rank}, Suit {self.suit}' if self.suit else f'Rank {self.rank}'
-        return printable
-    
+        return f'Rank {self.rank}, Suit {self.suit}' if self.suit else f'Rank {self.rank}'
+         
 class Deck(object):
-    def __init__(self,ranks,suits):
+    def __init__(self,ranks:list,suits:list):
+        assert isinstance(ranks,list),f'ranks type incorrect {type(ranks)}'
+        assert isinstance(suits,list),f'suits type incorrect {type(suits)}'
         self.ranks = ranks
         self.suits = suits
         self.deck = self.construct_deck()
     
     def construct_deck(self):
         deck = deque(maxlen=52)
-        if self.suits is None:
-            for rank in self.ranks:
-                deck.append(Card(rank,None))
-        else:
-            for rank in self.ranks:
-                for suit in self.suits:
-                    deck.append(Card(rank,suit))
+        for rank in self.ranks:
+            for suit in self.suits:
+                deck.append(Card(rank,suit))
         return deck
     
     def deal(self,N):
@@ -51,10 +49,12 @@ class Deck(object):
         return cards
 
     def initialize_board(self,street):
+        assert isinstance(street,int),f'street type incorrect {type(street)}'
         num_cards = pdt.Globals.INITIALIZE_BOARD_CARDS[street]
         return self.deal(num_cards)
 
     def deal_board(self,street):
+        assert isinstance(street,int),f'street type incorrect {type(street)}'
         num_cards = pdt.Globals.ADDITIONAL_BOARD_CARDS[street]
         return self.deal(num_cards)
     
@@ -67,6 +67,9 @@ class Deck(object):
     def display(self):
         for card in self.deck:
             print(card)
+
+    def __len__(self):
+        return len(self.deck)
 
 class Historical_point(object):
     def __init__(self,player,action,betsize):
@@ -126,6 +129,7 @@ class History(object):
             
 class GameTurn(object):
     def __init__(self,initial_value=0):
+        assert isinstance(initial_value,int),f'initial_value type incorrect {type(initial_value)}'
         self.initial_value = initial_value
         self.value = initial_value
         
@@ -140,13 +144,16 @@ In the Future we will need to account for side pots
 '''
 class Pot(object):
     def __init__(self,initial_value:float):
+        assert isinstance(initial_value,float),f'initial_value type incorrect {type(initial_value)}'
         self.initial_value = initial_value
         self.value = initial_value
         
-    def add(self,amount):
+    def add(self,amount:torch.Tensor):
+        assert isinstance(amount,torch.Tensor),f'amount type incorrect {type(amount)}'
         self.value += amount
         
-    def update(self,amount):
+    def update(self,amount:float):
+        assert isinstance(amount,float),f'amount type incorrect {type(amount)}'
         self.initial_value = amount
         self.value = amount
         
@@ -190,7 +197,7 @@ class Players(object):
     def update_position_order(self,street):
         self.poker_positions = deque(pdt.Globals.HEADSUP_POSITION_DICT[street],maxlen=9)
 
-    def store_handstrengths(self,board):
+    def store_handstrengths(self,board:list):
         board_cards = [[card.rank,card.suit] for card in board]
         en_board = [encode(c) for c in board_cards]
         for player in range(self.n_players):
@@ -206,6 +213,7 @@ class Players(object):
         self.player_hand = {position:hands[i][0].rank for i,position in enumerate(self.poker_positions)}
         self.game_states = {position:[] for position in self.poker_positions}
         self.observations = {position:[] for position in self.poker_positions}
+        self.global_states = []
         self.actions = {position:[] for position in self.poker_positions}
         self.action_prob = {position:[] for position in self.poker_positions}
         self.action_probs = {position:[] for position in self.poker_positions}
@@ -218,24 +226,39 @@ class Players(object):
         self.action_masks = {position:[] for position in self.poker_positions}
         self.betsize_masks = {position:[] for position in self.poker_positions}
         self.player_turns = {position:0 for position in self.poker_positions}
+        self.dones = {position:[] for position in self.poker_positions}
         self.player_handstrength = {position:0 for position in self.poker_positions}
         self.historical_game_states = {position:[] for position in self.poker_positions}
+        self.historical_observations = {position:[] for position in self.poker_positions}
         
-    def store_states(self,state:torch.Tensor,obs:torch.Tensor,player=None):
+    def store_states(self,state:torch.Tensor,obs:torch.Tensor,global_state,player=None):
+        assert isinstance(state,torch.Tensor),f'state type incorrect {type(state)}'
+        assert isinstance(obs,torch.Tensor),f'obs type incorrect {type(obs)}'
         position = self.current_player if player == None else player
         self.observations[position].append(copy.deepcopy(obs))
         self.game_states[position].append(copy.deepcopy(state))
+        self.global_states.append(copy.deepcopy(global_state))
 
-    def store_history(self,state:torch.Tensor,player=None):
+    def store_dones(self,done:bool,player=None):
+        assert isinstance(done,bool),f'done type incorrect {type(done)}'
+        position = self.current_player if player == None else player
+        self.dones[position].append(copy.deepcopy(torch.tensor([done])))
+
+    def store_history(self,state:torch.Tensor,obs:torch.Tensor,player=None):
+        assert isinstance(state,torch.Tensor),f'state type incorrect {type(state)}'
+        assert isinstance(obs,torch.Tensor),f'obs type incorrect {type(obs)}'
         position = self.current_player if player == None else player
         self.historical_game_states[position].append(copy.deepcopy(state))
+        self.historical_observations[position].append(copy.deepcopy(obs))
 
     def store_masks(self,action_mask:torch.Tensor,betsize_mask:torch.Tensor):
-        # print(action_mask,betsize_mask)
+        assert isinstance(action_mask,torch.Tensor),f'action_mask type incorrect {type(action_mask)}'
+        assert isinstance(betsize_mask,torch.Tensor),f'betsize_mask type incorrect {type(betsize_mask)}'
         self.action_masks[self.current_player].append(action_mask)
         self.betsize_masks[self.current_player].append(betsize_mask)
         
-    def store_actor_outputs(self,actor_outputs):
+    def store_actor_outputs(self,actor_outputs:dict):
+        assert isinstance(actor_outputs,dict),f'actor_outputs type incorrect {type(actor_outputs)}'
         self.store_actions(actor_outputs['action'],actor_outputs['action_prob'],actor_outputs['action_probs'])
         if 'betsize' in actor_outputs:
             if 'betsize_prob' in actor_outputs:
@@ -243,25 +266,35 @@ class Players(object):
             else:
                 self.betsizes[self.current_player].append(actor_outputs['betsize'])
                 
-    def store_actions(self,action:int,action_prob:torch.Tensor,action_probs:torch.Tensor):
+    def store_actions(self,action:torch.Tensor,action_prob:torch.Tensor,action_probs:torch.Tensor):
+        assert isinstance(action,torch.Tensor),f'action type incorrect {type(action)}'
+        assert isinstance(action_prob,torch.Tensor),f'action_prob type incorrect {type(action_prob)}'
+        assert isinstance(action_probs,torch.Tensor),f'action_probs type incorrect {type(action_probs)}'
         self.actions[self.current_player].append(action)
         self.action_prob[self.current_player].append(action_prob)
         self.action_probs[self.current_player].append(action_probs)
 
     def store_betsizes(self,betsize:int,betsize_prob:torch.Tensor,betsize_probs:torch.Tensor):
+        assert isinstance(betsize,int),f'betsize type incorrect {type(betsize)}'
+        assert isinstance(betsize_prob,torch.Tensor),f'betsize_prob type incorrect {type(betsize_prob)}'
+        assert isinstance(betsize_probs,torch.Tensor),f'betsize_probs type incorrect {type(betsize_probs)}'
         self.betsizes[self.current_player].append(betsize)
         self.betsize_prob[self.current_player].append(betsize_prob)
         self.betsize_probs[self.current_player].append(betsize_probs)
 
     def store_values(self,critic_outputs:dict):
+        assert isinstance(critic_outputs,dict),f'critic_outputs type incorrect {type(critic_outputs)}'
         self.values[self.current_player].append(critic_outputs['value'])
         if len(critic_outputs.keys()) == 2:
             self.betsize_values[self.current_player].append(critic_outputs['betsize'])
         
-    def store_rewards(self,position:str,reward:float):
+    def store_rewards(self,position:str,reward:torch.Tensor):
+        assert isinstance(position,str),f'position type incorrect {type(position)}'
+        assert isinstance(reward,torch.Tensor),f'reward type incorrect {type(reward)}'
         N = self.player_turns[position]
-        torch_rewards = torch.Tensor(N).fill_(reward)#.view(N,1)
-        self.rewards[position].append(torch_rewards)
+        torch_rewards = torch.Tensor(N).fill_(reward)
+        if N > 0:
+            self.rewards[position].append(torch_rewards)
         
     def update_stack(self,amount:torch.Tensor,player=None):
         """
@@ -275,11 +308,13 @@ class Players(object):
             self.players[self.current_player].street_total -= amount
             if self.players[self.current_player].stack == 0:
                 self.players[self.current_player].allin = True
+            assert self.players[self.current_player].stack >= 0,'Player stack below zero'
         else:
             self.players[player].stack += amount
             self.players[player].street_total -= amount
             if self.players[player].stack == 0:
                 self.players[player].allin = True
+            assert self.players[player].stack >= 0,'Player stack below zero'
 
     def reset_street_totals(self):
         for player in self.players.values():
@@ -335,9 +370,10 @@ class Players(object):
                     'action_masks':self.action_masks[position],
                     'betsize_masks':self.betsize_masks[position],
                     'rewards':self.rewards[position],
-                    'values':self.values[position]
+                    'values':self.values[position],
+                    'dones':self.dones[position]
                 }
-                assert(self.rewards[position][0].size(0) == len(self.actions[position]))
+                assert self.rewards[position][0].size(0) == len(self.actions[position])
             else:
                 if position not in del_positions:
                     del_positions.add(position)
@@ -409,22 +445,17 @@ class Rules(object):
     def load_rules(self,params):
         if 'network_output' in params:
             self.network_output = params['network_output']
-        self.bettype = params['bettype']
+        self.bettype = params['bettype'] # limit, nl, pl
         self.blinds = params['blinds']
         self.minbet = self.blinds['BB']
-        self.betsize = params['betsize']
         self.betsizes = params['betsizes']
         self.num_betsizes = len(self.betsizes)
         self.unopened_action = params['unopened_action']
         self.action_dict = params['action_dict']
-        self.betsize_dict = params['betsize_dict']
         self.mask_dict = params['mask_dict']
-        self.bets_per_street = params['bets_per_street']
         self.db_mapping = params['mapping']
-        self.action_index = params['action_index'] # Indexes into game_state. Important for masking actions
-        self.state_index = params['state_index']
         self.action_space = len(self.action_dict.keys())
-        self.over = self.two_actions if self.bets_per_street == 1 else self.multiple_actions
+        self.over = self.multiple_actions
 
     def multiple_actions(self,env):
         done = False
@@ -436,19 +467,8 @@ class Rules(object):
         elif (env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK] and env.history.penultimate_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]) or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
             done = True
         return done
-        
-    def two_actions(self,env):
-        done = False
-        if env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD] or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL] or env.history.last_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CHECK]:
-            done = True
-        return done
-    
-def eval_kuhn(cards):
-    hand1,hand2 = cards
-    ranks = [card.rank for card in hand1+hand2]
-    return np.argmax(ranks)
 
-def eval_holdem(cards):
+def encode_cards(cards):
     hand1,hand2,board = cards
     hand1 = [[card.rank,card.suit] for card in hand1]
     hand2 = [[card.rank,card.suit] for card in hand2]
@@ -456,24 +476,20 @@ def eval_holdem(cards):
     en_hand1 = [encode(c) for c in hand1]
     en_hand2 = [encode(c) for c in hand2]
     en_board = [encode(c) for c in board]
+    return en_hand1,en_hand2,en_board
+
+def eval_holdem(cards):
+    en_hand1,en_hand2,en_board = encode_cards(cards)
     return holdem_winner(en_hand1,en_hand2,en_board)
 
 def eval_omaha_hi(cards):
-    hand1,hand2,board = cards
-    hand1 = [[card.rank,card.suit] for card in hand1]
-    hand2 = [[card.rank,card.suit] for card in hand2]
-    board = [[card.rank,card.suit] for card in board]
-    en_hand1 = [encode(c) for c in hand1]
-    en_hand2 = [encode(c) for c in hand2]
-    en_board = [encode(c) for c in board]
+    en_hand1,en_hand2,en_board = encode_cards(cards)
     return  winner(en_hand1,en_hand2,en_board)
 
 class Evaluator(object):
     def __init__(self,game):
         self.game = game
-        if self.game == pdt.GameTypes.KUHN or self.game == pdt.GameTypes.COMPLEXKUHN or self.game == pdt.GameTypes.BETSIZEKUHN or self.game == pdt.GameTypes.HISTORICALKUHN:
-            self.evaluate = eval_kuhn
-        elif self.game == pdt.GameTypes.HOLDEM:
+        if self.game == pdt.GameTypes.HOLDEM:
             self.evaluate = eval_holdem
         elif self.game == pdt.GameTypes.OMAHAHI:
             self.evaluate = eval_omaha_hi
