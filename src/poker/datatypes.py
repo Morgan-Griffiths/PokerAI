@@ -1,4 +1,5 @@
 from torch import Tensor as T
+import numpy as np
 
 ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
 ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
@@ -204,7 +205,7 @@ class OmahaHI(object):
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
         self.state_params['pot']= 2.
-        self.rule_params['betsizes'] = T([0.5,1.])
+        self.rule_params['betsizes'] = np.array([0.5,1.])
 
 class OmahaHILO(object):
     def __init__(self):
@@ -215,7 +216,7 @@ class OmahaHILO(object):
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
         self.state_params['pot']= 2.
-        self.rule_params['betsizes'] = T([0.5,1.])
+        self.rule_params['betsizes'] = np.array([0.5,1.])
 
 class Globals:
     GameTypeDict = {
