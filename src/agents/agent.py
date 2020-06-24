@@ -66,6 +66,7 @@ class BaselineAgent(object):
         self.network.eval()
 
     def save_weights(self,path):
+        print(path)
         directory = os.path.dirname(path)
         if not os.path.exists(directory):
             os.mkdir(directory)
@@ -524,7 +525,7 @@ class CombinedAgent(Agent):
 ####################################
 
 class FullAgent(Agent):
-    def __init__(self,nS,nO,nA,nB,seed,params,actor=None,critic=None):
+    def __init__(self,nS,nO,nA,nB,seed,params,actor=None,critic=None,device=torch.device('cpu')):
         super(FullAgent).__init__()
         self.nS = nS
         self.nO = nO
@@ -540,13 +541,13 @@ class FullAgent(Agent):
         self.gradient_clip = params['CLIP_NORM']
         self.critic_type = params['critic_type']
         if actor == None:
-            self.local_actor = params['actor_network'](seed,nS,nA,nB,params)
-            self.local_critic = params['critic_network'](seed,nO,nA,nB,params)
+            self.local_actor = params['actor_network'](seed,nS,nA,nB,params).to(device)
+            self.local_critic = params['critic_network'](seed,nO,nA,nB,params).to(device)
         else:
             self.local_actor = actor
             self.local_critic = critic
-        self.target_actor = params['actor_network'](seed,nS,nA,nB,params)
-        self.target_critic = params['critic_network'](seed,nS,nA,nB,params)
+        self.target_actor = params['actor_network'](seed,nS,nA,nB,params).to(device)
+        self.target_critic = params['critic_network'](seed,nS,nA,nB,params).to(device)
         self.target_critic.eval()
         if params['frozen_layer'] == True:
             self.update_weights(params)
