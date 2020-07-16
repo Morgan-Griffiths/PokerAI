@@ -217,7 +217,11 @@ class LastAggression(PlayerIndex):
         self.aggressive_action = self.starting_action
         self.aggressive_betsize = self.starting_betsize
 
-    def update_aggression(self,action,betsize):
+    def player_values(self):
+        return [self.current_index,self.action,self.betsize]
+
+    def update_aggression(self,position,action,betsize):
+        self.current_index = copy.copy(position)
         self.aggressive_action = action
         self.aggressive_betsize = betsize
 
@@ -246,7 +250,7 @@ class Deck(object):
     def reset(self):
         self.deck = deque(maxlen=52)
         for i in range(2,15):
-            for j in range(1,5):
+            for j in range(0,4):
                 self.deck.append([i,j])
 
     def deal(self,N):
@@ -358,7 +362,7 @@ class Poker(object):
         self.last_aggressor.reset()
         self.players_remaining = self.n_players
         self.deck = Deck()
-        if self.to_shuffle == True:
+        if self.to_shuffle:
             self.deck.shuffle()
         self.street = self.starting_street
         # Pot
@@ -389,22 +393,23 @@ class Poker(object):
         BB_action = pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]
         self.update_state(BB_action,BB_post,blind=1)
     
-    def step(self,actor_outputs):
-        action = actor_outputs['action_category'].numpy()[0]
-        betsize_category = int(actor_outputs['betsize'].numpy()[0])
-        betsize = self.return_betsize(action,betsize_category)
+    def step(self,inputs):
+        """
+        Increments the env state with current action,betsize.
+        Actions : dict of ints
+        """
+        assert isinstance(inputs['action_category'],int)
+        assert isinstance(inputs['betsize'],int)
+        action = inputs['action_category']
+        betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
-        state,obs = self.return_state()
-        action_mask,betsize_mask = self.return_masks(state)
+        if self.round_over():
+            self.increment_street()
         done = self.game_over()
         if done:
             self.resolve_outcome()
-        elif self.round_over():
-            self.increment_street()
-            state,obs = self.return_state()
-            done = self.game_over()
-            if done:
-                self.resolve_outcome()
+        state,obs = self.return_state()
+        action_mask,betsize_mask = self.return_masks(state)
         return state,obs,done,action_mask,betsize_mask
 
     def return_player_order(self):
@@ -419,12 +424,11 @@ class Poker(object):
     
     def update_state(self,action,betsize,blind=0):
         """Updates the global state. Appends the new global state to storage"""
-        if blind == 0:
+        if not blind:
             self.players_remaining -= 1
         if (action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE] or action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]):
-            self.last_aggressor.update(self.current_index.value())
-            self.last_aggressor.update_aggression(action,betsize)
-            if blind == 0:
+            self.last_aggressor.update_aggression(self.current_index.value(),action,betsize)
+            if not blind:
                 self.players_remaining = self.players.num_active_players - 1 # Current active player won't act again unless action is reopened
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
             self.players.update_status(self.current_player,Status.FOLDED)
@@ -440,7 +444,7 @@ class Poker(object):
         self.board,self.street,last_position,last_action,last_betsize,blind,to_call,pot_odds
         """
         # last aggression
-        last_aggression = [self.last_aggressor.current_index,self.last_aggressor.action,self.last_aggressor.betsize]
+        aggressor_values = self.last_aggressor.player_values()
         if self.last_aggressor.current_index == self.n_players:
             total_bet = 0
         else:
@@ -450,7 +454,7 @@ class Poker(object):
             pot_odds = 0
         else:
             pot_odds = to_call / (self.pot + to_call)
-        initial_data = [*self.board,self.street,*last_aggression,last_position,last_action,last_betsize,blind,self.pot,to_call,pot_odds]
+        initial_data = [*self.board,self.street,*aggressor_values,last_position,last_action,last_betsize,blind,self.pot,to_call,pot_odds]
         player_data = self.return_player_order()
         global_state = np.array(initial_data+player_data)
         assert global_state.shape[-1] == self.global_space
@@ -469,7 +473,7 @@ class Poker(object):
         self.last_aggressor.next_street(self.street)
         self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
         # Fast forward to river if allin
-        if self.players.to_showdown == True:
+        if self.players.to_showdown:
             for _ in range(pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER] - self.street):
                 self.street += 1
                 self.update_board()
@@ -516,38 +520,41 @@ class Poker(object):
         return actives
     
     def round_over(self):
-        if self.players_remaining == 0:
+        if self.players_remaining == 0 and self.street != 3 and self.players.num_folded_players != self.n_players - 1:
             return True
         return False
     
     def game_over(self):
-        if self.players_remaining == 0 and self.street == 3 or self.players.num_folded_players == self.n_players - 1:
+        if (self.players_remaining == 0 and self.street == 3) or (self.players.num_folded_players == self.n_players - 1):
             return True
         return False
     
     def resolve_outcome(self):
         """Gets all hands, gets all handranks,finds and counts lowest (strongest) hands. Assigns the pot to them."""
         hands,positions = self.players.return_active_hands()
-        # encode hands
-        en_hands = []
-        for hand in hands:
-            en_hand = [encode(c) for c in hand]
-            en_hands.append(en_hand)
-        en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
-        hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
-        best_hand = np.min(hand_ranks)
-        winner_mask = np.where(best_hand == hand_ranks)[0]
-        winner_positions = np.array(positions)[winner_mask]
-        # print(hands,positions)
-        # print(self.board)
-        # print(hand_rank(en_hands[0],en_board))
-        # print(hand_ranks)
-        # print(best_hand)
-        # print(winner_mask)
-        # print(positions[winner_mask[0]])
-        # print(winner_positions)
-        for winner in winner_positions:
-            self.players[winner].stack += self.pot / len(winner_mask)
+        if len(positions) > 1:
+            # encode hands
+            en_hands = []
+            for hand in hands:
+                en_hand = [encode(c) for c in hand]
+                en_hands.append(en_hand)
+            en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
+            hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
+            best_hand = np.min(hand_ranks)
+            winner_mask = np.where(best_hand == hand_ranks)[0]
+            winner_positions = np.array(positions)[winner_mask]
+            # print(hands,positions)
+            # print(self.board)
+            # print(hand_rank(en_hands[0],en_board))
+            # print(hand_ranks)
+            # print(best_hand)
+            # print(winner_mask)
+            # print(positions[winner_mask[0]])
+            # print(winner_positions)
+            for winner in winner_positions:
+                self.players[winner].stack += self.pot / len(winner_mask)
+        else:
+            self.players[positions[0]].stack += self.pot
 
     def return_masks(self,state):
         """
@@ -559,10 +566,21 @@ class Poker(object):
         available_betsizes = self.return_betsizes(state)
         if available_betsizes.sum() == 0:
             available_categories[pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] = 0
-        return available_categories,available_betsizes  
+        return available_categories,available_betsizes
     
     def return_mask(self):
         return self.mask_dict[self.global_states.last_aggressive_action]
+
+    def convert_to_category(self,action,betsize):
+        """returns int"""
+        category = np.zeros(self.action_space + self.betsize_space - 1)
+        if action == 0 or action == 1 or action == 2: # fold check call
+            category[action] = 1
+        else:
+            for i,bet_category in enumerate(self.betsizes):
+                if betsize <= self.pot * bet_category:
+                    category[i+4] = 1
+        return int(np.where(category == 1)[0][0])
 
 ################################################
 #                  BETSIZES                    #
@@ -611,7 +629,7 @@ class Poker(object):
     ## NO LIMIT ##
     def return_nolimit_betsize(self,action,betsize_category):
         """
-        TODO 
+        TODO
         Betsize_category would make the most sense if it represented percentages of pot on the first portion.
         And percentages of stack or simply an allin option as the last action.
         """
