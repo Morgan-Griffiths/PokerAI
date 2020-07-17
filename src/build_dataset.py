@@ -55,7 +55,6 @@ if __name__ == "__main__":
         'val_set_size':args.valsize,
         'test_set_size':args.testsize,
         'encoding':args.encode,
-        'maxlen':args.maxlen,
         'save_dir':save_dir,
         'datatype':args.datatype,
         'randomize':args.randomize,

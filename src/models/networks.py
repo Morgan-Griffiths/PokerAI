@@ -166,6 +166,68 @@ class HoldemQCritic(nn.Module):
         return outputs
 
 ################################################
+#                Omaha Networks                #
+################################################
+
+class OmahaActor(nn.Module):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
+        self.maxlen = params['maxlen']
+        self.process_input = PreProcessPokerInputs(params)
+        
+        # self.seed = torch.manual_seed(seed)
+        self.mapping = params['mapping']
+        self.hand_emb = Embedder(5,64)
+        self.action_emb = Embedder(6,64)
+        self.betsize_emb = Embedder(self.nB,64)
+        self.noise = GaussianNoise()
+        self.emb = 1248
+        n_heads = 8
+        depth = 2
+        self.lstm = nn.LSTM(self.emb, 128)
+        # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
+
+        self.fc1 = nn.Linear(528,hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc3 = nn.Linear(1280,self.combined_output)
+        self.dropout = nn.Dropout(0.5)
+        
+    def forward(self,state,action_mask,betsize_mask):
+        mask = combined_masks(action_mask,betsize_mask)
+        x = state
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+        out = self.process_input(x).unsqueeze(0)
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
+        padding = torch.zeros(B,n_padding,out.size(-1))
+        h = torch.cat((out,padding),dim=1)
+        lstm_out,_ = self.lstm(h)
+        t_logits = self.fc3(lstm_out.view(-1))
+        category_logits = self.noise(t_logits)
+        
+        action_soft = F.softmax(category_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
+        m = Categorical(action_probs)
+        action = m.sample()
+
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.mapping['state']['previous_action']])
+        outputs = {
+            'action':action,
+            'action_category':action_category,
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs,
+            'betsize':betsize_category
+            }
+        return outputs
+
+################################################
 #                Kuhn Networks                 #
 ################################################
 

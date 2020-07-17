@@ -134,7 +134,7 @@ class ProcessHandBoard(nn.Module):
         villain = torch.stack(villain_activations).view(B,M,-1)
         return hero - villain
 
-    def forward_actor(self,x):
+    def forward(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
         M,C = x.size()
         ranks = x[:,::2]
@@ -240,6 +240,27 @@ class PreProcessPokerInputs(nn.Module):
         o = self.continuous(stripped_x[:,self.mapping['state']['continuous'].long()])
         # o.size(B,M,5)
         c = self.ordinal(stripped_x[:,self.mapping['state']['ordinal'].long()])
+        # h.size(B,M,128)
+        combined = torch.cat((h,o,c),dim=-1)
+        return combined
+
+    
+class PreProcessLayer(nn.Module):
+    def __init__(self,params):
+        super().__init__()
+        self.maxlen = params['maxlen']
+        self.mapping = params['mapping']
+        hand_length = Globals.HAND_LENGTH_DICT[params['game']]
+        self.hand_board = ProcessHandBoard(params,hand_length)
+        self.continuous = ProcessContinuous(params)
+        self.ordinal = ProcessOrdinal(params)
+
+    def forward(self,x):
+        h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
+        # h.size(B,M,240)
+        o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
+        # o.size(B,M,5)
+        c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
         combined = torch.cat((h,o,c),dim=-1)
         return combined

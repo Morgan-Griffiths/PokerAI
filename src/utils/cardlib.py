@@ -3,7 +3,8 @@ from sys import platform
 
 if platform == "linux" or platform == "linux2":
     # linux
-    lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
+    lib = ctypes.cdll.LoadLibrary('/home/shuza/Code/PokerAI/rusteval/target/release/librusteval.so')
+    # lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
 elif platform == "darwin":
     # OS X
     lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
@@ -62,8 +63,21 @@ def test():
     en_board2 = [encode(c) for c in board2]
     print(en_h3,en_h4,en_board2)
     print(winner(en_h3,en_h4,en_board2))
-    print(hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
-    print(rank(hand_en))
+    print('Omaha hand+board ranks',hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
+    print('Omaha hand rank',rank(hand_en))
+    # h3 = [[11, 's'], [10, 'c'], [3, 'h'], [3, 'h']]
+    # h4 = [[11, 'c'], [10, 's'], [4, 'd'], [5, 's']]
+    # board2 = [[14, 'c'], [13, 'h'], [12, 'c'], [2, 'h'], [4, 's']]
+    board2 = [[14,0],[13,1],[12,2],[2,2],[2,3]]
+    h3 = [[11,3],[10,3],[3,2],[3,3]]
+    h4 = [[11,2],[10,2],[4,0],[4,3]]
+    en_h3 = [encode(c) for c in h3]
+    en_h4 = [encode(c) for c in h4]
+    en_board2 = [encode(c) for c in board2]
+    print(en_h3,en_h4,en_board2)
+    print(winner(en_h3,en_h4,en_board2))
+    print('2 Omaha hand+board ranks',hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
+    print('2 Omaha hand rank',rank(hand_en))
     # Holdem
     holdem_hand = [[14, 'c'], [2, 's']]
     holdem_hand2 = [[13, 'c'], [5, 's']]

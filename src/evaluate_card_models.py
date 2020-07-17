@@ -83,6 +83,7 @@ def train_network(data_dict,agent_params,training_params):
         sys.stdout.write(", epoch %d"% (epoch+1))
         sys.stdout.flush()
         sys.stdout.write(f", loss {np.mean(score_window):.2f}")
+        sys.stdout.flush()
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
