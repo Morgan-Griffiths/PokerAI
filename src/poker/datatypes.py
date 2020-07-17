@@ -2,6 +2,7 @@ from torch import Tensor as T
 import numpy as np
 
 ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
+REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
 ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
 ACTION_MASKS = {
         0:T([1,0,0,1,0]),

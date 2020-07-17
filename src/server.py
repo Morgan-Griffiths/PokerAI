@@ -14,6 +14,7 @@ API for connecting the Poker Env with Alex's frontend client for baseline testin
 
 class API(object):
     def __init__(self):
+        self.connect()
         self.game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
         self.config = Config()
         self.env_params = {
@@ -31,6 +32,26 @@ class API(object):
             'shuffle':True
         }
         self.env = Poker(self.env_params)
+        self.player = None
+
+    def connect():
+        try:
+            mongo_path = os.environ['MONGODB_URI']
+        except:
+            mongo_path = 'mongodb://' + os.environ['MONGODB_HOST'] + ':27017/'
+        client = MongoClient(mongo_path)
+        self.db = client.baseline
+
+    def update_player(self,player):
+        self.player = player
+
+    def store_state(self,state,action_mask,betsize_mask):
+        self.db['states'].insert_one(state.tolist())
+        self.db['action_masks'].insert_one(action_mask.tolist())
+        self.db['betsize_masks'].insert_one(betsize_mask.tolist())
+
+    def store_result(self,outcome):
+        self.db['results'].insert_one(outcome)
 
     def parse_env_outputs(self,state,action_mask,betsize_mask):
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
@@ -82,6 +103,9 @@ class API(object):
         print('done',done)
         return self.parse_env_outputs(state,mask,betsize_mask)
 
+    @property
+    def current_player(self):
+        return self.player
 
 # instantiate env
 api = API()
@@ -93,6 +117,10 @@ logging.basicConfig(level=logging.DEBUG)
 @app.route('/health')
 def home():
     return 'Server is up and running'
+
+@app.route('/api/player')
+def plyaer():
+    api.
 
 @app.route('/api/reset')
 def reset():
@@ -107,91 +135,7 @@ def gen_routes():
     betsize = req_data.get('betsize')
     log.info(f'action {action}')
     log.info(f'betsize {betsize}')
-    # log.info(f'request.args {request.args}')
     return api.step(action,betsize)
-    # return api.step()
-    # config = Config('math')
-    # db = connect()
-    # # Pull the route and plan data
-    # routes, fields, goals, settings, plan, dblocations, gymId, gym = get_collections(
-    #     db, plan_id, printing=False)
-    # log.info(f'gym {gym}')
-    # historical_routes, active_routes = separate_routes(routes)
-    # # Restrict historical routes to the previous 6 months.
-    # now = date.today()
-    # six_months = now - relativedelta(months=+6)
-    # six_months_routes = restrict_history_by_date(historical_routes, six_months)
-    # # Restrict historical routes to the previous N routes (sorted according to date)
-    # N_historical_routes = historical_routes[-goals['totalGymRoutes']:]
-    # # Max grade to be suggested by engine
-    # setters = plan['setters']
-    # discipline = plan['discipline']
-    # # Instantiate the utils class - this converts routes into arrays and stores them locally in the utils
-    # utils = ServerUtilities(active_routes, six_months_routes,
-    #                         fields, plan_id, discipline, config, gymId)
-    # utils.parse_settings(settings)
-    # utils.convert_goals(goals)
-    # utils.parse_locations(dblocations)
-    # max_setting, setting_time, setter_nicknames, relative_time, setting_mask, num_grades, max_grade, grade_index = get_setter_attributes(
-    #     setters, utils)
-    # # Set max grade available to set
-    # utils.update_max_grade(max_grade)
-    # # Two setting styles -> By Location, By Route
-    # # Two climbing disciplines -> Bouldering and Roped Climbing
-    # # if plan['discipline'] == 'Bouldering':
-    # locations = plan['locations']
-    # # Change this based on location flag. To take account of when they set by route.
-    # # Find all the routes we are about to strip
-    # readable_stripped_routes = return_stripped(active_routes, locations)
-    # # update config based on settings and goals. Update tehcnique mask, grade mask, novelty weights, routes by location. terrain types.
-    # # Update num reset routes to the num desired routes by location.
-    # utils.num_reset_routes = len(readable_stripped_routes)
-    # utils.bulk_strip_by_location(locations)
-    # routes, readable_routes = utils.return_location_suggestions()
-
-    # # Distribute routes
-    # log.debug(('readable_routes', readable_routes))
-    # info_array = utils.return_info_array(
-    #     readable_stripped_routes, setter_nicknames)
-    # log.debug(('info_array', info_array.shape))
-    # # Distribute the routes among the setters
-    # # distributed_routes = distribute_routes(routes,readable_routes,setting_time,setter_nicknames,relative_time,setting_mask,num_grades,grade_index)
-    # dist = Distribution(routes, readable_routes, setting_time, setter_nicknames,
-    #                     relative_time, setting_mask, num_grades, grade_index, info_array, utils)
-    # distributed_routes = dist.distribute(constraint=utils.distribution_method)
-    # print(dist.setting_time, flush=True)
-    # update_plan(db, distributed_routes, plan_id)
-    # return 'Donezors!'
-
-
-def connect():
-    try:
-        mongo_path = os.environ['MONGODB_URI']
-    except:
-        mongo_path = 'mongodb://' + os.environ['MONGODB_HOST'] + ':27017/'
-    client = MongoClient(mongo_path)
-    db = client.setting
-    return db
-
-def get_collections(db, id, printing=False):
-    plan = db['plans'].find_one({'_id': ObjectId(id)})
-    gymId = plan['gymId']
-    gym = db['gyms'].find_one({'_id': ObjectId(gymId)})
-    goals = db['goals'].find({"active": True, "gymId": gymId})[0]
-    settings = db['settings'].find({"gymId": gymId})[0]
-    routes = db['routes'].find({"gymId": gymId})
-    fields = db['fields'].find({"gymId": gymId})
-    locations = db['locations'].find({"gymId": gymId})
-    if printing == True:
-        print('id plan', plan, flush=True)
-        print('gymId', gymId, flush=True)
-        print('gym', gym, flush=True)
-        print('goals', goals, flush=True)
-        print('routes', routes, flush=True)
-        print('fields', fields, flush=True)
-        print('locations', locations, flush=True)
-        print('settings', settings, flush=True)
-    return routes, fields, goals, settings, plan, locations, gymId, gym
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
