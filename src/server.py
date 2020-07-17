@@ -34,12 +34,8 @@ class API(object):
         self.env = Poker(self.env_params)
         self.player = None
 
-    def connect():
-        try:
-            mongo_path = os.environ['MONGODB_URI']
-        except:
-            mongo_path = 'mongodb://' + os.environ['MONGODB_HOST'] + ':27017/'
-        client = MongoClient(mongo_path)
+    def connect(self):
+        client = MongoClient('localhost', 27017,maxPoolSize=10000)
         self.db = client.baseline
 
     def update_player(self,player):
@@ -118,9 +114,10 @@ logging.basicConfig(level=logging.DEBUG)
 def home():
     return 'Server is up and running'
 
-@app.route('/api/player')
-def plyaer():
-    api.
+@app.route('/api/player',methods=['POST'])
+def player():
+    req_data = json.loads(request.get_data())
+    api.update_player(req_data.get('player'))
 
 @app.route('/api/reset')
 def reset():
