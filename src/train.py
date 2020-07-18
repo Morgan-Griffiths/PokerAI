@@ -3,10 +3,12 @@ import poker.datatypes as pdt
 import models.network_config as ng
 import copy
 import torch
+import torch.nn.functional as F
 import sys
 import numpy as np
 from pymongo import MongoClient
 from collections import defaultdict
+from hand_recognition.data_loader import datasetLoader
 import copy
 
 from db import MongoDB
@@ -18,7 +20,7 @@ def pad_state(state,maxlen):
     padding = np.zeros(N)
     return padded_state
 
-def generate_trajectories(env,actor,training_params):
+def generate_trajectories(env,actor,training_params,id):
     """We want to store """
     trajectories = defaultdict(lambda:[])
     for e in range(training_params['epochs']):
@@ -48,7 +50,7 @@ def generate_trajectories(env,actor,training_params):
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
     print(trajectories.keys())
-    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],training_params['id'],training_params['epochs'])
+    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['epochs'])
 
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
     """
@@ -94,7 +96,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
     client.close()
 
 def return_value_mask(actions):
-    print('actions',actions)
+    # print('actions',actions)
     M = 1#actions.shape[0]
     value_mask = torch.zeros(M,5)
     value_mask[torch.arange(M),actions] = 1
@@ -112,6 +114,10 @@ def learning_update(actor,critic,params):
     query = {'training_round':0}
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
+    # loss_dict = defaultdict(lambda:None)
+    # for i in range(4):
+    losses = []
+    #     print('round ',i)
     for poker_round in data:
         state = poker_round['state']
         action = poker_round['action']
@@ -121,18 +127,18 @@ def learning_update(actor,critic,params):
         ## Critic update ##
         local_values = critic(state)['value']
         value_mask = return_value_mask(action)
-        # print('value_mask',value_mask)
         TD_error = local_values[value_mask] - reward
         critic_loss = (TD_error**2*0.5).mean()
-        # critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),TD_error,reduction='sum')
+        # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
         critic_optimizer.zero_grad()
         critic_loss.backward()
         torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
         critic_optimizer.step()
-        print('local_values',local_values[value_mask],reward)
+        losses.append(critic_loss.item())
+        # print('local_values',local_values[value_mask],reward)
         # Agent.soft_update(local_critic,target_critic,tau)
 
-        ## Actor update ##
+        # Actor update #
         target_values = critic(state)['value']
         actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
         expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
@@ -143,25 +149,17 @@ def learning_update(actor,critic,params):
         torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
         actor_optimizer.step()
         # Agent.soft_update(self.actor,self.target_actor,self.tau)
+        # loss_dict[i] = sum(losses)
+    print('loss sum',sum(losses))
+    return actor,critic,params
 
-        # outputs = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
-        # print(outputs)
-
-def train(env,agent,training_params):
-    for e in range(training_params['epochs']):
+def train(env,actor,critic,training_params,learning_params,id):
+    for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        state,obs,done,mask,betsize_mask = env.reset()
-        while not done:
-            actor_outputs = agent(state,mask,betsize_mask)
-            state,obs,done,mask,betsize_mask = env.step(actor_outputs)
-        ml_inputs = env.ml_inputs()
-        agent.learn(ml_inputs)
-        for position in ml_inputs.keys():
-            training_data[position].append(ml_inputs[position])
-        training_data['action_records'].append(env.action_records)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
+        generate_trajectories(env,actor,training_params,id)
+        # train on trajectories
+        actor,critic,learning_params = learning_update(actor,critic,learning_params)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
         sys.stdout.flush()
-    agent.save_weights(os.path.join(training_params['save_dir'],training_params['agent_name']))
-    return training_data
