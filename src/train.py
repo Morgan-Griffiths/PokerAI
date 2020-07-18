@@ -99,7 +99,7 @@ def return_value_mask(actions):
     value_mask = torch.zeros(M,5)
     value_mask[torch.arange(M),actions] = 1
     value_mask = value_mask.bool()
-    return value_mask
+    return value_mask.squeeze(0)
 
 def scale_rewards(self,rewards,factor=1):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
@@ -120,9 +120,8 @@ def learning_update(actor,critic,params):
         action_mask = poker_round['action_mask']
         ## Critic update ##
         local_values = critic(state)['value']
-        print('local_values',local_values)
         value_mask = return_value_mask(action)
-        print('value_mask',value_mask)
+        # print('value_mask',value_mask)
         TD_error = local_values[value_mask] - reward
         critic_loss = (TD_error**2*0.5).mean()
         # critic_loss = F.smooth_l1_loss(scaled_rewards.view(value_mask.size(0)),TD_error,reduction='sum')
@@ -130,17 +129,20 @@ def learning_update(actor,critic,params):
         critic_loss.backward()
         torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
         critic_optimizer.step()
+        print('local_values',local_values[value_mask],reward)
         # Agent.soft_update(local_critic,target_critic,tau)
 
         ## Actor update ##
-        # expected_value = (actor_inputs['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-        # advantages = (target_values[value_mask] - expected_value).view(-1)
-        # policy_loss = (-actor_inputs['action_prob'].view(-1) * advantages).sum()
-        # self.actor_optimizer.zero_grad()
-        # policy_loss.backward()
-        # torch.nn.utils.clip_grad_norm_(self.local_actor.parameters(), self.gradient_clip)
-        # self.actor_optimizer.step()
-        # Agent.soft_update(self.local_actor,self.target_actor,self.tau)
+        target_values = critic(state)['value']
+        actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+        expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
+        advantages = (target_values[value_mask] - expected_value).view(-1)
+        policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+        actor_optimizer.zero_grad()
+        policy_loss.backward()
+        torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+        actor_optimizer.step()
+        # Agent.soft_update(self.actor,self.target_actor,self.tau)
 
         # outputs = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
         # print(outputs)
