@@ -52,6 +52,7 @@ class BaseTestCase(TestCase):
         c = self.app.test_client()
         response = c.get('/api/reset')
         step_response = c.post('/api/step', data=json.dumps(dict(action='bet',betsize=1)),follow_redirects=True)
+        print(step_response.data)
         step_response = c.post('/api/step', data=json.dumps(dict(action='call',betsize=1)),follow_redirects=True)
         print(step_response.data)
 
