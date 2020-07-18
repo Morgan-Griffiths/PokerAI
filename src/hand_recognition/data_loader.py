@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split,StratifiedKFold
 
 from utils.utils import return_uniques
 
-class mathDataset(Dataset):
+class datasetLoader(Dataset):
     """Boolean Logic dataset."""
 
     def __init__(self, X,y):
@@ -29,7 +29,7 @@ class mathDataset(Dataset):
         return sample
 
 def return_trainloader(X,y):
-    data = mathDataset(X,y)
+    data = datasetLoader(X,y)
     params = {
         'batch_size':2048,
         'shuffle': True,
@@ -43,9 +43,9 @@ def return_dataloaders(X,y,multigpu=False):
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=1)
     print(f'Dataset binary label balance: train: {return_uniques(y_train)[1]}, val: {return_uniques(y_val)[1]}, test: {return_uniques(y_test)[1]}')
 
-    trainset = mathDataset(X_train,y_train)
-    valset = mathDataset(X_val,y_val)
-    testset = mathDataset(X_test,y_test)
+    trainset = datasetLoader(X_train,y_train)
+    valset = datasetLoader(X_val,y_val)
+    testset = datasetLoader(X_test,y_test)
 
     params = {
         'batch_size':2048,
