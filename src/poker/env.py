@@ -318,6 +318,7 @@ class Poker(object):
         self.to_shuffle = params['shuffle']
         self.global_mapping = params['global_mapping']
         self.state_mapping = params['state_mapping']
+        self.obs_mapping = params['obs_mapping']
         self.betsizes = params['betsizes']
         self.num_betsizes = len(self.betsizes)
         self.starting_street  = params['starting_street']
@@ -543,14 +544,6 @@ class Poker(object):
             best_hand = np.min(hand_ranks)
             winner_mask = np.where(best_hand == hand_ranks)[0]
             winner_positions = np.array(positions)[winner_mask]
-            # print(hands,positions)
-            # print(self.board)
-            # print(hand_rank(en_hands[0],en_board))
-            # print(hand_ranks)
-            # print(best_hand)
-            # print(winner_mask)
-            # print(positions[winner_mask[0]])
-            # print(winner_positions)
             for winner in winner_positions:
                 self.players[winner].stack += self.pot / len(winner_mask)
         else:
@@ -663,6 +656,12 @@ class Poker(object):
         else:
             betsize = 0
         return betsize
+
+    def player_rewards(self):
+        rewards = {}
+        for position in ['SB','BB']:
+            rewards[position] = self.players[position].stack - self.starting_stack
+        return rewards
     
     @property
     def current_player(self):

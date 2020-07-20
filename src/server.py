@@ -7,6 +7,8 @@ from pymongo import MongoClient
 from poker.env import Poker
 from poker.config import Config
 import poker.datatypes as pdt
+from models.networks import OmahaActor
+import copy
 
 """
 API for connecting the Poker Env with Alex's frontend client for baseline testing the trained bot.
@@ -14,6 +16,7 @@ API for connecting the Poker Env with Alex's frontend client for baseline testin
 
 class API(object):
     def __init__(self):
+        self.seed = 1458
         self.connect()
         self.game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
         self.config = Config()
@@ -32,7 +35,19 @@ class API(object):
             'shuffle':True
         }
         self.env = Poker(self.env_params)
+        self.network_params = self.instantiate_network_params()
+        self.model = OmahaActor(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
         self.player = None
+
+    def instantiate_network_params(self):
+        network_params = copy.deepcopy(self.env_params)
+        network_params['maxlen'] = 10
+        network_params['embedding_size'] = 128
+        return network_params
+
+    def load_model(self,path):
+        self.model.load_state_dict(torch.load(path))
+        self.model.eval()
 
     def connect(self):
         client = MongoClient('localhost', 27017,maxPoolSize=10000)

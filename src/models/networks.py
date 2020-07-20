@@ -8,7 +8,7 @@ from models.model_utils import padding_index
 from models.buffers import PriorityReplayBuffer,PriorityTree
 import hand_recognition.datatypes as dt
 
-from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,CTransformer,NetworkFunctions
+from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
 ################################################
@@ -179,10 +179,10 @@ class OmahaActor(nn.Module):
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
-        self.process_input = PreProcessPokerInputs(params)
+        self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
-        self.mapping = params['mapping']
+        self.state_mapping = params['state_mapping']
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
@@ -190,7 +190,7 @@ class OmahaActor(nn.Module):
         self.emb = 1248
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(self.emb, 128)
+        self.lstm = nn.LSTM(1280, 128)
         # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
 
         self.fc1 = nn.Linear(528,hidden_dims[0])
@@ -199,11 +199,12 @@ class OmahaActor(nn.Module):
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
+        x = torch.tensor(state,dtype=torch.float32)
+        action_mask = torch.tensor(action_mask,dtype=torch.long)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long)
         mask = combined_masks(action_mask,betsize_mask)
-        x = state
-        if x.dim() == 2:
-            x = x.unsqueeze(0)
-        out = self.process_input(x).unsqueeze(0)
+
+        out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
         padding = torch.zeros(B,n_padding,out.size(-1))
@@ -217,13 +218,50 @@ class OmahaActor(nn.Module):
         m = Categorical(action_probs)
         action = m.sample()
 
-        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.mapping['state']['previous_action']])
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
         outputs = {
-            'action':action,
-            'action_category':action_category,
+            'action':action.item(),
+            'action_category':action_category.item(),
             'action_prob':m.log_prob(action),
             'action_probs':action_probs,
-            'betsize':betsize_category
+            'betsize':betsize_category.item()
+            }
+        return outputs
+    
+class OmahaQCritic(nn.Module):
+    def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        self.combined_output = nA - 2 + nB
+        self.process_input = PreProcessLayer(params)
+        self.maxlen = params['maxlen']
+        self.mapping = params['state_mapping']
+        # self.lstm = nn.LSTM(1280, 128)
+        emb = 1280
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(128,1)
+        self.advantage_output = nn.Linear(128,self.combined_output)
+
+    def forward(self,state):
+        x = torch.tensor(state,dtype=torch.float32)
+        out = self.process_input(x)
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
+        padding = torch.zeros(B,n_padding,out.size(-1))
+        # print('out',out.size())
+        h = torch.cat((out,padding),dim=1)
+        q_input = self.transformer(out)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(-1,keepdim=True).expand_as(a)
+        outputs = {
+            'value':q.squeeze(0)
             }
         return outputs
 
