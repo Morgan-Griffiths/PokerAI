@@ -67,6 +67,9 @@ class API(object):
         client = MongoClient('localhost', 27017,maxPoolSize=10000)
         self.db = client.baseline
 
+    def update_num_hands(self,value):
+        self.num_hands = value
+
     def update_player_name(self,name:str):
         """updates player name"""
         self.player['name'] = name
@@ -103,7 +106,7 @@ class API(object):
                         'game':self.env.game,
                         'player':self.player['name'],
                         'hand_num':self.num_hands,
-                        'poker_round':i,
+                        'poker_round':step,
                         'state':state.tolist(),
                         'action_probs':action_probs[step].tolist(),
                         'action_prob':action_prob[step].tolist(),
@@ -115,6 +118,28 @@ class API(object):
                         'reward':rewards[step]
                     }
                     self.db['game_data'].insert_one(state_json)
+
+    def return_player_stats(self):
+        """Returns dict of current player stats against the bot."""
+        query = {
+            'player':self.player['name'],
+            'poker_round': 0
+        }
+        projection ={'reward':1,'hand_num':1,'_id':0}
+        player_results = self.db['game_data'].find(query)
+        results = []
+        total_hands = 0
+        for result in player_results:
+            results.append(result['reward'])
+            total_hands = max(result['hand_num'],total_hands)
+        bb_per_hand = sum(results) / total_hands
+        player_stats = {
+            'results':sum(results),
+            'bb_per_hand':bb_per_hand,
+            'total_hands':total_hands
+        }
+        self.update_num_hands(total_hands)
+        return player_stats
 
     def parse_env_outputs(self,state,action_mask,betsize_mask):
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
@@ -169,7 +194,8 @@ class API(object):
             outputs = self.model(state,action_mask,betsize_mask)
             self.store_actions(outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
-            self.store_state(state,obs,action_mask,betsize_mask)
+            if not done:
+                self.store_state(state,obs,action_mask,betsize_mask)
         return state,obs,done,action_mask,betsize_mask
 
     def reset(self):
@@ -229,13 +255,17 @@ logging.basicConfig(level=logging.DEBUG)
 def home():
     return 'Server is up and running'
 
-@app.route('/api/player',methods=['POST'])
+@app.route('/api/player/name',methods=['POST'])
 def player():
     req_data = json.loads(request.get_data())
     api.update_player_name(req_data.get('name'))
     return 'Updated Name'
 
-@app.route('/api/load_model',methods=['POST'])
+@app.route('/api/player/stats')
+def player_stats():
+    return json.dumps(api.return_player_stats())
+
+@app.route('/api/model/load',methods=['POST'])
 def load_model():
     req_data = json.loads(request.get_data())
     api.load_model(req_data.get('path'))
