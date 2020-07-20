@@ -44,6 +44,7 @@ class BaseTestCase(TestCase):
         assert response.content_length > 400
         step_response = c.post('/api/step', data=json.dumps(dict(action='check',betsize=0)),follow_redirects=True)
         assert response.content_length > 400
+        step_response = c.post('/api/step', data=json.dumps(dict(action='check',betsize=0)),follow_redirects=True)
 
     def test_hand(self):
         print('test bet call')
@@ -61,7 +62,7 @@ class BaseTestCase(TestCase):
 
     def test_model_load(self):
         c = self.app.test_client()
-        response = c.get('/api/player/stats')
+        response = c.post('/api/model/load',data=json.dumps(dict(path=os.path.join(os.getcwd(),'checkpoints/RL/RL_actor'))),follow_redirects=True)
         print(response.data)
 
 if __name__ == '__main__':

@@ -128,10 +128,11 @@ class API(object):
         projection ={'reward':1,'hand_num':1,'_id':0}
         player_results = self.db['game_data'].find(query)
         results = []
-        total_hands = 0
+        # total_hands = 0
         for result in player_results:
             results.append(result['reward'])
-            total_hands = max(result['hand_num'],total_hands)
+            # total_hands = max(result['hand_num'],total_hands)
+        total_hands = len(results)
         bb_per_hand = sum(results) / total_hands
         player_stats = {
             'results':sum(results),
@@ -269,6 +270,7 @@ def player_stats():
 def load_model():
     req_data = json.loads(request.get_data())
     api.load_model(req_data.get('path'))
+    return 'Loaded Model'
 
 @app.route('/api/reset')
 def reset():
