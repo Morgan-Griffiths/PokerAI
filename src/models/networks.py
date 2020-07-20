@@ -220,11 +220,11 @@ class OmahaActor(nn.Module):
 
         action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
         outputs = {
-            'action':action,
-            'action_category':action_category,
+            'action':action.item(),
+            'action_category':action_category.item(),
             'action_prob':m.log_prob(action),
             'action_probs':action_probs,
-            'betsize':betsize_category
+            'betsize':betsize_category.item()
             }
         return outputs
     
@@ -238,11 +238,11 @@ class OmahaQCritic(nn.Module):
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
-        self.lstm = nn.LSTM(1280, 128)
-        emb = 1248
+        # self.lstm = nn.LSTM(1280, 128)
+        emb = 1280
         n_heads = 8
         depth = 2
-        # self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,self.nA)
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(128,1)
         self.advantage_output = nn.Linear(128,self.combined_output)
@@ -250,14 +250,12 @@ class OmahaQCritic(nn.Module):
     def forward(self,state):
         x = torch.tensor(state,dtype=torch.float32)
         out = self.process_input(x)
-        print('out',out.size())
-        # B,M,c = out.size()
-        # n_padding = self.maxlen - M
-        # padding = torch.zeros(B,n_padding,out.size(-1))
-        # h = torch.cat((out,padding),dim=1)
-        # B,M,c = out.size()
-        # q_input = self.transformer(out)
-        q_input,_ = self.lstm(out)
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
+        padding = torch.zeros(B,n_padding,out.size(-1))
+        # print('out',out.size())
+        h = torch.cat((out,padding),dim=1)
+        q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)
