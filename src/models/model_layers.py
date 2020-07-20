@@ -74,7 +74,7 @@ class ProcessHandBoard(nn.Module):
     def __init__(self,params,hand_length,hidden_dims=(15,32,32)):
         super().__init__()
         self.hand_length = hand_length
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,5))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
@@ -93,7 +93,6 @@ class ProcessHandBoard(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.maxlen = params['maxlen']
-        self.forward = self.forward_actor
         # self.initialize(critic)
 
     def initialize(self,critic):
@@ -136,17 +135,20 @@ class ProcessHandBoard(nn.Module):
 
     def forward(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
-        M,C = x.size()
-        ranks = x[:,::2]
-        suits = x[:,1::2]
+        B,M,C = x.size()
+        # print(B,M,C)
+        ranks = x[:,:,::2]
+        suits = x[:,:,1::2]
+        # print(suits)
+        # print(ranks.size(),suits.size())
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
         activations = []
         for i in range(M):
-            s = self.suit_conv(hot_suits[i,:,:].unsqueeze(0).float())
-            r = self.rank_conv(hot_ranks[i,:,:].unsqueeze(0).float())
+            s = self.suit_conv(hot_suits[:,i,:,:].float())
+            r = self.rank_conv(hot_ranks[:,i,:,:].float())
             activations.append(torch.cat((r,s),dim=-1))
-        return torch.stack(activations).view(M,-1)
+        return torch.stack(activations).view(B,M,-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
@@ -249,20 +251,39 @@ class PreProcessLayer(nn.Module):
     def __init__(self,params):
         super().__init__()
         self.maxlen = params['maxlen']
-        self.mapping = params['mapping']
+        self.state_mapping = params['state_mapping']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
         self.hand_board = ProcessHandBoard(params,hand_length)
-        self.continuous = ProcessContinuous(params)
-        self.ordinal = ProcessOrdinal(params)
+        # self.continuous = ProcessContinuous(params)
+        # self.ordinal = ProcessOrdinal(params)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
+        self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
-        h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
+        B,M,C = x.size()
+        h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
-        o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
+        last_a = x[:,:,self.state_mapping['last_action']].long()
+        bets = []
+        # for i in range()
+        last_b = x[:,:,self.state_mapping['last_betsize']]
+        # print(last_a.size(),last_b.size())
+        emb_a = self.action_emb(last_a)
+        embedded_bets = []
+        for i in range(M):
+            embedded_bets.append(self.betsize_fc(last_b[:,i]))
+        embeds = torch.stack(embedded_bets)
+        # print('embeds',embeds.size())
+        # print('emb_a',emb_a.size())
+        # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
-        c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
+        # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
-        combined = torch.cat((h,o,c),dim=-1)
+        if embeds.dim() == 2:
+            embeds = embeds.unsqueeze(0)
+        combined = torch.cat((h,emb_a,embeds),dim=-1)
+        # print(h.size(),emb_a.size(),embeds.size())
+        # print(combined.size())
         return combined
 
 class PreProcessHistory(nn.Module):
