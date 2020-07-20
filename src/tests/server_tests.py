@@ -25,6 +25,8 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         self.app = self.create_app()
+        c = self.app.test_client()
+        c.post('/api/player', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
         # db.create_all()
 
     def tearDown(self):
@@ -55,7 +57,6 @@ class BaseTestCase(TestCase):
         print(step_response.data)
         step_response = c.post('/api/step', data=json.dumps(dict(action='call',betsize=1)),follow_redirects=True)
         print(step_response.data)
-
 
 class Response(BaseResponse):
     @cached_property

@@ -35,10 +35,9 @@ class Config(object):
             'actor_lr':1e-4,
             'critic_lr':4e-7,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/regression/PartialHandRegression'),
-            'frozen_layer' : False
+            'frozen_layer' : False,
+            'actor_path':os.path.join(os.getcwd(),'checkpoints/RL/RL_actor'),
         }
-
-
         self.global_mapping = {
             'board':np.array([0,1,2,3,4,5,6,7,8,9]),
             'board_ranks':np.array([0,2,4,6,8]),
