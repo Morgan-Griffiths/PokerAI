@@ -26,7 +26,7 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.app = self.create_app()
         c = self.app.test_client()
-        c.post('/api/player', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
+        c.post('/api/player/name', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
         # db.create_all()
 
     def tearDown(self):
@@ -41,13 +41,9 @@ class BaseTestCase(TestCase):
         response = c.get('/garbage', follow_redirects=True)
         self.assertEqual(response.status_code, 404)
         response = c.get('/api/reset')
-        # print(response.content_length)
         assert response.content_length > 400
-        # print(response.data)
         step_response = c.post('/api/step', data=json.dumps(dict(action='check',betsize=0)),follow_redirects=True)
-        # print(response.content_length)
         assert response.content_length > 400
-        # print(step_response.data)
 
     def test_hand(self):
         print('test bet call')
@@ -58,17 +54,15 @@ class BaseTestCase(TestCase):
         step_response = c.post('/api/step', data=json.dumps(dict(action='call',betsize=1)),follow_redirects=True)
         print(step_response.data)
 
-class Response(BaseResponse):
-    @cached_property
-    def json(self):
-        return json.loads(self.data)
+    def test_player_results(self):
+        c = self.app.test_client()
+        response = c.get('/api/player/stats')
+        print(response.data)
 
-class TestClient(FlaskClient):
-    def open(self, *args, **kwargs):
-        if 'json' in kwargs:
-            kwargs['data'] = json.dumps(kwargs.pop('json'))
-            kwargs['content_type'] = 'application/json'
-        return super(TestClient, self).open(*args, **kwargs)
+    def test_model_load(self):
+        c = self.app.test_client()
+        response = c.get('/api/player/stats')
+        print(response.data)
 
 if __name__ == '__main__':
     unittest.main()

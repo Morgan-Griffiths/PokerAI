@@ -265,7 +265,7 @@ def player():
 def player_stats():
     return json.dumps(api.return_player_stats())
 
-@app.route('/api/load_model',methods=['POST'])
+@app.route('/api/model/load',methods=['POST'])
 def load_model():
     req_data = json.loads(request.get_data())
     api.load_model(req_data.get('path'))
