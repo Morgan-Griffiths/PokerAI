@@ -1,17 +1,18 @@
-from flask import Flask, jsonify, request
-import json
 import os
-import logging
-from collections import defaultdict
-import pymongo
-from pymongo import MongoClient
-from poker.env import Poker
-from poker.config import Config
-import poker.datatypes as pdt
-from models.networks import OmahaActor
 import copy
-from torch import load
+import json
+import logging
+import pymongo
 import numpy as np
+from torch import load
+from pymongo import MongoClient
+from collections import defaultdict
+from flask import Flask, jsonify, request
+
+from poker.env import Poker
+import poker.datatypes as pdt
+from poker.config import Config
+from models.networks import OmahaActor
 
 """
 API for connecting the Poker Env with Alex's frontend client for baseline testing the trained bot.
