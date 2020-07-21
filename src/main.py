@@ -69,7 +69,7 @@ if __name__ == "__main__":
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'actor_optimizer':actor_optimizer,
         'critic_optimizer':critic_optimizer,
-        'path': os.path.join(os.getcwd(),'checkpoints/RL')
+        'path': os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi')
     }
     # generate trajectories and desposit in mongoDB
     mongo = MongoDB()
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     actor.share_memory()#.to(device)
     critic.share_memory()#.to(device)
     processes = []
-    num_processes = mp.cpu_count()
+    num_processes = min(mp.cpu_count(),4)
     for id in range(num_processes): # No. of processes
         p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
         p.start()
