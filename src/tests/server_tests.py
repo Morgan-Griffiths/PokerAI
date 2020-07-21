@@ -1,6 +1,5 @@
 import unittest
 from flask import Flask,current_app, Response as BaseResponse, json
-from flask.testing import FlaskClient
 from flask_testing import TestCase
 from werkzeug.utils import cached_property
 import os
