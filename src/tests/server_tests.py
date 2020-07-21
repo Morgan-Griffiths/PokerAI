@@ -1,8 +1,7 @@
 import unittest
+import os
 from flask import Flask,current_app, Response as BaseResponse, json
 from flask_testing import TestCase
-from werkzeug.utils import cached_property
-import os
 from server import app
 
 class BaseConfiguration(object):
