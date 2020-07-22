@@ -36,6 +36,18 @@ https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/
 ### OSX
 https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/
 
+## Testing
+
+```cd src```
+
+test the environment
+
+```python env_test.py```
+
+test the backend server
+
+```python -m unittest tests/server_tests.py```
+
 # Abstract
 
 A series of poker environments that cover each of the individual complexities of poker, allowing one to test networks and learning architectures quickly and easily starting from the simpliest env all the way to real world poker. The goal is a single API that interfaces with the training architecture for the agent such that you can scale the complexity as needed. Asserting that the learning algorithm learns at all stages.

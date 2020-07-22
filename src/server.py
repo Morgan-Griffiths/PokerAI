@@ -212,10 +212,12 @@ class API(object):
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
         return self.parse_env_outputs(state,action_mask,betsize_mask)
 
-    def step(self,action,betsize):
+    def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
+        if isinstance(betsize,str):
+            betsize = float(betsize)
         # print('action,betsize',action,betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
         action_category = self.env.convert_to_category(action_type,betsize)

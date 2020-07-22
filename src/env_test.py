@@ -577,8 +577,78 @@ class TestEnv(unittest.TestCase):
         seed = 152
         params['maxlen'] = 10
         params['embedding_size'] = 1024
-        actor = OmahaQCritic(seed,nS,nA,nB,params)
+        critic = OmahaQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
+        critic(state)
+
+    def testMasks(self):
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 5
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        assert state[:,-1][:,env.state_mapping['pot']] == 1.5
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4.5
+        assert state[:,-1][:,env.state_mapping['player1_position']] == 0
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 4
+        assert state[:,-1][:,env.state_mapping['player2_position']] == 1
+        assert state[:,-1][:,env.state_mapping['street']] == 0
+        assert env.current_player == 'SB'
+        assert np.array_equal(betsize_mask,np.array([1,1]))
+        assert np.array_equal(mask,np.array([0,1,1,0,1]))
+        state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
+        assert env.current_player == 'BB'
+        assert state[:,-1][:,env.state_mapping['pot']] == 4
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4
+        assert state[:,-1][:,env.state_mapping['player1_position']] == 1
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 2
+        assert state[:,-1][:,env.state_mapping['player2_position']] == 0
+        assert state[:,-1][:,env.state_mapping['street']] == 0
+        assert np.array_equal(mask,np.array([0,1,1,0,1]))
+        assert np.array_equal(betsize_mask,np.array([1,0]))
+        state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
+        assert state[:,-1][:,env.state_mapping['pot']] == 8
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 2
+        assert state[:,-1][:,env.state_mapping['player1_position']] == 0
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 0
+        assert state[:,-1][:,env.state_mapping['player2_position']] == 1
+        assert state[:,-1][:,env.state_mapping['street']] == 0
+        assert np.array_equal(mask,np.array([0,1,1,0,0]))
+        assert np.array_equal(betsize_mask,np.array([0,0]))
+
+    def testEnvCategoryMapping(self):
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 50
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        assert env.convert_to_category(4,3) == 4
+        assert env.convert_to_category(4,2) == 3
+        assert env.convert_to_category(2,0.5) == 2
+        assert env.convert_to_category(0,0) == 0
+        state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
+        assert env.convert_to_category(4,9) == 4
+        assert env.convert_to_category(4,5) == 3
+        assert env.convert_to_category(2,2) == 2
+        assert env.convert_to_category(0,0) == 0
+        state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
+        assert env.convert_to_category(3,6) == 4
+        assert env.convert_to_category(3,3) == 3
+        assert env.convert_to_category(1,0) == 1
+        state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
+        assert env.convert_to_category(4,24) == 4
+        assert env.convert_to_category(4,12) == 3
+        assert env.convert_to_category(2,6) == 2
+        assert env.convert_to_category(1,0) == 1
+        state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
+        assert env.convert_to_category(4,47) == 4
+        assert env.convert_to_category(4,42) == 3
+        assert env.convert_to_category(2,18) == 2
+        assert env.convert_to_category(1,0) == 1
 
 def envTestSuite():
     suite = unittest.TestSuite()
@@ -595,6 +665,8 @@ def envTestSuite():
     suite.addTest(TestEnv('testBetLimits'))
     suite.addTest(TestEnv('testAllin'))
     suite.addTest(TestEnv('testActor'))
+    suite.addTest(TestEnv('testMasks'))
+    suite.addTest(TestEnv('testEnvCategoryMapping'))
     return suite
 
 if __name__ == "__main__":
