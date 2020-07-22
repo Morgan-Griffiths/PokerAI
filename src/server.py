@@ -162,6 +162,7 @@ class API(object):
             'done'                  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
             'action_mask'           :action_mask.tolist(),
             'betsize_mask'          :betsize_mask.tolist(),
+            'street'                :state[:,-1][:,self.env.state_mapping['street']][0],
         }
         outcome_object = {
             'player1_stack':self.env.players['SB'].stack,
