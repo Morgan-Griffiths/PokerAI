@@ -8,7 +8,7 @@ from torch import load
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
-from flask-cors import CORS
+from flask_cors import CORS
 
 from poker.env import Poker
 import poker.datatypes as pdt
