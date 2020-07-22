@@ -167,10 +167,10 @@ class API(object):
         outcome_object = {
             'player1_stack':self.env.players['SB'].stack,
             'player1_reward':self.env.players['SB'].stack - self.env.starting_stack,
-            'player1_hand':self.env.players['SB'].hand,
+            'player1_hand':self.env.players['SB'].hand.tolist(),
             'player2_stack':self.env.players['BB'].stack,
             'player2_reward':self.env.players['BB'].stack - self.env.starting_stack,
-            'player2_hand':self.env.players['BB'].hand,
+            'player2_hand':self.env.players['BB'].hand.tolist(),
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
