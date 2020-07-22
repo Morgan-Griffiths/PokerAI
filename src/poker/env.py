@@ -562,17 +562,31 @@ class Poker(object):
         return available_categories,available_betsizes
     
     def return_mask(self):
-        return self.mask_dict[self.global_states.last_aggressive_action]
+        return copy.copy(self.mask_dict[self.global_states.last_aggressive_action])
 
     def convert_to_category(self,action,betsize):
         """returns int"""
-        category = np.zeros(self.action_space + self.betsize_space - 1)
+        category = np.zeros(self.action_space + self.betsize_space - 2)
         if action == 0 or action == 1 or action == 2: # fold check call
             category[action] = 1
+        elif action == 4:
+            if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
+                min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
+            else:
+                min_raise = 2 * self.global_states.last_aggressive_betsize
+            max_raise = min((2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total),(self.players[self.current_player].stack+self.players[self.current_player].street_total))
+            previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total
+            possible_sizes = np.linspace(min_raise,max_raise,self.num_betsizes)
+            closest_val = np.min(np.abs(possible_sizes - betsize))
+            bet_index = np.where(closest_val == np.abs(possible_sizes - betsize))[0]
+            category[bet_index+3] = 1
         else:
-            for i,bet_category in enumerate(self.betsizes):
-                if betsize <= self.pot * bet_category:
-                    category[i+4] = 1
+            max_bet = self.pot
+            min_bet = 1
+            possible_sizes = self.betsizes * self.pot
+            closest_val = np.min(np.abs(possible_sizes - betsize))
+            bet_index = np.where(closest_val == np.abs(possible_sizes - betsize))[0]
+            category[bet_index+3] = 1
         return int(np.where(category == 1)[0][0])
 
 ################################################
