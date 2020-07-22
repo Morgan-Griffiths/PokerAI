@@ -5,4 +5,5 @@ scikit-learn==0.22.1
 scipy==1.4.1
 torch==1.4.0
 flask==1.1.2
-flask-testing=0.7.1
+flask-testing==0.7.1
+werkzeug==0.16.1
