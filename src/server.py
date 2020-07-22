@@ -250,6 +250,9 @@ class API(object):
 api = API()
 
 app = Flask(__name__)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+cors = CORS(app, resources={r"/api/*": {"origins": "http://localhost:*"}})
 
 logging.basicConfig(level=logging.DEBUG)
 
