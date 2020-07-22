@@ -49,7 +49,6 @@ def generate_trajectories(env,actor,training_params,id):
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
-    print(trajectories.keys())
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['epochs'])
 
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
@@ -108,6 +107,7 @@ def scale_rewards(self,rewards,factor=1):
     return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
 
 def learning_update(actor,critic,params):
+    device = params['device']
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
     mongo = MongoDB()
@@ -119,11 +119,11 @@ def learning_update(actor,critic,params):
     losses = []
     #     print('round ',i)
     for poker_round in data:
-        state = poker_round['state']
-        action = poker_round['action']
-        reward = poker_round['reward']
-        betsize_mask = poker_round['betsize_mask']
-        action_mask = poker_round['action_mask']
+        state = poker_round['state'].to(device)
+        action = poker_round['action'].to(device)
+        reward = poker_round['reward'].to(device)
+        betsize_mask = poker_round['betsize_mask'].to(device)
+        action_mask = poker_round['action_mask'].to(device)
         ## Critic update ##
         local_values = critic(state)['value']
         value_mask = return_value_mask(action)
@@ -155,11 +155,7 @@ def learning_update(actor,critic,params):
 
 def train(env,actor,critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
-        sys.stdout.write('\r')
         generate_trajectories(env,actor,training_params,id)
         # train on trajectories
         actor,critic,learning_params = learning_update(actor,critic,learning_params)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
-        sys.stdout.flush()
-        sys.stdout.write(", epoch %d"% (e+1))
-        sys.stdout.flush()
+        print(f'Training round {e}, ID {id}')
