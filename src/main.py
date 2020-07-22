@@ -45,16 +45,18 @@ if __name__ == "__main__":
     nA = env.action_space
     nB = env.betsize_space
     seed = 1235
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
-        'embedding_size':128
+        'embedding_size':128,
+        'device':device
     }
     training_params = {
         'training_epochs':1,
-        'epochs':10,
+        'epochs':5,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -69,17 +71,20 @@ if __name__ == "__main__":
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'actor_optimizer':actor_optimizer,
         'critic_optimizer':critic_optimizer,
-        'path': os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi')
+        'path': os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi'),
+        'device':device
     }
+    mp.set_start_method('spawn')
     # generate trajectories and desposit in mongoDB
     mongo = MongoDB()
     mongo.clean_db()
     mongo.close()
     # training loop
-    actor.share_memory()#.to(device)
-    critic.share_memory()#.to(device)
+    actor.share_memory().to(device)
+    critic.share_memory().to(device)
     processes = []
     num_processes = min(mp.cpu_count(),4)
+    tic = time.time()
     for id in range(num_processes): # No. of processes
         p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
         p.start()
@@ -93,3 +98,5 @@ if __name__ == "__main__":
         os.mkdir(directory)
     torch.save(actor.state_dict(), path + '_actor')
     torch.save(critic.state_dict(), path + '_critic')
+    toc = time.time()
+    print(f'Training completed in {(toc-tic)/60} minutes')
