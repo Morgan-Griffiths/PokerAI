@@ -215,6 +215,8 @@ class API(object):
         """Maps action + betsize -> to a flat action category"""
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
+        if isinstance(betsize,str):
+            betsize = float(betsize)
         # print('action,betsize',action,betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
         action_category = self.env.convert_to_category(action_type,betsize)
