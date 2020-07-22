@@ -179,6 +179,7 @@ class OmahaActor(nn.Module):
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
+        self.device = params['device']
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
@@ -199,9 +200,9 @@ class OmahaActor(nn.Module):
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
-        x = torch.tensor(state,dtype=torch.float32)
-        action_mask = torch.tensor(action_mask,dtype=torch.long)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long)
+        x = torch.tensor(state,dtype=torch.float32).to(self.device)
+        action_mask = torch.tensor(action_mask,dtype=torch.long).to(self.device)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
 
         out = self.process_input(x)
