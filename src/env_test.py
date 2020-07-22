@@ -626,29 +626,41 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
-        assert env.convert_to_category(4,3) == 4
-        assert env.convert_to_category(4,2) == 3
-        assert env.convert_to_category(2,0.5) == 2
-        assert env.convert_to_category(0,0) == 0
+        assert env.convert_to_category(4,3)[0] == 4
+        assert env.convert_to_category(4,2)[0] == 3
+        assert env.convert_to_category(2,0.5)[0] == 2
+        assert env.convert_to_category(0,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(4,9) == 4
-        assert env.convert_to_category(4,5) == 3
-        assert env.convert_to_category(2,2) == 2
-        assert env.convert_to_category(0,0) == 0
+        assert env.convert_to_category(4,9)[0] == 4
+        assert env.convert_to_category(4,5)[0] == 3
+        assert env.convert_to_category(2,2)[0] == 2
+        assert env.convert_to_category(0,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
-        assert env.convert_to_category(3,6) == 4
-        assert env.convert_to_category(3,3) == 3
-        assert env.convert_to_category(1,0) == 1
+        assert env.convert_to_category(3,6)[0] == 4
+        assert env.convert_to_category(3,3)[0] == 3
+        assert env.convert_to_category(1,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
-        assert env.convert_to_category(4,24) == 4
-        assert env.convert_to_category(4,12) == 3
-        assert env.convert_to_category(2,6) == 2
-        assert env.convert_to_category(1,0) == 1
+        assert env.convert_to_category(4,24)[0] == 4
+        assert env.convert_to_category(4,12)[0] == 3
+        assert env.convert_to_category(2,6)[0] == 2
+        assert env.convert_to_category(1,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(4,47) == 4
-        assert env.convert_to_category(4,42) == 3
-        assert env.convert_to_category(2,18) == 2
-        assert env.convert_to_category(1,0) == 1
+        assert env.convert_to_category(4,47)[0] == 4
+        assert env.convert_to_category(4,42)[0] == 3
+        assert env.convert_to_category(2,18)[0] == 2
+        assert env.convert_to_category(1,0)[0] == 1
+
+    def testStreetInitialization(self):
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 50
+        params['n_players'] = 2
+        params['starting_street'] = 3
+        params['pot'] = 1
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        assert state[:,-1][:,env.state_mapping['player1_position']] == 1
+        assert state[:,-1][:,env.state_mapping['hero_position']] == 1
+
 
 def envTestSuite():
     suite = unittest.TestSuite()
@@ -667,6 +679,7 @@ def envTestSuite():
     suite.addTest(TestEnv('testActor'))
     suite.addTest(TestEnv('testMasks'))
     suite.addTest(TestEnv('testEnvCategoryMapping'))
+    suite.addTest(TestEnv('testStreetInitialization'))
     return suite
 
 if __name__ == "__main__":

@@ -219,11 +219,12 @@ class API(object):
             betsize = float(betsize)
         # print('action,betsize',action,betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
-        action_category = self.env.convert_to_category(action_type,betsize)
+        action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
+        assert isinstance(action_category,int)
         player_outputs = {
             'action':action_category,
             'action_category':action_type,
-            'betsize':betsize,
+            'betsize':betsize_category,
             'action_prob':np.array([0]),
             'action_probs':np.zeros(self.env.betsize_space)
         }
