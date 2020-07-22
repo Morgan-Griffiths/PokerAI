@@ -211,7 +211,7 @@ class API(object):
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
         return self.parse_env_outputs(state,action_mask,betsize_mask)
 
-    def step(self,action,betsize):
+    def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
