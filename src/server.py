@@ -227,7 +227,7 @@ class API(object):
             'action_category':action_type,
             'betsize':betsize_category,
             'action_prob':np.array([0]),
-            'action_probs':np.zeros(self.env.betsize_space)
+            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2)
         }
         print('player_outputs',player_outputs)
         self.store_actions(player_outputs)
