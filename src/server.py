@@ -154,6 +154,9 @@ class API(object):
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
         # cards go in a list
         state_object = {
+            'history'               :state.tolist(),
+            'betsizes'              :self.env.betsizes.tolist(),
+            'mapping'               :self.env.state_mapping,
             'hero_stack'            :state[:,-1][:,self.env.state_mapping['hero_stacksize']][0],
             'hero_position'         :state[:,-1][:,self.env.state_mapping['hero_position']][0],
             'hero_cards'            :state[:,-1][:,self.env.state_mapping['hero_hand']][0].tolist(),
@@ -222,6 +225,7 @@ class API(object):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         print('reset')
+        self.reset_trajectories()
         self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
@@ -268,7 +272,6 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
-            self.reset_trajectories()
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
