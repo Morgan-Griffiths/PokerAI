@@ -397,7 +397,7 @@ class Poker(object):
     def step(self,inputs):
         """
         Increments the env state with current action,betsize.
-        Actions : dict of ints
+        inputs : dict of ints
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
@@ -567,8 +567,10 @@ class Poker(object):
     def convert_to_category(self,action,betsize):
         """returns int"""
         category = np.zeros(self.action_space + self.betsize_space - 2)
+        bet_category = np.zeros(self.betsize_space)
         if action == 0 or action == 1 or action == 2: # fold check call
             category[action] = 1
+            bet_category[0] = 1
         elif action == 4:
             if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
                 min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
@@ -579,6 +581,7 @@ class Poker(object):
             possible_sizes = np.linspace(min_raise,max_raise,self.num_betsizes)
             closest_val = np.min(np.abs(possible_sizes - betsize))
             bet_index = np.where(closest_val == np.abs(possible_sizes - betsize))[0]
+            bet_category[bet_index] = 1
             category[bet_index+3] = 1
         else:
             max_bet = self.pot
@@ -587,7 +590,8 @@ class Poker(object):
             closest_val = np.min(np.abs(possible_sizes - betsize))
             bet_index = np.where(closest_val == np.abs(possible_sizes - betsize))[0]
             category[bet_index+3] = 1
-        return int(np.where(category == 1)[0][0])
+            bet_category[bet_index] = 1
+        return int(np.where(category == 1)[0][0]),int(np.where(bet_category == 1)[0][0])
 
 ################################################
 #                  BETSIZES                    #
@@ -623,6 +627,8 @@ class Poker(object):
     ## LIMIT ##
     def return_limit_betsize(self,action,betsize_category):
         """TODO Betsizes should be indexed by street"""
+        assert isinstance(action,int)
+        assert isinstance(betsize_category,int)
         if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]: # Call
             betsize = min(self.players[self.current_player].stack,self.players[self.last_aggressor.key].street_total - self.players[self.current_player].street_total)
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
@@ -640,6 +646,8 @@ class Poker(object):
         Betsize_category would make the most sense if it represented percentages of pot on the first portion.
         And percentages of stack or simply an allin option as the last action.
         """
+        assert isinstance(action,int)
+        assert isinstance(betsize_category,int)
         if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
@@ -655,8 +663,10 @@ class Poker(object):
         return betsize
             
     ## POT LIMIT
-    def return_potlimit_betsize(self,action,betsize_category):
+    def return_potlimit_betsize(self,action:int,betsize_category:int):
         """TODO Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
+        assert isinstance(action,int)
+        assert isinstance(betsize_category,int)
         if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet

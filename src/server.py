@@ -8,6 +8,7 @@ from torch import load
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 from poker.env import Poker
 import poker.datatypes as pdt
@@ -83,7 +84,7 @@ class API(object):
         takes trajectories and inserts them into db for data analysis and learning.
         """
         keys = training_data.keys()
-        positions = [position for position in keys if position in ['SB','BB']]   
+        positions = [position for position in keys if position in ['SB','BB']]  
         for position in positions:
             for i,poker_round in enumerate(training_data[position]):
                 states = poker_round['states']
@@ -100,7 +101,6 @@ class API(object):
                 assert(isinstance(actions,list))
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
-                assert(isinstance(observations,list))
                 assert(isinstance(states,list))
                 for step,state in enumerate(states):
                     state_json = {
@@ -143,33 +143,39 @@ class API(object):
         self.update_num_hands(total_hands)
         return player_stats
 
-    def parse_env_outputs(self,state,action_mask,betsize_mask):
+    def parse_env_outputs(self,state,action_mask,betsize_mask,done):
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
         # cards go in a list
         state_object = {
+            'history'               :state.tolist(),
+            'betsizes'              :self.env.betsizes.tolist(),
+            'mapping'               :self.env.state_mapping,
             'hero_stack'            :state[:,-1][:,self.env.state_mapping['hero_stacksize']][0],
             'hero_position'         :state[:,-1][:,self.env.state_mapping['hero_position']][0],
             'hero_cards'            :state[:,-1][:,self.env.state_mapping['hero_hand']][0].tolist(),
-            'villain_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
-            'villain_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
             'pot'                   :state[:,-1][:,self.env.state_mapping['pot']][0],
             'board_cards'           :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
-            'hero_street_total'     :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
-            'villain_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
+            'player1_street_total'  :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
+            'player1_stack'         :state[:,-1][:,self.env.state_mapping['player1_stacksize']][0],
+            'player1_position'      :state[:,-1][:,self.env.state_mapping['player1_position']][0],
+            'player2_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
+            'player2_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
+            'player2_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
             'last_action'           :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
             'last_betsize'          :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
             'last_position'         :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
-            'done'                  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
+            'done'                  :done,
             'action_mask'           :action_mask.tolist(),
             'betsize_mask'          :betsize_mask.tolist(),
+            'street'                :state[:,-1][:,self.env.state_mapping['street']][0],
         }
         outcome_object = {
             'player1_stack':self.env.players['SB'].stack,
             'player1_reward':self.env.players['SB'].stack - self.env.starting_stack,
-            'player1_hand':self.env.players['SB'].hand,
+            'player1_hand':[item for sublist in self.env.players['SB'].hand for item in sublist],
             'player2_stack':self.env.players['BB'].stack,
             'player2_reward':self.env.players['BB'].stack - self.env.starting_stack,
-            'player2_hand':self.env.players['BB'].hand,
+            'player2_hand':[item for sublist in self.env.players['BB'].hand for item in sublist],
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
@@ -203,29 +209,31 @@ class API(object):
     def reset(self):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
+        self.reset_trajectories()
         self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
         if self.env.current_player != self.player['position']:
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
-        return self.parse_env_outputs(state,action_mask,betsize_mask)
+        return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
-        # print('action,betsize',action,betsize)
+        if isinstance(betsize,str):
+            betsize = float(betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
-        action_category = self.env.convert_to_category(action_type,betsize)
+        action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
+        assert isinstance(action_category,int)
         player_outputs = {
             'action':action_category,
             'action_category':action_type,
-            'betsize':betsize,
+            'betsize':betsize_category,
             'action_prob':np.array([0]),
-            'action_probs':np.zeros(self.env.betsize_space)
+            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2)
         }
-        print('player_outputs',player_outputs)
         self.store_actions(player_outputs)
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
         if not done:
@@ -239,8 +247,7 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
-            self.reset_trajectories()
-        return self.parse_env_outputs(state,action_mask,betsize_mask)
+        return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
     def current_player(self):
@@ -250,6 +257,9 @@ class API(object):
 api = API()
 
 app = Flask(__name__)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+cors = CORS(app, resources={r"/api/*": {"origins": "http://localhost:*"}})
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -280,7 +290,7 @@ def reset():
 @app.route('/api/step', methods=['POST'])
 def gen_routes():
     log = logging.getLogger(__name__)
-    print(request.get_data())
+    log.info(request.get_data())
     req_data = json.loads(request.get_data())
     action = req_data.get('action')
     betsize = req_data.get('betsize')
