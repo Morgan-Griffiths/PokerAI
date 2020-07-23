@@ -84,10 +84,8 @@ class API(object):
         takes trajectories and inserts them into db for data analysis and learning.
         """
         keys = training_data.keys()
-        positions = [position for position in keys if position in ['SB','BB']]   
-        print('training_data.keys',keys)
+        positions = [position for position in keys if position in ['SB','BB']]  
         for position in positions:
-            print('position',position)
             for i,poker_round in enumerate(training_data[position]):
                 states = poker_round['states']
                 observations = poker_round['obs']
@@ -104,11 +102,6 @@ class API(object):
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
                 assert(isinstance(states,list))
-                print('states',len(states))
-                print('actions',len(actions))
-                print('action_prob',len(action_prob))
-                print('action_probs',len(action_probs))
-                print('rewards',len(rewards))
                 for step,state in enumerate(states):
                     state_json = {
                         'game':self.env.game,
@@ -192,17 +185,12 @@ class API(object):
 
     def store_state(self,state,obs,action_mask,betsize_mask):
         cur_player = self.env.current_player
-        print('storing state for ',cur_player)
         self.trajectory[cur_player]['states'].append(copy.copy(state))
         self.trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         self.trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
-        print('states',len(self.trajectory[cur_player]['states']))
-        print('action_masks',len(self.trajectory[cur_player]['action_masks']))
-        print('betsize_masks',len(self.trajectory[cur_player]['betsize_masks']))
 
     def store_actions(self,actor_outputs):
         cur_player = self.env.current_player
-        print('storing state for ',cur_player)
         self.trajectory[cur_player]['actions'].append(actor_outputs['action'])
         self.trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
         self.trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
@@ -210,41 +198,32 @@ class API(object):
         self.trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
 
     def query_bot(self,state,obs,action_mask,betsize_mask):
-        print('query_bot cur player',self.env.current_player)
         while self.env.current_player != self.player['position']:
             outputs = self.model(state,action_mask,betsize_mask)
             self.store_actions(outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
-            print('post query_bot cur player',self.env.current_player)
             if not done:
-                print('query bot state store')
                 self.store_state(state,obs,action_mask,betsize_mask)
         return state,obs,done,action_mask,betsize_mask
 
     def reset(self):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
-        print('reset')
         self.reset_trajectories()
         self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
-        print('reset cur player',self.env.current_player)
         self.store_state(state,obs,action_mask,betsize_mask)
         if self.env.current_player != self.player['position']:
-            print('reset bot query')
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
-            print('reset post query_bot cur player',self.env.current_player)
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
-        print(action,betsize)
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         if isinstance(betsize,str):
             betsize = float(betsize)
-        # print('action,betsize',action,betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
         action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
         assert isinstance(action_category,int)
@@ -255,16 +234,12 @@ class API(object):
             'action_prob':np.array([0]),
             'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2)
         }
-        print('player_outputs',player_outputs)
         self.store_actions(player_outputs)
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
         if not done:
             self.store_state(state,obs,action_mask,betsize_mask)
-            print('step pre query_bot cur player',self.env.current_player)
             if self.env.current_player != self.player['position']:
-                print('step bot query')
                 state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
-                print('step post query_bot cur player',self.env.current_player)
         if done:
             rewards = self.env.player_rewards()
             for position in self.trajectory.keys():
@@ -315,7 +290,7 @@ def reset():
 @app.route('/api/step', methods=['POST'])
 def gen_routes():
     log = logging.getLogger(__name__)
-    print(request.get_data())
+    log.info(request.get_data())
     req_data = json.loads(request.get_data())
     action = req_data.get('action')
     betsize = req_data.get('betsize')
