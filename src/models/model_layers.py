@@ -27,7 +27,6 @@ class NetworkFunctions(object):
 
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """Unwraps flat action into action_category and betsize_category"""
-        # print(action,previous_action)
         actions = torch.zeros(self.nA)
         betsizes = torch.zeros(self.nB)
         # actions[action[action < 3]] = 1
@@ -93,6 +92,7 @@ class ProcessHandBoard(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.maxlen = params['maxlen']
+        self.device = params['device']
         # self.initialize(critic)
 
     def initialize(self,critic):
@@ -136,13 +136,10 @@ class ProcessHandBoard(nn.Module):
     def forward(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
         B,M,C = x.size()
-        # print(B,M,C)
         ranks = x[:,:,::2]
         suits = x[:,:,1::2]
-        # print(suits)
-        # print(ranks.size(),suits.size())
-        hot_ranks = self.one_hot_ranks[ranks]
-        hot_suits = self.one_hot_suits[suits]
+        hot_ranks = self.one_hot_ranks[ranks].to(self.device)
+        hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
         for i in range(M):
             s = self.suit_conv(hot_suits[:,i,:,:].float())
@@ -254,6 +251,7 @@ class PreProcessLayer(nn.Module):
         self.state_mapping = params['state_mapping']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
         self.hand_board = ProcessHandBoard(params,hand_length)
+        self.device = params['device']
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
@@ -267,14 +265,11 @@ class PreProcessLayer(nn.Module):
         bets = []
         # for i in range()
         last_b = x[:,:,self.state_mapping['last_betsize']]
-        # print(last_a.size(),last_b.size())
         emb_a = self.action_emb(last_a)
         embedded_bets = []
         for i in range(M):
             embedded_bets.append(self.betsize_fc(last_b[:,i]))
         embeds = torch.stack(embedded_bets)
-        # print('embeds',embeds.size())
-        # print('emb_a',emb_a.size())
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
@@ -282,8 +277,6 @@ class PreProcessLayer(nn.Module):
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
         combined = torch.cat((h,emb_a,embeds),dim=-1)
-        # print(h.size(),emb_a.size(),embeds.size())
-        # print(combined.size())
         return combined
 
 class PreProcessHistory(nn.Module):
@@ -358,11 +351,11 @@ class GaussianNoise(nn.Module):
             network to generate vectors with smaller values.
     """
 
-    def __init__(self, sigma=0.1, is_relative_detach=True):
+    def __init__(self,device='cpu', sigma=0.1, is_relative_detach=True):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0).float()#.to(device)
+        self.noise = torch.tensor(0).float().to(device)
 
     def forward(self, x):
         if self.training and self.sigma != 0:

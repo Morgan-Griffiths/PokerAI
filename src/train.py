@@ -119,11 +119,11 @@ def learning_update(actor,critic,params):
     losses = []
     #     print('round ',i)
     for poker_round in data:
-        state = poker_round['state'].to(device)
-        action = poker_round['action'].to(device)
-        reward = poker_round['reward'].to(device)
-        betsize_mask = poker_round['betsize_mask'].to(device)
-        action_mask = poker_round['action_mask'].to(device)
+        state = torch.tensor(poker_round['state'],dtype=torch.float32).to(device)
+        action = torch.tensor(poker_round['action'],dtype=torch.long).to(device)
+        reward = torch.tensor(poker_round['reward'],dtype=torch.float32).to(device)
+        betsize_mask = torch.tensor(poker_round['betsize_mask'],dtype=torch.long).to(device)
+        action_mask = torch.tensor(poker_round['action_mask'],dtype=torch.long).to(device)
         ## Critic update ##
         local_values = critic(state)['value']
         value_mask = return_value_mask(action)
@@ -140,7 +140,7 @@ def learning_update(actor,critic,params):
 
         # Actor update #
         target_values = critic(state)['value']
-        actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+        actor_out = actor(state,action_mask,betsize_mask)
         expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
         advantages = (target_values[value_mask] - expected_value).view(-1)
         policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()

@@ -187,7 +187,7 @@ class OmahaActor(nn.Module):
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
-        self.noise = GaussianNoise()
+        self.noise = GaussianNoise(self.device)
         self.emb = 1248
         n_heads = 8
         depth = 2
@@ -200,15 +200,16 @@ class OmahaActor(nn.Module):
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
-        x = torch.tensor(state,dtype=torch.float32).to(self.device)
-        action_mask = torch.tensor(action_mask,dtype=torch.long).to(self.device)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long).to(self.device)
+        x = state
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.long).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.long).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-
         out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
-        padding = torch.zeros(B,n_padding,out.size(-1))
+        padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
         h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
         t_logits = self.fc3(lstm_out.view(-1))
@@ -238,6 +239,7 @@ class OmahaQCritic(nn.Module):
         self.combined_output = nA - 2 + nB
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
+        self.device = params['device']
         self.mapping = params['state_mapping']
         # self.lstm = nn.LSTM(1280, 128)
         emb = 1280
@@ -249,11 +251,13 @@ class OmahaQCritic(nn.Module):
         self.advantage_output = nn.Linear(128,self.combined_output)
 
     def forward(self,state):
-        x = torch.tensor(state,dtype=torch.float32)
+        x = state
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
-        padding = torch.zeros(B,n_padding,out.size(-1))
+        padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
         # print('out',out.size())
         h = torch.cat((out,padding),dim=1)
         q_input = self.transformer(out)

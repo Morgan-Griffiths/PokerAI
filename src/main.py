@@ -62,8 +62,8 @@ if __name__ == "__main__":
         'id':0
     }
 
-    actor = OmahaActor(seed,nS,nA,nB,network_params)
-    critic = OmahaQCritic(seed,nS,nA,nB,network_params)
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
     actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
 
@@ -80,8 +80,8 @@ if __name__ == "__main__":
     mongo.clean_db()
     mongo.close()
     # training loop
-    actor.share_memory().to(device)
-    critic.share_memory().to(device)
+    actor.share_memory()
+    critic.share_memory()
     processes = []
     num_processes = min(mp.cpu_count(),4)
     tic = time.time()
