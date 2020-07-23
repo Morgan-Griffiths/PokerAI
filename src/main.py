@@ -58,11 +58,11 @@ if __name__ == "__main__":
         'embedding_size':128,
         'device':device
     }
-    critic_network_params = copy.deepcopy(network_params)
-    critic_network_params['device'] = gpu2
+    # critic_network_params = copy.deepcopy(network_params)
+    # critic_network_params['device'] = gpu2
     training_params = {
         'training_epochs':20,
-        'epochs':20,
+        'epochs':25,
         'training_round':0,
         'game':'Omaha',
         'id':0

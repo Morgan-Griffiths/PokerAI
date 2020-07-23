@@ -138,7 +138,7 @@ def learning_update(actor,critic,params):
 
         # Actor update #
         target_values = critic(state)['value']
-        actor_out = actor(state.to(device),action_mask,betsize_mask)
+        actor_out = actor(state,action_mask,betsize_mask)
         expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
         advantages = (target_values[value_mask] - expected_value).view(-1)
         policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
