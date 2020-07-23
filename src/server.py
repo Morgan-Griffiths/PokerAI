@@ -85,7 +85,9 @@ class API(object):
         """
         keys = training_data.keys()
         positions = [position for position in keys if position in ['SB','BB']]   
+        print('training_data.keys',keys)
         for position in positions:
+            print('position',position)
             for i,poker_round in enumerate(training_data[position]):
                 states = poker_round['states']
                 observations = poker_round['obs']
@@ -102,11 +104,11 @@ class API(object):
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
                 assert(isinstance(states,list))
-                print(len(states))
-                print(len(actions))
-                print(len(action_prob))
-                print(len(action_probs))
-                print(len(rewards))
+                print('states',len(states))
+                print('actions',len(actions))
+                print('action_prob',len(action_prob))
+                print('action_probs',len(action_probs))
+                print('rewards',len(rewards))
                 for step,state in enumerate(states):
                     state_json = {
                         'game':self.env.game,
@@ -148,23 +150,25 @@ class API(object):
         self.update_num_hands(total_hands)
         return player_stats
 
-    def parse_env_outputs(self,state,action_mask,betsize_mask):
+    def parse_env_outputs(self,state,action_mask,betsize_mask,done):
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
         # cards go in a list
         state_object = {
             'hero_stack'            :state[:,-1][:,self.env.state_mapping['hero_stacksize']][0],
             'hero_position'         :state[:,-1][:,self.env.state_mapping['hero_position']][0],
             'hero_cards'            :state[:,-1][:,self.env.state_mapping['hero_hand']][0].tolist(),
-            'villain_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
-            'villain_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
             'pot'                   :state[:,-1][:,self.env.state_mapping['pot']][0],
             'board_cards'           :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
-            'hero_street_total'     :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
-            'villain_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
+            'player1_street_total'  :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
+            'player1_stack'         :state[:,-1][:,self.env.state_mapping['player1_stacksize']][0],
+            'player1_position'      :state[:,-1][:,self.env.state_mapping['player1_position']][0],
+            'player2_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
+            'player2_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
+            'player2_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
             'last_action'           :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
             'last_betsize'          :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
             'last_position'         :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
-            'done'                  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
+            'done'                  :done,
             'action_mask'           :action_mask.tolist(),
             'betsize_mask'          :betsize_mask.tolist(),
             'street'                :state[:,-1][:,self.env.state_mapping['street']][0],
@@ -189,6 +193,9 @@ class API(object):
         self.trajectory[cur_player]['states'].append(copy.copy(state))
         self.trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         self.trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
+        print('states',len(self.trajectory[cur_player]['states']))
+        print('action_masks',len(self.trajectory[cur_player]['action_masks']))
+        print('betsize_masks',len(self.trajectory[cur_player]['betsize_masks']))
 
     def store_actions(self,actor_outputs):
         cur_player = self.env.current_player
@@ -200,27 +207,35 @@ class API(object):
         self.trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
 
     def query_bot(self,state,obs,action_mask,betsize_mask):
+        print('query_bot cur player',self.env.current_player)
         while self.env.current_player != self.player['position']:
             outputs = self.model(state,action_mask,betsize_mask)
             self.store_actions(outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
+            print('post query_bot cur player',self.env.current_player)
             if not done:
+                print('query bot state store')
                 self.store_state(state,obs,action_mask,betsize_mask)
         return state,obs,done,action_mask,betsize_mask
 
     def reset(self):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
+        print('reset')
         self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
+        print('reset cur player',self.env.current_player)
         self.store_state(state,obs,action_mask,betsize_mask)
         if self.env.current_player != self.player['position']:
+            print('reset bot query')
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
-        return self.parse_env_outputs(state,action_mask,betsize_mask)
+            print('reset post query_bot cur player',self.env.current_player)
+        return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
+        print(action,betsize)
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         if isinstance(betsize,str):
@@ -241,8 +256,11 @@ class API(object):
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
         if not done:
             self.store_state(state,obs,action_mask,betsize_mask)
+            print('step pre query_bot cur player',self.env.current_player)
             if self.env.current_player != self.player['position']:
+                print('step bot query')
                 state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
+                print('step post query_bot cur player',self.env.current_player)
         if done:
             rewards = self.env.player_rewards()
             for position in self.trajectory.keys():
@@ -251,7 +269,7 @@ class API(object):
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
             self.reset_trajectories()
-        return self.parse_env_outputs(state,action_mask,betsize_mask)
+        return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
     def current_player(self):
