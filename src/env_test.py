@@ -93,7 +93,7 @@ class TestEnv(unittest.TestCase):
             'global_mapping':config.global_mapping,
             'state_mapping':config.state_mapping,
             'obs_mapping':config.obs_mapping,
-            'shuffle':False
+            'shuffle':False,
         }
 
     def testInitialization(self):
@@ -561,6 +561,7 @@ class TestEnv(unittest.TestCase):
         seed = 152
         params['maxlen'] = 10
         params['embedding_size'] = 128
+        params['device'] = 'cpu'
         actor = OmahaActor(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = actor(state,mask,betsize_mask)
@@ -577,6 +578,7 @@ class TestEnv(unittest.TestCase):
         seed = 152
         params['maxlen'] = 10
         params['embedding_size'] = 1024
+        params['device'] = 'cpu'
         critic = OmahaQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
         critic(state)
