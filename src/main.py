@@ -3,6 +3,7 @@ import time
 import torch.multiprocessing as mp
 import torch
 import os
+import copy
 
 from train import train,generate_trajectories,learning_update
 from poker.config import Config
@@ -19,7 +20,8 @@ from torch import optim
 if __name__ == "__main__":
     import argparse
 
-    print("Number of processors: ", mp.cpu_count())
+    print(f"Number of processors: {mp.cpu_count()}")
+    print(f'Number of GPUs: {torch.cuda.device_count()}')
     tic = time.time()
 
     config = Config()
@@ -46,6 +48,8 @@ if __name__ == "__main__":
     nB = env.betsize_space
     seed = 1235
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    gpu1 = 'cuda:0'
+    gpu2 = 'cuda:1'
 
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
@@ -54,9 +58,11 @@ if __name__ == "__main__":
         'embedding_size':128,
         'device':device
     }
+    critic_network_params = copy.deepcopy(network_params)
+    critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':1,
-        'epochs':5,
+        'training_epochs':20,
+        'epochs':20,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -68,11 +74,14 @@ if __name__ == "__main__":
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
 
     learning_params = {
+        'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'actor_optimizer':actor_optimizer,
         'critic_optimizer':critic_optimizer,
         'path': os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi'),
-        'device':device
+        'device':device,
+        'gpu1':gpu1,
+        'gpu2':gpu2
     }
     mp.set_start_method('spawn')
     # generate trajectories and desposit in mongoDB
@@ -83,7 +92,8 @@ if __name__ == "__main__":
     actor.share_memory()
     critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),4)
+    num_processes = min(mp.cpu_count(),10)
+    print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
         p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))

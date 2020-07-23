@@ -110,14 +110,12 @@ def learning_update(actor,critic,params):
     device = params['device']
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
-    mongo = MongoDB()
-    query = {'training_round':0}
+    query = {'training_round':params['training_round']}
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = mongo.get_data(query,projection)
-    # loss_dict = defaultdict(lambda:None)
-    # for i in range(4):
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
     losses = []
-    #     print('round ',i)
     for poker_round in data:
         state = torch.tensor(poker_round['state'],dtype=torch.float32).to(device)
         action = torch.tensor(poker_round['action'],dtype=torch.long).to(device)
@@ -140,7 +138,7 @@ def learning_update(actor,critic,params):
 
         # Actor update #
         target_values = critic(state)['value']
-        actor_out = actor(state,action_mask,betsize_mask)
+        actor_out = actor(state.to(device),action_mask,betsize_mask)
         expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
         advantages = (target_values[value_mask] - expected_value).view(-1)
         policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
@@ -155,6 +153,8 @@ def learning_update(actor,critic,params):
 
 def train(env,actor,critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
+        learning_params['training_round'] = e
+        training_params['training_round'] = e
         generate_trajectories(env,actor,training_params,id)
         # train on trajectories
         actor,critic,learning_params = learning_update(actor,critic,learning_params)
