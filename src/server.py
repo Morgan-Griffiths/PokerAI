@@ -8,6 +8,7 @@ from torch import load
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 from poker.env import Poker
 import poker.datatypes as pdt
@@ -100,8 +101,12 @@ class API(object):
                 assert(isinstance(actions,list))
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
-                assert(isinstance(observations,list))
                 assert(isinstance(states,list))
+                print(len(states))
+                print(len(actions))
+                print(len(action_prob))
+                print(len(action_probs))
+                print(len(rewards))
                 for step,state in enumerate(states):
                     state_json = {
                         'game':self.env.game,
@@ -167,10 +172,10 @@ class API(object):
         outcome_object = {
             'player1_stack':self.env.players['SB'].stack,
             'player1_reward':self.env.players['SB'].stack - self.env.starting_stack,
-            'player1_hand':self.env.players['SB'].hand.tolist(),
+            'player1_hand':[item for sublist in self.env.players['SB'].hand for item in sublist],
             'player2_stack':self.env.players['BB'].stack,
             'player2_reward':self.env.players['BB'].stack - self.env.starting_stack,
-            'player2_hand':self.env.players['BB'].hand.tolist(),
+            'player2_hand':[item for sublist in self.env.players['BB'].hand for item in sublist],
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
@@ -180,12 +185,14 @@ class API(object):
 
     def store_state(self,state,obs,action_mask,betsize_mask):
         cur_player = self.env.current_player
+        print('storing state for ',cur_player)
         self.trajectory[cur_player]['states'].append(copy.copy(state))
         self.trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         self.trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
 
     def store_actions(self,actor_outputs):
         cur_player = self.env.current_player
+        print('storing state for ',cur_player)
         self.trajectory[cur_player]['actions'].append(actor_outputs['action'])
         self.trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
         self.trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
@@ -254,6 +261,9 @@ class API(object):
 api = API()
 
 app = Flask(__name__)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+cors = CORS(app, resources={r"/api/*": {"origins": "http://localhost:*"}})
 
 logging.basicConfig(level=logging.DEBUG)
 
