@@ -215,7 +215,6 @@ class API(object):
         assert isinstance(self.player['position'],str)
         self.reset_trajectories()
         self.update_player_position(self.increment_position[self.player['position']])
-        print('player position ',self.player['position'])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
         if self.env.current_player != self.player['position']:
@@ -225,7 +224,6 @@ class API(object):
 
     def step(self,action:str,betsize:float):
         """Maps action + betsize -> to a flat action category"""
-        print('player position ',self.player['position'])
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         if isinstance(betsize,str):
@@ -253,7 +251,6 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
-        print('player position ',self.player['position'])
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
