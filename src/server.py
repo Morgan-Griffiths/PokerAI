@@ -138,12 +138,14 @@ class API(object):
             results.append(result['reward'])
             position_results[result['position']] += result['reward']
         bb_per_hand = sum(results) / total_hands if total_hands > 0 else 0
+        sb_bb_per_hand = position_results['SB'] / total_hands if total_hands > 0 else 0
+        bb_bb_per_hand = position_results['BB'] / total_hands if total_hands > 0 else 0
         player_stats = {
             'results':sum(results),
             'bb_per_hand':bb_per_hand,
             'total_hands':total_hands,
-            'SB':position_results['SB'],
-            'BB':position_results['BB'],
+            'SB':sb_bb_per_hand,
+            'BB':bb_bb_per_hand,
         }
         return player_stats
 
