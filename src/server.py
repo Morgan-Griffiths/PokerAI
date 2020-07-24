@@ -46,7 +46,6 @@ class API(object):
         self.load_model(self.config.agent_params['actor_path'])
         self.player = {'name':None,'position':'BB'}
         self.reset_trajectories()
-        self.num_hands = 0
         
     def reset_trajectories(self):
         self.trajectories = defaultdict(lambda:[])
@@ -69,9 +68,6 @@ class API(object):
         client = MongoClient('localhost', 27017,maxPoolSize=10000)
         self.db = client.baseline
 
-    def update_num_hands(self,value):
-        self.num_hands = value
-
     def update_player_name(self,name:str):
         """updates player name"""
         self.player['name'] = name
@@ -81,8 +77,16 @@ class API(object):
 
     def insert_into_db(self,training_data:dict):
         """
+        stores player data in the player_stats collection.
         takes trajectories and inserts them into db for data analysis and learning.
         """
+        stats_json = {
+            'game':self.env.game,
+            'player':self.player['name'],
+            'reward':training_data[self.player['position']][0]['rewards'][0],
+            'position':self.player['position'],
+        }
+        self.db['player_stats'].insert_one(stats_json)
         keys = training_data.keys()
         positions = [position for position in keys if position in ['SB','BB']]  
         for position in positions:
@@ -106,7 +110,6 @@ class API(object):
                     state_json = {
                         'game':self.env.game,
                         'player':self.player['name'],
-                        'hand_num':self.num_hands,
                         'poker_round':step,
                         'state':state.tolist(),
                         'action_probs':action_probs[step].tolist(),
@@ -123,24 +126,25 @@ class API(object):
     def return_player_stats(self):
         """Returns dict of current player stats against the bot."""
         query = {
-            'player':self.player['name'],
-            'poker_round': 0
+            'player':self.player['name']
         }
-        projection ={'reward':1,'hand_num':1,'_id':0}
-        player_results = self.db['game_data'].find(query)
+        # projection ={'reward':1,'hand_num':1,'_id':0}
+        player_data = self.db['player_stats'].find(query)
+        total_hands = self.db['player_stats'].count_documents(query)
         results = []
+        position_results = {'SB':0,'BB':0}
         # total_hands = 0
-        for result in player_results:
+        for result in player_data:
             results.append(result['reward'])
-            # total_hands = max(result['hand_num'],total_hands)
-        total_hands = len(results)
-        bb_per_hand = sum(results) / total_hands
+            position_results[result['position']] += result['reward']
+        bb_per_hand = sum(results) / total_hands if total_hands > 0 else 0
         player_stats = {
             'results':sum(results),
             'bb_per_hand':bb_per_hand,
-            'total_hands':total_hands
+            'total_hands':total_hands,
+            'SB':position_results['SB'],
+            'BB':position_results['BB'],
         }
-        self.update_num_hands(total_hands)
         return player_stats
 
     def parse_env_outputs(self,state,action_mask,betsize_mask,done):
@@ -180,9 +184,6 @@ class API(object):
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
 
-    def increment_hand(self):
-        self.num_hands += 1
-
     def store_state(self,state,obs,action_mask,betsize_mask):
         cur_player = self.env.current_player
         self.trajectory[cur_player]['states'].append(copy.copy(state))
@@ -210,7 +211,6 @@ class API(object):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         self.reset_trajectories()
-        self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
