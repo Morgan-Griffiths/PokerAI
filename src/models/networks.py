@@ -51,7 +51,7 @@ class HoldemBaseline(nn.Module):
             x = x.unsqueeze(0)
         out = self.process_input(x).unsqueeze(0)
         B,M,c = out.size()
-        n_padding = self.maxlen - M
+        n_padding = max(self.maxlen - M,0)
         padding = torch.zeros(B,n_padding,out.size(-1))
         h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
@@ -207,8 +207,11 @@ class OmahaActor(nn.Module):
         out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
-        padding = torch.zeros(B,n_padding,out.size(-1))
-        h = torch.cat((out,padding),dim=1)
+        if n_padding < 0:
+            h = out[:,-self.maxlen:,:]
+        else:
+            padding = torch.zeros(B,n_padding,out.size(-1))
+            h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
         t_logits = self.fc3(lstm_out.view(-1))
         category_logits = self.noise(t_logits)
@@ -251,7 +254,7 @@ class OmahaQCritic(nn.Module):
         x = torch.tensor(state,dtype=torch.float32)
         out = self.process_input(x)
         B,M,c = out.size()
-        n_padding = self.maxlen - M
+        n_padding = max(self.maxlen - M,0)
         padding = torch.zeros(B,n_padding,out.size(-1))
         # print('out',out.size())
         h = torch.cat((out,padding),dim=1)
