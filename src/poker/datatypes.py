@@ -226,7 +226,7 @@ class Globals:
         GameTypes.OMAHAHILO:OmahaHILO(),
     }
     POSITION_DICT = {Positions.SB:Positions.SB,Positions.BB:Positions.BB}
-    POSITION_MAPPING = {'SB':0,'BB':1}
+    POSITION_MAPPING = {'SB':0,'BB':1,'BTN':2}
     PLAYERS_POSITIONS_DICT = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
     HEADSUP_POSITION_DICT = {
         0:['SB','BB'],
