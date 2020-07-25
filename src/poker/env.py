@@ -478,6 +478,7 @@ class Poker(object):
             for _ in range(pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER] - self.street):
                 self.street += 1
                 self.update_board()
+            self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
