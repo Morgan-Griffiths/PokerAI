@@ -180,6 +180,7 @@ class API(object):
             'action_mask'               :action_mask.tolist(),
             'betsize_mask'              :betsize_mask.tolist(),
             'street'                    :state[:,-1][:,self.env.state_mapping['street']][0],
+            'blind'                     :state[:,-1][:,self.env.state_mapping['blind']][0]
         }
         outcome_object = {
             'player1_reward':hero.stack - self.env.starting_stack,
