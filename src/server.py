@@ -31,10 +31,10 @@ class API(object):
             'betsizes': self.game_object.rule_params['betsizes'],
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
-            'pot':1,
+            'pot':0,
             'stacksize': self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': self.game_object.starting_street,
+            'starting_street': 0, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -153,36 +153,39 @@ class API(object):
         """Wraps state and passes to frontend. Can be the dummy last state. In which case hero mappings are reversed."""
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
         # cards go in a list
+        hero = self.env.players[self.player['position']]
+        villain = self.env.players[self.increment_position[self.player['position']]]
         state_object = {
-            'history'               :state.tolist(),
-            'betsizes'              :self.env.betsizes.tolist(),
-            'mapping'               :self.env.state_mapping,
-            'hero_stack'            :self.env.players[self.player['position']].stack,
-            'hero_position'         :self.env.players[self.player['position']].position,
-            'hero_cards'            :flatten(self.env.players[self.player['position']].hand),
-            'pot'                   :state[:,-1][:,self.env.state_mapping['pot']][0],
-            'board_cards'           :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
-            'player1_street_total'  :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
-            'player1_stack'         :state[:,-1][:,self.env.state_mapping['player1_stacksize']][0],
-            'player1_position'      :state[:,-1][:,self.env.state_mapping['player1_position']][0],
-            'player2_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
-            'player2_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
-            'player2_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
-            'last_action'           :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
-            'last_betsize'          :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
-            'last_position'         :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
-            'done'                  :done,
-            'action_mask'           :action_mask.tolist(),
-            'betsize_mask'          :betsize_mask.tolist(),
-            'street'                :state[:,-1][:,self.env.state_mapping['street']][0],
+            'history'                   :state.tolist(),
+            'betsizes'                  :self.env.betsizes.tolist(),
+            'mapping'                   :self.env.state_mapping,
+            'current_player'            :pdt.Globals.POSITION_MAPPING[self.env.current_player],
+            'hero_stack'                :hero.stack,
+            'hero_position'             :pdt.Globals.POSITION_MAPPING[hero.position],
+            'hero_cards'                :flatten(hero.hand),
+            'hero_street_total'         :hero.street_total,
+            'pot'                       :state[:,-1][:,self.env.state_mapping['pot']][0],
+            'board_cards'               :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
+            'villain_stack'             :villain.stack,
+            'villain_position'          :pdt.Globals.POSITION_MAPPING[villain.position],
+            'villain_cards'             :flatten(villain.hand),
+            'villain_street_total'      :villain.street_total,
+            'last_action'               :state[:,-1][:,self.env.state_mapping['last_action']][0],
+            'last_betsize'              :state[:,-1][:,self.env.state_mapping['last_betsize']][0],
+            'last_position'             :state[:,-1][:,self.env.state_mapping['last_position']][0],
+            'last_aggressive_action'    :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
+            'last_aggressive_betsize'   :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
+            'last_aggressive_position'  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
+            'done'                      :done,
+            'action_mask'               :action_mask.tolist(),
+            'betsize_mask'              :betsize_mask.tolist(),
+            'street'                    :state[:,-1][:,self.env.state_mapping['street']][0],
         }
         outcome_object = {
-            'player1_stack':self.env.players[self.player['position']].stack,
-            'player1_reward':self.env.players[self.player['position']].stack - self.env.starting_stack,
-            'player1_hand':flatten(self.env.players[self.player['position']].hand),
-            'player2_stack':self.env.players[self.increment_position[self.player['position']]].stack,
-            'player2_reward':self.env.players[self.increment_position[self.player['position']]].stack - self.env.starting_stack,
-            'player2_hand':flatten(self.env.players[self.increment_position[self.player['position']]].hand),
+            'player1_reward':hero.stack - self.env.starting_stack,
+            'player1_hand':flatten(hero.hand),
+            'player2_reward':villain.stack - self.env.starting_stack,
+            'player2_hand':flatten(villain.hand),
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
@@ -251,6 +254,11 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
+        print(self.env.players[self.player['position']].stack)
+        print(self.env.players[self.increment_position[self.player['position']]].stack)
+        print('game_over',self.env.game_over())
+        print('done',done)
+        print('board',state[-1,-1,self.env.state_mapping['board']])
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
