@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':20,
+        'training_epochs':50,
         'epochs':25,
         'training_round':0,
         'game':'Omaha',
