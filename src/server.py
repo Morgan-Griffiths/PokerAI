@@ -4,7 +4,7 @@ import json
 import logging
 import pymongo
 import numpy as np
-from torch import load
+from torch import load,device
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
@@ -31,10 +31,10 @@ class API(object):
             'betsizes': self.game_object.rule_params['betsizes'],
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
-            'pot':0,
+            'pot':1,
             'stacksize': self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': 0, #self.game_object.starting_street,
+            'starting_street': 3, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -55,11 +55,12 @@ class API(object):
         network_params = copy.deepcopy(self.env_params)
         network_params['maxlen'] = 10
         network_params['embedding_size'] = 128
+        network_params['device'] = 'cpu'
         return network_params
 
     def load_model(self,path):
         if os.path.isfile(path):
-            self.model.load_state_dict(load(path))
+            self.model.load_state_dict(load(path,map_location=device('cpu')))
             self.model.eval()
         else:
             raise ValueError('File does not exist')
@@ -209,6 +210,7 @@ class API(object):
         while self.env.current_player != self.player['position']:
             outputs = self.model(state,action_mask,betsize_mask)
             self.store_actions(outputs)
+            print('bot outputs',outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
             if not done:
                 self.store_state(state,obs,action_mask,betsize_mask)
