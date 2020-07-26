@@ -32,7 +32,7 @@ class API(object):
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':0,
-            'stacksize': self.game_object.state_params['stacksize'],
+            'stacksize': 2,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
             'starting_street': 0, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
@@ -205,8 +205,8 @@ class API(object):
         self.trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
         self.trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
 
-    def query_bot(self,state,obs,action_mask,betsize_mask):
-        while self.env.current_player != self.player['position']:
+    def query_bot(self,state,obs,action_mask,betsize_mask,done):
+        while self.env.current_player != self.player['position'] and not done:
             outputs = self.model(state,action_mask,betsize_mask)
             self.store_actions(outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
@@ -221,8 +221,8 @@ class API(object):
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
-        if self.env.current_player != self.player['position']:
-            state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
+        if self.env.current_player != self.player['position'] and not done:
+            state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask,done)
         assert self.env.current_player == self.player['position']
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
@@ -247,7 +247,7 @@ class API(object):
         if not done:
             self.store_state(state,obs,action_mask,betsize_mask)
             if self.env.current_player != self.player['position']:
-                state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
+                state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask,done)
         if done:
             rewards = self.env.player_rewards()
             for position in self.trajectory.keys():
@@ -255,11 +255,13 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
+        print('street',state[-1,-1,self.env.state_mapping['street']])
         print(self.env.players[self.player['position']].stack)
         print(self.env.players[self.increment_position[self.player['position']]].stack)
         print('game_over',self.env.game_over())
         print('done',done)
         print('board',state[-1,-1,self.env.state_mapping['board']])
+        print('players_remaining',self.env.players_remaining)
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
