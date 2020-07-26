@@ -188,10 +188,10 @@ class OmahaActor(nn.Module):
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise(self.device)
-        self.emb = 1248
+        self.emb = 1408
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(1280, 128)
+        self.lstm = nn.LSTM(self.emb, 128)
         # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
 
         self.fc1 = nn.Linear(528,hidden_dims[0])
@@ -245,10 +245,10 @@ class OmahaQCritic(nn.Module):
         self.device = params['device']
         self.mapping = params['state_mapping']
         # self.lstm = nn.LSTM(1280, 128)
-        emb = 1280
+        self.emb = 1408
         n_heads = 8
         depth = 2
-        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
+        self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,128)
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(128,1)
         self.advantage_output = nn.Linear(128,self.combined_output)
@@ -259,11 +259,20 @@ class OmahaQCritic(nn.Module):
             x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
         B,M,c = out.size()
-        n_padding = max(self.maxlen - M,0)
-        padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-        # print('out',out.size())
+        n_padding = self.maxlen - M
+        if n_padding < 0:
+            h = out[:,-self.maxlen:,:]
+        else:
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+            h = torch.cat((out,padding),dim=1)
         h = torch.cat((out,padding),dim=1)
         q_input = self.transformer(out)
+        # if n_padding > 0:
+        #     padding_mask_o = torch.ones(B,M,self.emb)
+        #     padding_mask_z = torch.zeros(B,n_padding,self.emb)
+        #     padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
+        #     q_input = q_input.view(-1) * padding_mask.view(-1)).view(1,-1)
+        # zero out the padding outputs
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)

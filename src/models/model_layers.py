@@ -255,6 +255,7 @@ class PreProcessLayer(nn.Module):
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
+        self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=3)
         self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
@@ -265,7 +266,9 @@ class PreProcessLayer(nn.Module):
         bets = []
         # for i in range()
         last_b = x[:,:,self.state_mapping['last_betsize']]
+        last_p = x[:,:,self.state_mapping['last_position']].long()
         emb_a = self.action_emb(last_a)
+        emb_p = self.position_emb(last_p)
         embedded_bets = []
         for i in range(M):
             embedded_bets.append(self.betsize_fc(last_b[:,i]))
@@ -276,7 +279,7 @@ class PreProcessLayer(nn.Module):
         # h.size(B,M,128)
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h,emb_a,embeds),dim=-1)
+        combined = torch.cat((h,emb_a,emb_p,embeds),dim=-1)
         return combined
 
 class PreProcessHistory(nn.Module):
