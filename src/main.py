@@ -53,8 +53,8 @@ if __name__ == "__main__":
         'embedding_size':128
     }
     training_params = {
-        'training_epochs':1,
-        'epochs':10,
+        'training_epochs':5,
+        'epochs':5,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -69,23 +69,28 @@ if __name__ == "__main__":
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'actor_optimizer':actor_optimizer,
         'critic_optimizer':critic_optimizer,
-        'path': os.path.join(os.getcwd(),'checkpoints/RL')
+        'path': os.path.join(os.getcwd(),'checkpoints/RL'),
+        'learning_rounds':5
     }
     # generate trajectories and desposit in mongoDB
-    mongo = MongoDB()
-    mongo.clean_db()
-    mongo.close()
+    # mongo = MongoDB()
+    # mongo.clean_db()
+    # mongo.close()
     # training loop
     actor.share_memory()#.to(device)
     critic.share_memory()#.to(device)
     processes = []
     num_processes = mp.cpu_count()
-    for id in range(num_processes): # No. of processes
-        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
-        p.start()
-        processes.append(p)
-    for p in processes: 
-        p.join()
+    # for debugging
+    # generate_trajectories(env,actor,training_params,id=0)
+    # actor,critic,learning_params = learning_update(actor,critic,learning_params)
+    # train(env,actor,critic,training_params,learning_params,id=0)
+    # for id in range(num_processes): # No. of processes
+    #     p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
+    #     p.start()
+    #     processes.append(p)
+    # for p in processes: 
+    #     p.join()
     # save weights
     path = learning_params['path']
     directory = os.path.dirname(path)
