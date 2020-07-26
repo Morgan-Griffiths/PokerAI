@@ -113,44 +113,43 @@ def learning_update(actor,critic,params):
     mongo = MongoDB()
     query = {'training_round':0}
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = mongo.get_data(query,projection)
+    data = list(mongo.get_data(query,projection))
     # loss_dict = defaultdict(lambda:None)
-    # for i in range(4):
-    losses = []
-    #     print('round ',i)
-    for poker_round in data:
-        state = poker_round['state']
-        action = poker_round['action']
-        reward = poker_round['reward']
-        betsize_mask = poker_round['betsize_mask']
-        action_mask = poker_round['action_mask']
-        ## Critic update ##
-        local_values = critic(state)['value']
-        value_mask = return_value_mask(action)
-        TD_error = local_values[value_mask] - reward
-        critic_loss = (TD_error**2*0.5).mean()
-        # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
-        critic_optimizer.zero_grad()
-        critic_loss.backward()
-        torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
-        critic_optimizer.step()
-        losses.append(critic_loss.item())
-        # print('local_values',local_values[value_mask],reward)
-        # Agent.soft_update(local_critic,target_critic,tau)
-
-        # Actor update #
-        target_values = critic(state)['value']
-        actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
-        expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-        advantages = (target_values[value_mask] - expected_value).view(-1)
-        policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-        actor_optimizer.zero_grad()
-        policy_loss.backward()
-        torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-        actor_optimizer.step()
-        # Agent.soft_update(self.actor,self.target_actor,self.tau)
-        # loss_dict[i] = sum(losses)
-    print('loss sum',sum(losses))
+    for i in range(params['learning_rounds']):
+        # losses = []
+        for poker_round in data:
+            state = poker_round['state']
+            action = poker_round['action']
+            reward = poker_round['reward']
+            betsize_mask = poker_round['betsize_mask']
+            action_mask = poker_round['action_mask']
+            ## Critic update ##
+            local_values = critic(state)['value']
+            value_mask = return_value_mask(action)
+            TD_error = local_values[value_mask] - reward
+            critic_loss = (TD_error**2*0.5).mean()
+            # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+            critic_optimizer.zero_grad()
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
+            critic_optimizer.step()
+            losses.append(critic_loss.item())
+            # print('local_values',local_values[value_mask],reward)
+            # Agent.soft_update(local_critic,target_critic,tau)
+            # Actor update #
+            target_values = critic(state)['value']
+            actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
+            advantages = (target_values[value_mask] - expected_value).view(-1)
+            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+            actor_optimizer.zero_grad()
+            policy_loss.backward()
+            torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+            actor_optimizer.step()
+            # Agent.soft_update(self.actor,self.target_actor,self.tau)
+            # loss_dict[i] = sum(losses)
+        # print('loss sum',sum(losses))
+    del data
     return actor,critic,params
 
 def train(env,actor,critic,training_params,learning_params,id):

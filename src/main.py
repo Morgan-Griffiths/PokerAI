@@ -73,9 +73,9 @@ if __name__ == "__main__":
         'learning_rounds':5
     }
     # generate trajectories and desposit in mongoDB
-    # mongo = MongoDB()
-    # mongo.clean_db()
-    # mongo.close()
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
     # training loop
     actor.share_memory()#.to(device)
     critic.share_memory()#.to(device)
@@ -84,13 +84,13 @@ if __name__ == "__main__":
     # for debugging
     # generate_trajectories(env,actor,training_params,id=0)
     # actor,critic,learning_params = learning_update(actor,critic,learning_params)
-    # train(env,actor,critic,training_params,learning_params,id=0)
-    # for id in range(num_processes): # No. of processes
-    #     p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
-    #     p.start()
-    #     processes.append(p)
-    # for p in processes: 
-    #     p.join()
+    train(env,actor,critic,training_params,learning_params,id=0)
+    for id in range(num_processes): # No. of processes
+        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
+        p.start()
+        processes.append(p)
+    for p in processes: 
+        p.join()
     # save weights
     path = learning_params['path']
     directory = os.path.dirname(path)
