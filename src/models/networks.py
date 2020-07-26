@@ -51,7 +51,7 @@ class HoldemBaseline(nn.Module):
             x = x.unsqueeze(0)
         out = self.process_input(x).unsqueeze(0)
         B,M,c = out.size()
-        n_padding = self.maxlen - M
+        n_padding = max(self.maxlen - M,0)
         padding = torch.zeros(B,n_padding,out.size(-1))
         h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
@@ -209,8 +209,11 @@ class OmahaActor(nn.Module):
         out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
-        padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-        h = torch.cat((out,padding),dim=1)
+        if n_padding < 0:
+            h = out[:,-self.maxlen:,:]
+        else:
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+            h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
         t_logits = self.fc3(lstm_out.view(-1))
         category_logits = self.noise(t_logits)
@@ -256,7 +259,7 @@ class OmahaQCritic(nn.Module):
             x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
         B,M,c = out.size()
-        n_padding = self.maxlen - M
+        n_padding = max(self.maxlen - M,0)
         padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
         # print('out',out.size())
         h = torch.cat((out,padding),dim=1)
@@ -654,23 +657,17 @@ class FlatBetsizeActor(nn.Module):
             previous_betsize = previous_betsize.unsqueeze(1)
         hand = self.hand_emb(hand)
         last_action_emb = self.action_emb(last_action)
-        # print('hand,last_action_emb,previous_betsize',hand.size(),last_action_emb.size(),previous_betsize.size())
         x = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         cateogry_logits = self.fc3(x)
         cateogry_logits = self.noise(cateogry_logits)
         action_soft = F.softmax(cateogry_logits,dim=-1)
-        # print(action_soft.size(),mask.size())
         action_probs = norm_frequencies(action_soft,mask)
-        # action_probs = action_probs * mask
-        # action_probs /= torch.sum(action_probs)
         m = Categorical(action_probs)
         action = m.sample()
 
         action_category,betsize_category = self.helper_functions.unwrap_action(action,last_action)
-        # print('state',state)
-        # print('action_category,betsize_category',action_category,betsize_category)
         
         outputs = {
             'action':action,
@@ -715,7 +712,6 @@ class FlatBetsizeCritic(nn.Module):
         a1 = self.action_emb(last_action)
 
         h = emb_hand.view(-1).unsqueeze(0).repeat(M,1)
-        # print('h,a1,last_betsize',h.size(),a1.size(),last_betsize.size())
         x = torch.cat([h,a1,last_betsize],dim=-1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
@@ -752,13 +748,8 @@ class Baseline(nn.Module):
     def forward(self,state,mask):
         x = state
         if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32) #device = self.device,
+            x = torch.tensor(x,dtype=torch.float32)
             x = x.unsqueeze(0)
-        # print(x)
-        # print(self.mapping['state']['rank'])
-        # print(self.mapping['state']['previous_action'])
-        # print(x[:,self.mapping['state']['rank']])
-        # print(x[:,self.mapping['state']['previous_action']])
         hand = x[:,self.mapping['state']['rank']].long()
         last_action = x[:,self.mapping['state']['previous_action']].long()
         hand = self.hand_emb(hand)

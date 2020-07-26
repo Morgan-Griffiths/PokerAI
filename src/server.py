@@ -10,7 +10,7 @@ from collections import defaultdict
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from poker.env import Poker
+from poker.env import Poker,flatten
 import poker.datatypes as pdt
 from poker.config import Config
 from models.networks import OmahaActor
@@ -31,10 +31,10 @@ class API(object):
             'betsizes': self.game_object.rule_params['betsizes'],
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
-            'pot':1,
+            'pot':0,
             'stacksize': self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': self.game_object.starting_street,
+            'starting_street': 0, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -46,7 +46,6 @@ class API(object):
         self.load_model(self.config.agent_params['actor_path'])
         self.player = {'name':None,'position':'BB'}
         self.reset_trajectories()
-        self.num_hands = 0
         
     def reset_trajectories(self):
         self.trajectories = defaultdict(lambda:[])
@@ -69,9 +68,6 @@ class API(object):
         client = MongoClient('localhost', 27017,maxPoolSize=10000)
         self.db = client.baseline
 
-    def update_num_hands(self,value):
-        self.num_hands = value
-
     def update_player_name(self,name:str):
         """updates player name"""
         self.player['name'] = name
@@ -81,8 +77,16 @@ class API(object):
 
     def insert_into_db(self,training_data:dict):
         """
+        stores player data in the player_stats collection.
         takes trajectories and inserts them into db for data analysis and learning.
         """
+        stats_json = {
+            'game':self.env.game,
+            'player':self.player['name'],
+            'reward':training_data[self.player['position']][0]['rewards'][0],
+            'position':self.player['position'],
+        }
+        self.db['player_stats'].insert_one(stats_json)
         keys = training_data.keys()
         positions = [position for position in keys if position in ['SB','BB']]  
         for position in positions:
@@ -106,7 +110,6 @@ class API(object):
                     state_json = {
                         'game':self.env.game,
                         'player':self.player['name'],
-                        'hand_num':self.num_hands,
                         'poker_round':step,
                         'state':state.tolist(),
                         'action_probs':action_probs[step].tolist(),
@@ -123,65 +126,70 @@ class API(object):
     def return_player_stats(self):
         """Returns dict of current player stats against the bot."""
         query = {
-            'player':self.player['name'],
-            'poker_round': 0
+            'player':self.player['name']
         }
-        projection ={'reward':1,'hand_num':1,'_id':0}
-        player_results = self.db['game_data'].find(query)
+        # projection ={'reward':1,'hand_num':1,'_id':0}
+        player_data = self.db['player_stats'].find(query)
+        total_hands = self.db['player_stats'].count_documents(query)
         results = []
+        position_results = {'SB':0,'BB':0}
         # total_hands = 0
-        for result in player_results:
+        for result in player_data:
             results.append(result['reward'])
-            # total_hands = max(result['hand_num'],total_hands)
-        total_hands = len(results)
-        bb_per_hand = sum(results) / total_hands
+            position_results[result['position']] += result['reward']
+        bb_per_hand = sum(results) / total_hands if total_hands > 0 else 0
+        sb_bb_per_hand = position_results['SB'] / total_hands if total_hands > 0 else 0
+        bb_bb_per_hand = position_results['BB'] / total_hands if total_hands > 0 else 0
         player_stats = {
             'results':sum(results),
-            'bb_per_hand':bb_per_hand,
-            'total_hands':total_hands
+            'bb_per_hand':round(bb_per_hand,2),
+            'total_hands':total_hands,
+            'SB':round(sb_bb_per_hand,2),
+            'BB':round(bb_bb_per_hand,2),
         }
-        self.update_num_hands(total_hands)
         return player_stats
 
     def parse_env_outputs(self,state,action_mask,betsize_mask,done):
+        """Wraps state and passes to frontend. Can be the dummy last state. In which case hero mappings are reversed."""
         reward = state[:,-1][:,self.env.state_mapping['hero_stacksize']] - self.env.starting_stack
         # cards go in a list
+        hero = self.env.players[self.player['position']]
+        villain = self.env.players[self.increment_position[self.player['position']]]
         state_object = {
-            'history'               :state.tolist(),
-            'betsizes'              :self.env.betsizes.tolist(),
-            'mapping'               :self.env.state_mapping,
-            'hero_stack'            :state[:,-1][:,self.env.state_mapping['hero_stacksize']][0],
-            'hero_position'         :state[:,-1][:,self.env.state_mapping['hero_position']][0],
-            'hero_cards'            :state[:,-1][:,self.env.state_mapping['hero_hand']][0].tolist(),
-            'pot'                   :state[:,-1][:,self.env.state_mapping['pot']][0],
-            'board_cards'           :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
-            'player1_street_total'  :state[:,-1][:,self.env.state_mapping['player1_street_total']][0],
-            'player1_stack'         :state[:,-1][:,self.env.state_mapping['player1_stacksize']][0],
-            'player1_position'      :state[:,-1][:,self.env.state_mapping['player1_position']][0],
-            'player2_street_total'  :state[:,-1][:,self.env.state_mapping['player2_street_total']][0],
-            'player2_stack'         :state[:,-1][:,self.env.state_mapping['player2_stacksize']][0],
-            'player2_position'      :state[:,-1][:,self.env.state_mapping['player2_position']][0],
-            'last_action'           :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
-            'last_betsize'          :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
-            'last_position'         :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
-            'done'                  :done,
-            'action_mask'           :action_mask.tolist(),
-            'betsize_mask'          :betsize_mask.tolist(),
-            'street'                :state[:,-1][:,self.env.state_mapping['street']][0],
+            'history'                   :state.tolist(),
+            'betsizes'                  :self.env.betsizes.tolist(),
+            'mapping'                   :self.env.state_mapping,
+            'current_player'            :pdt.Globals.POSITION_MAPPING[self.env.current_player],
+            'hero_stack'                :hero.stack,
+            'hero_position'             :pdt.Globals.POSITION_MAPPING[hero.position],
+            'hero_cards'                :flatten(hero.hand),
+            'hero_street_total'         :hero.street_total,
+            'pot'                       :state[:,-1][:,self.env.state_mapping['pot']][0],
+            'board_cards'               :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
+            'villain_stack'             :villain.stack,
+            'villain_position'          :pdt.Globals.POSITION_MAPPING[villain.position],
+            'villain_cards'             :flatten(villain.hand),
+            'villain_street_total'      :villain.street_total,
+            'last_action'               :state[:,-1][:,self.env.state_mapping['last_action']][0],
+            'last_betsize'              :state[:,-1][:,self.env.state_mapping['last_betsize']][0],
+            'last_position'             :state[:,-1][:,self.env.state_mapping['last_position']][0],
+            'last_aggressive_action'    :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
+            'last_aggressive_betsize'   :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
+            'last_aggressive_position'  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
+            'done'                      :done,
+            'action_mask'               :action_mask.tolist(),
+            'betsize_mask'              :betsize_mask.tolist(),
+            'street'                    :state[:,-1][:,self.env.state_mapping['street']][0],
+            'blind'                     :state[:,-1][:,self.env.state_mapping['blind']][0]
         }
         outcome_object = {
-            'player1_stack':self.env.players['SB'].stack,
-            'player1_reward':self.env.players['SB'].stack - self.env.starting_stack,
-            'player1_hand':[item for sublist in self.env.players['SB'].hand for item in sublist],
-            'player2_stack':self.env.players['BB'].stack,
-            'player2_reward':self.env.players['BB'].stack - self.env.starting_stack,
-            'player2_hand':[item for sublist in self.env.players['BB'].hand for item in sublist],
+            'player1_reward':hero.stack - self.env.starting_stack,
+            'player1_hand':flatten(hero.hand),
+            'player2_reward':villain.stack - self.env.starting_stack,
+            'player2_hand':flatten(villain.hand),
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
-
-    def increment_hand(self):
-        self.num_hands += 1
 
     def store_state(self,state,obs,action_mask,betsize_mask):
         cur_player = self.env.current_player
@@ -210,12 +218,12 @@ class API(object):
         assert self.player['name'] is not None
         assert isinstance(self.player['position'],str)
         self.reset_trajectories()
-        self.increment_hand()
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
         if self.env.current_player != self.player['position']:
             state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
+        assert self.env.current_player == self.player['position']
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     def step(self,action:str,betsize:float):
@@ -247,6 +255,11 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
+        print(self.env.players[self.player['position']].stack)
+        print(self.env.players[self.increment_position[self.player['position']]].stack)
+        print('game_over',self.env.game_over())
+        print('done',done)
+        print('board',state[-1,-1,self.env.state_mapping['board']])
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property

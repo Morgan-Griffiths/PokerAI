@@ -297,6 +297,10 @@ class GlobalState(object):
     @property
     def last_aggressive_betsize(self):
         return self.global_states[-1][self.mapping['last_aggressive_betsize']][0]
+
+    @property
+    def last_aggressive_position(self):
+        return self.global_states[-1][self.mapping['last_aggressive_position']][0]
         
     @property
     def last_action(self):
@@ -478,6 +482,7 @@ class Poker(object):
             for _ in range(pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER] - self.street):
                 self.street += 1
                 self.update_board()
+            self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
@@ -562,6 +567,9 @@ class Poker(object):
         return available_categories,available_betsizes
     
     def return_mask(self):
+        """Taking into account SB calling BB"""
+        if self.global_states.last_aggressive_position == pdt.Globals.POSITION_MAPPING[self.current_player]:
+            return copy.copy(self.mask_dict[self.global_states.last_action])
         return copy.copy(self.mask_dict[self.global_states.last_aggressive_action])
 
     def convert_to_category(self,action,betsize):
@@ -662,7 +670,6 @@ class Poker(object):
             betsize = 0
         return betsize
             
-    ## POT LIMIT
     def return_potlimit_betsize(self,action:int,betsize_category:int):
         """TODO Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
         assert isinstance(action,int)
@@ -674,7 +681,9 @@ class Poker(object):
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
-            betsize_value = (self.betsizes[betsize_category] * max_raise) - self.players[self.current_index.key].street_total
+            min_raise = min(2,self.players[self.current_player].stack)
+            betsizes = np.linspace(min_raise,max_raise,self.num_betsizes)
+            betsize_value = betsizes[betsize_category] - self.players[self.current_index.key].street_total
             previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total
             betsize = min(max(previous_bet * 2,betsize_value),self.players[self.current_player].stack)
         else:

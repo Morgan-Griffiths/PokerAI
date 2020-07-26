@@ -663,6 +663,46 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['player1_position']] == 1
         assert state[:,-1][:,env.state_mapping['hero_position']] == 1
 
+    def additionalTests(self):
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 5
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 2
+        state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 2
+        assert state[:,-1][:,env.state_mapping['street']] == 1
+        state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
+        state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 0
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 0
+        assert state[:,-1][:,env.state_mapping['street']] == 3
+        assert done == True
+
+    def preflopTests(self):
+        """Facing sb call. Sb min raise."""
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 5
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 4
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4
+        assert np.array_equal(mask,np.array([1,0,0,0,1]))
+        del env
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        state,obs,done,mask,betsize_mask = env.step(ACTION_MIN_RAISE)
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 3
+        assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4
+
 
 def envTestSuite():
     suite = unittest.TestSuite()
@@ -682,6 +722,7 @@ def envTestSuite():
     suite.addTest(TestEnv('testMasks'))
     suite.addTest(TestEnv('testEnvCategoryMapping'))
     suite.addTest(TestEnv('testStreetInitialization'))
+    suite.addTest(TestEnv('additionalTests'))
     return suite
 
 if __name__ == "__main__":
