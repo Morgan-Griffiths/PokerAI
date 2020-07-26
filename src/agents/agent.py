@@ -693,15 +693,17 @@ class BetAgent(object):
         pass
 
     def __call__(self,state,action_mask,betsize_mask):
+        action_mask = torch.tensor(action_mask,dtype=torch.long)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long)
         if betsize_mask.sum() > 0:
             action = torch.argmax(betsize_mask,dim=-1) + 3
         else:
             action = torch.argmax(action_mask,dim=-1)
         actor_outputs = {
             'action':action,
-            'action_category':torch.argmax(action_mask,dim=-1),
+            'action_category':int(torch.argmax(action_mask,dim=-1)),
             'action_probs':torch.zeros(5).fill_(2.),
             'action_prob':torch.tensor([1.]),
-            'betsize' : torch.argmax(betsize_mask,dim=-1)
+            'betsize' : int(torch.argmax(betsize_mask,dim=-1))
         }
         return actor_outputs
