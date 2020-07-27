@@ -573,7 +573,11 @@ class Poker(object):
         return copy.copy(self.mask_dict[self.global_states.last_aggressive_action])
 
     def convert_to_category(self,action,betsize):
-        """returns int"""
+        """
+        action is categorical. betsize: float. Maps to flat action space.
+        betsize includes player totals.
+        returns categorical betsize, and flat action category
+        """
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
         if action == 0 or action == 1 or action == 2: # fold check call
@@ -681,7 +685,9 @@ class Poker(object):
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
         elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
-            min_raise = min(2,self.players[self.current_player].stack)
+            # min_raise = min(2,self.players[self.current_player].stack)
+            previous_bet = max(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,1)
+            min_raise = previous_bet * 2
             betsizes = np.linspace(min_raise,max_raise,self.num_betsizes)
             betsize_value = betsizes[betsize_category] - self.players[self.current_index.key].street_total
             previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total

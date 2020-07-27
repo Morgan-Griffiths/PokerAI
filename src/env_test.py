@@ -649,6 +649,18 @@ class TestEnv(unittest.TestCase):
         assert env.convert_to_category(4,42)[0] == 3
         assert env.convert_to_category(2,18)[0] == 2
         assert env.convert_to_category(1,0)[0] == 1
+        del env
+        params['stacksize'] = 3
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        assert env.convert_to_category(4,3)[0] == 4
+        assert env.convert_to_category(4,2)[0] == 3
+        assert env.convert_to_category(2,0)[0] == 2
+        assert env.convert_to_category(1,0)[0] == 1
+        
 
     def testStreetInitialization(self):
         params = copy.deepcopy(self.env_params)
@@ -701,6 +713,25 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 3
         assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4
 
+    def betsizingTests(self):
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 5
+        params['n_players'] = 2
+        params['starting_street'] = 0
+        params['pot'] = 0
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        betsize = env.return_potlimit_betsize(action=4,betsize_category=0)
+        assert betsize == 1.5
+        betsize = env.return_potlimit_betsize(action=4,betsize_category=1)
+        assert betsize == 2.5
+        betsize = env.return_potlimit_betsize(action=2,betsize_category=0)
+        assert betsize == 0.5
+        state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
+        betsize = env.return_potlimit_betsize(action=4,betsize_category=0)
+        assert betsize == 1
+        betsize = env.return_potlimit_betsize(action=4,betsize_category=1)
+        assert betsize == 2
 
 def envTestSuite():
     suite = unittest.TestSuite()
@@ -721,6 +752,8 @@ def envTestSuite():
     suite.addTest(TestEnv('testEnvCategoryMapping'))
     suite.addTest(TestEnv('testStreetInitialization'))
     suite.addTest(TestEnv('additionalTests'))
+    suite.addTest(TestEnv('preflopTests'))
+    suite.addTest(TestEnv('betsizingTests'))
     return suite
 
 if __name__ == "__main__":

@@ -233,10 +233,10 @@ class API(object):
         if isinstance(betsize,str):
             betsize = float(betsize)
         action_type = pdt.REVERSE_ACTION_DICT[action]
-        action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
-        assert isinstance(action_category,int)
+        flat_action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
+        assert isinstance(flat_action_category,int)
         player_outputs = {
-            'action':action_category,
+            'action':flat_action_category,
             'action_category':action_type,
             'betsize':betsize_category,
             'action_prob':np.array([0]),
@@ -255,13 +255,6 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
-        print('street',state[-1,-1,self.env.state_mapping['street']])
-        print(self.env.players[self.player['position']].stack)
-        print(self.env.players[self.increment_position[self.player['position']]].stack)
-        print('game_over',self.env.game_over())
-        print('done',done)
-        print('board',state[-1,-1,self.env.state_mapping['board']])
-        print('players_remaining',self.env.players_remaining)
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     @property
