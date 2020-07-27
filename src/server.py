@@ -32,7 +32,7 @@ class API(object):
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':0,
-            'stacksize': 2,#self.game_object.state_params['stacksize'],
+            'stacksize': 100,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
             'starting_street': 0, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
