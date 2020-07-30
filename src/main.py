@@ -12,6 +12,7 @@ from poker.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic
+from models.model_utils import update_weights
 from agents.agent import return_agent
 from utils.utils import unpack_shared_dict
 
@@ -56,7 +57,8 @@ if __name__ == "__main__":
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
         'embedding_size':128,
-        'device':device
+        'device':device,
+        'frozen_layer_path':os.path.join(os.getcwd(),'checkpoints/regression/PartialHandRegression')
     }
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
@@ -70,6 +72,8 @@ if __name__ == "__main__":
 
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+    # preload the hand board analyzer
+    actor,critic = update_weights([actor,critic],network_params['frozen_layer_path'])
     actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
 
@@ -92,7 +96,7 @@ if __name__ == "__main__":
     actor.share_memory()
     critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),10)
+    num_processes = min(mp.cpu_count(),1)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
