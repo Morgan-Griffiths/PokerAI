@@ -119,10 +119,14 @@ class Player(object):
         self.stack = stack
         self.street_total = street_total
         self.status = Status.ACTIVE
-        self.hand = hand
+        self.hand = hand,
+        self.handrank = None
     
     def update_hand(self,hand):
         self.hand = hand
+
+    def update_handrank(self,handrank):
+        self.handrank = handrank
         
 class Players(object):
     def __init__(self,n_players,starting_stack,cards_per_player):
@@ -546,6 +550,8 @@ class Poker(object):
                 en_hands.append(en_hand)
             en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
             hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
+            for i,position in enumerate(positions):
+                self.players[position].handrank = hand_ranks[i]
             best_hand = np.min(hand_ranks)
             winner_mask = np.where(best_hand == hand_ranks)[0]
             winner_positions = np.array(positions)[winner_mask]
