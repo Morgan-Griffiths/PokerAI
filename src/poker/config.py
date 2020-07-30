@@ -32,7 +32,7 @@ class Config(object):
             'actor_network':None,
             'critic_type':'q',
             'embedding_size': 32,
-            'actor_lr':1e-4,
+            'actor_lr':1e-5,
             'critic_lr':4e-7,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/regression/PartialHandRegression'),
             'frozen_layer' : False,
