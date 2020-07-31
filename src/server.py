@@ -18,6 +18,16 @@ from models.networks import OmahaActor
 """
 API for connecting the Poker Env with Alex's frontend client for baseline testing the trained bot.
 """
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
 
 class API(object):
     def __init__(self):
@@ -32,7 +42,7 @@ class API(object):
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':1,
-            'stacksize': self.game_object.state_params['stacksize'],
+            'stacksize': 1,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
             'starting_street': 3, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
@@ -40,6 +50,7 @@ class API(object):
             'obs_mapping':self.config.obs_mapping,
             'shuffle':True
         }
+        self.testing = False
         self.env = Poker(self.env_params)
         self.network_params = self.instantiate_network_params()
         self.model = OmahaActor(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
@@ -186,11 +197,13 @@ class API(object):
         outcome_object = {
             'player1_reward':hero.stack - self.env.starting_stack,
             'player1_hand':flatten(hero.hand),
+            'player1_handrank':hero.handrank,
             'player2_reward':villain.stack - self.env.starting_stack,
             'player2_hand':flatten(villain.hand),
+            'player2_handrank':villain.handrank
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
-        return json.dumps(json_obj)
+        return json.dumps(json_obj,cls=NpEncoder)
 
     def store_state(self,state,obs,action_mask,betsize_mask):
         cur_player = self.env.current_player
@@ -223,9 +236,10 @@ class API(object):
         self.update_player_position(self.increment_position[self.player['position']])
         state,obs,done,action_mask,betsize_mask = self.env.reset()
         self.store_state(state,obs,action_mask,betsize_mask)
-        if self.env.current_player != self.player['position']:
-            state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
-        assert self.env.current_player == self.player['position']
+        if self.testing == False:
+            if self.env.current_player != self.player['position']:
+                state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
+            assert self.env.current_player == self.player['position']
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
 
     def step(self,action:str,betsize:float):
@@ -248,7 +262,7 @@ class API(object):
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
         if not done:
             self.store_state(state,obs,action_mask,betsize_mask)
-            if self.env.current_player != self.player['position']:
+            if self.env.current_player != self.player['position'] and self.testing == False:
                 state,obs,done,action_mask,betsize_mask = self.query_bot(state,obs,action_mask,betsize_mask)
         if done:
             rewards = self.env.player_rewards()
@@ -257,12 +271,15 @@ class API(object):
                 self.trajectory[position]['rewards'] = [rewards[position]] * N
                 self.trajectories[position].append(self.trajectory[position])
             self.insert_into_db(self.trajectories)
-        print(self.env.players[self.player['position']].stack)
-        print(self.env.players[self.increment_position[self.player['position']]].stack)
-        print('game_over',self.env.game_over())
-        print('done',done)
-        print('board',state[-1,-1,self.env.state_mapping['board']])
+        # print(self.env.players[self.player['position']].stack)
+        # print(self.env.players[self.increment_position[self.player['position']]].stack)
+        # print('game_over',self.env.game_over())
+        # print('done',done)
+        # print('board',state[-1,-1,self.env.state_mapping['board']])
         return self.parse_env_outputs(state,action_mask,betsize_mask,done)
+
+    def update_testing_status(self,status):
+        self.testing = status
 
     @property
     def current_player(self):
@@ -281,6 +298,12 @@ logging.basicConfig(level=logging.DEBUG)
 @app.route('/health')
 def home():
     return 'Server is up and running'
+
+@app.route('/api/testing',methods=['POST'])
+def testing():
+    req_data = json.loads(request.get_data())
+    api.update_testing_status(req_data.get('testing'))
+    return 'Updated Testing Status'
 
 @app.route('/api/player/name',methods=['POST'])
 def player():
