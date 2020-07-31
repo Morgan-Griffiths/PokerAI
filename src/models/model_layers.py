@@ -254,32 +254,33 @@ class PreProcessLayer(nn.Module):
         self.device = params['device']
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
+
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
         self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=3)
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
+        self.action_transformer = CTransformer(emb=params['embedding_size'],heads=2,depth=2,seq_length=self.maxlen,num_classes=params['embedding_size'])
+        self.position_transformer = CTransformer(emb=params['embedding_size'],heads=2,depth=2,seq_length=self.maxlen,num_classes=params['embedding_size'])
+        self.betsize_transformer = CTransformer(emb=1,heads=1,depth=2,seq_length=self.maxlen,num_classes=params['embedding_size'])
+        self.hand_transformer = CTransformer(emb=1024,heads=2,depth=2,seq_length=self.maxlen,num_classes=params['embedding_size'])
 
     def forward(self,x):
         B,M,C = x.size()
         h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long()
-        bets = []
-        # for i in range()
-        last_b = x[:,:,self.state_mapping['last_betsize']]
+        last_b = x[:,:,self.state_mapping['last_betsize']].unsqueeze(-1)
         last_p = x[:,:,self.state_mapping['last_position']].long()
         emb_a = self.action_emb(last_a)
         emb_p = self.position_emb(last_p)
-        embedded_bets = []
-        for i in range(M):
-            embedded_bets.append(self.betsize_fc(last_b[:,i]))
-        embeds = torch.stack(embedded_bets)
+        action_out = self.action_transformer(emb_a).unsqueeze(1)
+        pos_out = self.position_transformer(emb_p).unsqueeze(1)
+        bet_out = self.betsize_transformer(last_b).unsqueeze(1)
+        hand_out = self.hand_transformer(h).unsqueeze(1)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
-        if embeds.dim() == 2:
-            embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h,emb_a,emb_p,embeds),dim=-1)
+        # print(hand_out.size(),action_out.size(),pos_out.size(),bet_out.size())
+        combined = torch.cat((hand_out,action_out,pos_out,bet_out),dim=-1)
         return combined
 
 class PreProcessHistory(nn.Module):

@@ -1,6 +1,14 @@
 import torch, os
 import numpy as np
 
+def update_weights(networks,path):
+    layer_weights = torch.load(path)
+    for network in networks:
+        for name, param in network.process_input.hand_board.named_parameters():
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+    return networks
+
 def strip_padding(x,maxlen):
     assert(x.ndim == 3)
     mask = np.where(x.sum(-1).numpy() == 0)

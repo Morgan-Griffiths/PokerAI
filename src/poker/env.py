@@ -119,10 +119,14 @@ class Player(object):
         self.stack = stack
         self.street_total = street_total
         self.status = Status.ACTIVE
-        self.hand = hand
+        self.hand = hand,
+        self.handrank = None
     
     def update_hand(self,hand):
         self.hand = hand
+
+    def update_handrank(self,handrank):
+        self.handrank = handrank
         
 class Players(object):
     def __init__(self,n_players,starting_stack,cards_per_player):
@@ -146,6 +150,10 @@ class Players(object):
             end = (i+1)*self.cards_per_player
             player_cards = hands[start:end]
             self.players[position].update_hand(player_cards)
+
+    def update_handranks(self,hand_ranks,positions):
+        for i,position in enumerate(positions):
+            self.players[position].update_handrank(hand_ranks[i])
     
     def update_stack(self,amount:int,position:str):
         """
@@ -212,7 +220,7 @@ class LastAggression(PlayerIndex):
         self.n_players = n_players
         self.starting_street = street
         self.starting_index = STARTING_INDEX[n_players][street]
-        self.current_index = self.starting_index
+        self.current_index = self.n_players
         self.starting_action,self.starting_betsize = STARTING_AGGRESSION[street]
         self.aggressive_action = self.starting_action
         self.aggressive_betsize = self.starting_betsize
@@ -231,7 +239,7 @@ class LastAggression(PlayerIndex):
         self.aggressive_betsize = 0
 
     def reset(self):
-        self.current_index = self.starting_index
+        self.current_index = self.n_players
         self.aggressive_action = self.starting_action
         self.aggressive_betsize = self.starting_betsize
 
@@ -546,6 +554,7 @@ class Poker(object):
                 en_hands.append(en_hand)
             en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
             hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
+            self.players.update_handranks(hand_ranks,positions)
             best_hand = np.min(hand_ranks)
             winner_mask = np.where(best_hand == hand_ranks)[0]
             winner_positions = np.array(positions)[winner_mask]
@@ -573,19 +582,26 @@ class Poker(object):
         return copy.copy(self.mask_dict[self.global_states.last_aggressive_action])
 
     def convert_to_category(self,action,betsize):
-        """returns int"""
+        """
+        For mapping player actions to bot categories.
+        takes action category and betsize amount and returns flat action category and betsize category.
+        """
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
         if action == 0 or action == 1 or action == 2: # fold check call
             category[action] = 1
             bet_category[0] = 1
         elif action == 4:
+            if self.last_aggressor.current_index != self.n_players:
+                aggressor_street_total = self.players[self.last_aggressor.key].street_total
+            else:
+                aggressor_street_total = 0
             if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
-                min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
+                min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*aggressor_street_total) - self.players[self.current_player].street_total))
             else:
                 min_raise = 2 * self.global_states.last_aggressive_betsize
-            max_raise = min((2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total),(self.players[self.current_player].stack+self.players[self.current_player].street_total))
-            previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total
+            max_raise = min((2 * aggressor_street_total) + (self.pot - self.players[self.current_index.key].street_total),(self.players[self.current_player].stack+self.players[self.current_player].street_total))
+            previous_bet = aggressor_street_total - self.players[self.current_index.key].street_total
             possible_sizes = np.linspace(min_raise,max_raise,self.num_betsizes)
             closest_val = np.min(np.abs(possible_sizes - betsize))
             bet_index = np.where(closest_val == np.abs(possible_sizes - betsize))[0]
@@ -628,7 +644,7 @@ class Poker(object):
         elif self.global_states.last_aggressive_action == 5 or self.global_states.last_aggressive_action == 0:
             for i,betsize in enumerate(self.betsizes,0):
                 possible_betsizes[i] = 1
-                if betsize * self.pot >= self.players[self.current_player].stack:
+                if max(betsize * self.pot,1) >= self.players[self.current_player].stack:
                     break
         return possible_betsizes
 

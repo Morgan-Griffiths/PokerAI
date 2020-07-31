@@ -188,15 +188,15 @@ class OmahaActor(nn.Module):
         self.action_emb = Embedder(6,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise(self.device)
-        self.emb = 1408
+        self.emb = 512
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(self.emb, 128)
-        # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
+        # self.lstm = nn.LSTM(self.emb, 128)
+        self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
 
-        self.fc1 = nn.Linear(1280,640)
-        self.fc2 = nn.Linear(640,320)
-        self.fc3 = nn.Linear(320,self.combined_output)
+        # self.fc1 = nn.Linear(1280,640)
+        # self.fc2 = nn.Linear(640,320)
+        # self.fc3 = nn.Linear(320,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -208,30 +208,35 @@ class OmahaActor(nn.Module):
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
-        n_padding = self.maxlen - M
-        if n_padding < 0:
-            h = out[:,-self.maxlen:,:]
-        else:
-            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-            h = torch.cat((out,padding),dim=1)
-        lstm_out,_ = self.lstm(h)
-        t_logits1 = self.activation(self.fc1(lstm_out.view(-1)))
-        t_logits2 = self.activation(self.fc2(t_logits1))
-        t_logits = self.fc3(t_logits2)
+        # n_padding = self.maxlen - M
+        # if n_padding < 0:
+        #     h = out[:,-self.maxlen:,:]
+        # else:
+        #     padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+        #     h = torch.cat((out,padding),dim=1)
+        # lstm_out,_ = self.lstm(h)
+        t_logits = self.transformer(out)
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
-
-        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+        action_prob = m.log_prob(action)
+        if B == 1:
+            action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+            action = action.item()
+            action_category = action_category.item()
+            betsize_category = betsize_category.item()
+        else:
+            action_category = None
+            betsize_category = None
         outputs = {
-            'action':action.item(),
-            'action_category':action_category.item(),
-            'action_prob':m.log_prob(action),
+            'action':action,
+            'action_category':action_category,
+            'action_prob':action_prob,
             'action_probs':action_probs,
-            'betsize':betsize_category.item()
+            'betsize':betsize_category
             }
         return outputs
     
@@ -247,7 +252,7 @@ class OmahaQCritic(nn.Module):
         self.device = params['device']
         self.mapping = params['state_mapping']
         # self.lstm = nn.LSTM(1280, 128)
-        self.emb = 1408
+        self.emb = 512
         n_heads = 8
         depth = 2
         self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,128)
@@ -260,14 +265,14 @@ class OmahaQCritic(nn.Module):
         if not isinstance(x,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
-        B,M,c = out.size()
-        n_padding = self.maxlen - M
-        if n_padding < 0:
-            h = out[:,-self.maxlen:,:]
-        else:
-            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-            h = torch.cat((out,padding),dim=1)
-        h = torch.cat((out,padding),dim=1)
+        # B,M,c = out.size()
+        # n_padding = self.maxlen - M
+        # if n_padding < 0:
+        #     h = out[:,-self.maxlen:,:]
+        # else:
+        #     padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+        #     h = torch.cat((out,padding),dim=1)
+        # h = torch.cat((out,padding),dim=1)
         q_input = self.transformer(out)
         # if n_padding > 0:
         #     padding_mask_o = torch.ones(B,M,self.emb)
@@ -325,7 +330,6 @@ class BetsizeActor(nn.Module):
         # previous_betsize = x[:,self.mapping['state']['previous_betsize']].float().unsqueeze(0)
         hand = self.hand_emb(hand)
         embedded_action = self.action_emb(last_action)
-        # print(hand.size(),embedded_action.size(),previous_betsize.size())
         # x = torch.cat([hand,embedded_action,previous_betsize],dim=-1)
         x = torch.cat([hand,embedded_action],dim=-1)
         x = self.activation(self.fc1(x))
@@ -343,31 +347,21 @@ class BetsizeActor(nn.Module):
         # betsize = torch.tensor([-1])
         # betsize_prob = torch.tensor([-1]).float()
         # betsize_probs = torch.Tensor(self.nA).fill_(-1).unsqueeze(0).float()
-        # # print('action',action)
-        # # print('betsize_mask',betsize_mask)
         # if action > 2:
         # generate betsize
         b = self.activation(self.bfc1(x))
         b = self.activation(self.bfc2(b))
         b = self.bfc3(b)
         betsize_logits = self.noise(b)
-        # print('betsize_logits',betsize_logits)
         betsize_probs = F.softmax(betsize_logits,dim=-1)
-        # print('betsize_probs',betsize_probs)
         if betsize_mask.sum(-1) == 0:
             betsize_mask = torch.ones(M,self.nA)
         # with torch.no_grad():
         mask_betsize_probs = betsize_probs * betsize_mask
-        # print('mask_betsize_probs',mask_betsize_probs)
         norm_betsize_probs = mask_betsize_probs / mask_betsize_probs.sum(-1).unsqueeze(1)
-        # print('mask_betsize_probs',mask_betsize_probs)
         b = Categorical(norm_betsize_probs)
         betsize = b.sample()
         betsize_prob = b.log_prob(betsize)
-
-        # print('betsize',betsize)
-        # print('betsize_prob',betsize_prob)
-        # print('betsize_probs',betsize_probs)
         outputs = {
             'action':action,
             'action_prob':m.log_prob(action),
@@ -926,7 +920,6 @@ class Dueling_QNetwork(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(seed)
-        print('hidden_dims',hidden_dims)
         self.input_layer = nn.Linear(state_space,hidden_dims[0])
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):

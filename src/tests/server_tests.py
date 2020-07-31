@@ -24,6 +24,7 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.app = self.create_app()
         c = self.app.test_client()
+        c.post('/api/testing', data=json.dumps(dict(testing=True)),follow_redirects=True)
         c.post('/api/player/name', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
         # db.create_all()
 
@@ -45,7 +46,6 @@ class BaseTestCase(TestCase):
         step_response = c.post('/api/step', data=json.dumps(dict(action='check',betsize=0)),follow_redirects=True)
 
     def test_hand(self):
-        print('test bet call')
         c = self.app.test_client()
         response = c.get('/api/reset')
         step_response = c.post('/api/step', data=json.dumps(dict(action='bet',betsize=1)),follow_redirects=True)
@@ -56,12 +56,12 @@ class BaseTestCase(TestCase):
     def test_player_results(self):
         c = self.app.test_client()
         response = c.get('/api/player/stats')
-        print(response.data)
+        # print(response.data)
 
     def test_model_load(self):
         c = self.app.test_client()
-        response = c.post('/api/model/load',data=json.dumps(dict(path=os.path.join(os.getcwd(),'checkpoints/RL/RL_actor'))),follow_redirects=True)
-        print(response.data)
+        response = c.post('/api/model/load',data=json.dumps(dict(path=os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi_actor'))),follow_redirects=True)
+        # print(response.data)
 
 if __name__ == '__main__':
     unittest.main()
