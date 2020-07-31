@@ -192,7 +192,7 @@ def learning_update(actor,critic,params):
         # Agent.soft_update(self.actor,self.target_actor,self.tau)
     return actor,critic,params
 
-def train(env,actor,critic,training_params,learning_params,id):
+def train(env,actor,critic,training_params,learning_params,eval_params,id):
     log = logging.getLogger(__name__)
     for e in range(training_params['training_epochs']):
         learning_params['training_round'] = e
