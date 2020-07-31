@@ -10,10 +10,11 @@ from pymongo import MongoClient
 from collections import defaultdict
 from hand_recognition.data_loader import datasetLoader
 import copy
+from tournament import tournament
 
 from db import MongoDB
 from poker.env import Poker
-from agents.agent import ParallelAgent,FullAgent
+from agents.agent import BetAgent
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
@@ -106,7 +107,7 @@ def scale_rewards(self,rewards,factor=1):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
 
-def learning_update(actor,critic,params):
+def learning_update(actor,critic,params,id):
     device = params['device']
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
@@ -114,48 +115,55 @@ def learning_update(actor,critic,params):
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
-    data = db['game_data'].find(query,projection)
-    losses = []
-    for poker_round in data:
-        state = torch.tensor(poker_round['state'],dtype=torch.float32).to(device)
-        action = torch.tensor(poker_round['action'],dtype=torch.long).to(device)
-        reward = torch.tensor(poker_round['reward'],dtype=torch.float32).to(device)
-        betsize_mask = torch.tensor(poker_round['betsize_mask'],dtype=torch.long).to(device)
-        action_mask = torch.tensor(poker_round['action_mask'],dtype=torch.long).to(device)
-        ## Critic update ##
-        local_values = critic(state)['value']
-        value_mask = return_value_mask(action)
-        TD_error = local_values[value_mask] - reward
-        critic_loss = (TD_error**2*0.5).mean()
-        # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
-        critic_optimizer.zero_grad()
-        critic_loss.backward()
-        torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
-        critic_optimizer.step()
-        losses.append(critic_loss.item())
-        # print('local_values',local_values[value_mask],reward)
-        # Agent.soft_update(local_critic,target_critic,tau)
+    data = list(db['game_data'].find(query,projection))
+    for _ in range(params['learning_rounds']):
+        losses = []
+        for poker_round in data:
+            state = torch.tensor(poker_round['state'],dtype=torch.float32).to(device)
+            action = torch.tensor(poker_round['action'],dtype=torch.long).to(device)
+            reward = torch.tensor(poker_round['reward'],dtype=torch.float32).to(device)
+            betsize_mask = torch.tensor(poker_round['betsize_mask'],dtype=torch.long).to(device)
+            action_mask = torch.tensor(poker_round['action_mask'],dtype=torch.long).to(device)
+            ## Critic update ##
+            local_values = critic(state)['value']
+            value_mask = return_value_mask(action)
+            TD_error = local_values[value_mask] - reward
+            critic_loss = (TD_error**2*0.5).mean()
+            # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+            critic_optimizer.zero_grad()
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
+            critic_optimizer.step()
+            losses.append(critic_loss.item())
+            # print('local_values',local_values[value_mask],reward)
+            # Agent.soft_update(local_critic,target_critic,tau)
 
-        # Actor update #
-        target_values = critic(state)['value']
-        actor_out = actor(state,action_mask,betsize_mask)
-        expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-        advantages = (target_values[value_mask] - expected_value).view(-1)
-        policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-        actor_optimizer.zero_grad()
-        policy_loss.backward()
-        torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-        actor_optimizer.step()
-        # Agent.soft_update(self.actor,self.target_actor,self.tau)
-        # loss_dict[i] = sum(losses)
-    print('loss sum',sum(losses))
+            # Actor update #
+            target_values = critic(state)['value']
+            actor_out = actor(state,action_mask,betsize_mask)
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
+            advantages = (target_values[value_mask] - expected_value).view(-1)
+            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+            actor_optimizer.zero_grad()
+            policy_loss.backward()
+            torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+            actor_optimizer.step()
+            # Agent.soft_update(self.actor,self.target_actor,self.tau)
+            # loss_dict[i] = sum(losses)
+        print(f'loss sum {sum(losses)} {id}')
     return actor,critic,params
 
-def train(env,actor,critic,training_params,learning_params,id):
-    for e in range(training_params['training_epochs']):
+def train(env,actor,critic,training_params,learning_params,eval_params,id):
+    # eval_agent = BetAgent()
+    for e in range(1,training_params['training_epochs']+1):
         learning_params['training_round'] = e
         training_params['training_round'] = e
         generate_trajectories(env,actor,training_params,id)
         # train on trajectories
-        actor,critic,learning_params = learning_update(actor,critic,learning_params)
+        actor,critic,learning_params = learning_update(actor,critic,learning_params,id)
         print(f'Training round {e}, ID {id}')
+        # if e % training_params['evaluation_every'] == 0:
+        #     results = tournament(env,actor,eval_agent,eval_params)
+        #     print(results)
+        #     print(f"Actor: {results['agent1']['SB'] + results['agent1']['BB']}")
+        #     print(f"Eval_agent: {results['agent2']['SB'] + results['agent2']['BB']}")
