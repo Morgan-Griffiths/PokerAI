@@ -619,6 +619,17 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['street']] == 0
         assert np.array_equal(mask,np.array([0,1,1,0,0]))
         assert np.array_equal(betsize_mask,np.array([0,0]))
+        del env
+        params = copy.deepcopy(self.env_params)
+        params['stacksize'] = 1
+        params['n_players'] = 2
+        params['starting_street'] = 3
+        params['pot'] = 1
+        env = Poker(params)
+        state,obs,done,mask,betsize_mask = env.reset()
+        assert env.convert_to_category(4,0)[0] == 3
+        assert env.convert_to_category(3,0)[0] == 3
+        assert np.array_equal(betsize_mask,np.array([1,0]))
 
     def testEnvCategoryMapping(self):
         params = copy.deepcopy(self.env_params)
