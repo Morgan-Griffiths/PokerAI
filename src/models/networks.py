@@ -194,9 +194,9 @@ class OmahaActor(nn.Module):
         # self.lstm = nn.LSTM(self.emb, 128)
         self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
 
-        self.fc1 = nn.Linear(528,hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(1280,self.combined_output)
+        # self.fc1 = nn.Linear(528,hidden_dims[0])
+        # self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        # self.fc3 = nn.Linear(1280,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -920,7 +920,6 @@ class Dueling_QNetwork(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(seed)
-        print('hidden_dims',hidden_dims)
         self.input_layer = nn.Linear(state_space,hidden_dims[0])
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
