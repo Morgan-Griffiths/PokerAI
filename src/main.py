@@ -35,7 +35,7 @@ if __name__ == "__main__":
         'pot':1,
         'stacksize': game_object.state_params['stacksize'],
         'cards_per_player': game_object.state_params['cards_per_player'],
-        'starting_street': game_object.starting_street,
+        'starting_street': 3,
         'global_mapping':config.global_mapping,
         'state_mapping':config.state_mapping,
         'obs_mapping':config.obs_mapping,
@@ -61,11 +61,16 @@ if __name__ == "__main__":
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':50,
+        'training_epochs':300,
         'epochs':25,
         'training_round':0,
         'game':'Omaha',
-        'id':0
+        'id':0,
+        'evaluation_every':5
+    }
+
+    eval_params = {
+        'epochs': 500
     }
 
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
@@ -81,7 +86,8 @@ if __name__ == "__main__":
         'path': os.path.join(os.getcwd(),'checkpoints/RL/omaha_hi'),
         'device':device,
         'gpu1':gpu1,
-        'gpu2':gpu2
+        'gpu2':gpu2,
+        'learning_rounds':5
     }
     mp.set_start_method('spawn')
     # generate trajectories and desposit in mongoDB
@@ -92,11 +98,11 @@ if __name__ == "__main__":
     actor.share_memory()
     critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),10)
+    num_processes = min(mp.cpu_count(),8)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
-        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
+        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,eval_params,id))
         p.start()
         processes.append(p)
     for p in processes: 
