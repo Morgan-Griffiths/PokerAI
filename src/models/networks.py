@@ -194,9 +194,9 @@ class OmahaActor(nn.Module):
         self.lstm = nn.LSTM(self.emb, 128)
         # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
 
-        self.fc1 = nn.Linear(528,hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(1280,self.combined_output)
+        self.fc1 = nn.Linear(1280,640)
+        self.fc2 = nn.Linear(640,320)
+        self.fc3 = nn.Linear(320,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -215,7 +215,9 @@ class OmahaActor(nn.Module):
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
-        t_logits = self.fc3(lstm_out.view(-1))
+        t_logits1 = self.activation(self.fc1(lstm_out.view(-1)))
+        t_logits2 = self.activation(self.fc2(t_logits1))
+        t_logits = self.fc3(t_logits2)
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
