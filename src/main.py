@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':50,
+        'training_epochs':1,
         'epochs':25,
         'training_round':0,
         'game':'Omaha',
@@ -110,6 +110,7 @@ if __name__ == "__main__":
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
+    print(f'saving weights to {path}')
     torch.save(actor.state_dict(), path + '_actor')
     torch.save(critic.state_dict(), path + '_critic')
     toc = time.time()
