@@ -1,6 +1,7 @@
 import os
 import poker.datatypes as pdt
 import models.network_config as ng
+from models.model_utils import soft_update
 import copy
 import torch
 import torch.nn.functional as F
@@ -19,6 +20,34 @@ from poker.env import Poker
 from agents.agent import BetAgent
 
 logging.basicConfig(level=logging.INFO)
+
+def find_strength(strength):
+    # 7462-6185 High card
+    # 6185-3325 Pair
+    # 3325-2467 2Pair
+    # 2467-1609 Trips
+    # 1609-1599  Stright
+    # 1599-322 Flush
+    # 322-166  FH
+    # 166-10 Quads
+    # 10-0 Str8 flush
+    if strength > 6185:
+        return 8
+    if strength > 3325:
+        return 7
+    if strength > 2467:
+        return 6
+    if strength > 1609:
+        return 5
+    if strength > 1599:
+        return 4
+    if strength > 322:
+        return 3
+    if strength > 166:
+        return 2
+    if strength > 10:
+        return 1
+    return 0
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
@@ -45,7 +74,7 @@ def generate_trajectories(env,actor,training_params,id):
             trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
             trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
             trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
-            if e == 0:
+            if e < 2:
                 action_probs[cur_player][i].append(trajectory[cur_player]['action_probs'])
             state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
             cur_player = env.current_player
@@ -59,9 +88,12 @@ def generate_trajectories(env,actor,training_params,id):
         for position in trajectory.keys():
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
+            trajectory[position]['handstrength'] = [env.players[position].handrank] * N
             trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['epochs'])
-    print('SB',action_probs['SB'])
+    # print('SB',action_probs['SB'])
+    # print('SB',handrank_probs['SB'])
+    # print('BB',handrank_probs['BB'])
     # print('BB',action_probs['BB'])
 
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
@@ -84,6 +116,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             action_masks = poker_round['action_masks']
             rewards = poker_round['rewards']
             betsizes = poker_round['betsize']
+            handstrength = poker_round['handstrength']
             assert(isinstance(rewards,list))
             assert(isinstance(actions,list))
             assert(isinstance(action_prob,list))
@@ -92,6 +125,8 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             assert(isinstance(states,list))
             for step,state in enumerate(states):
                 state_json = {
+                    'game':gametype,
+                    'position':position,
                     'training_round':training_round,
                     'poker_round':i + (id * epochs),
                     'state':state.tolist(),
@@ -102,7 +137,8 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
                     'betsize_mask':betsize_masks[step].tolist(),
                     'action_mask':action_masks[step].tolist(),
                     'betsize':betsizes[step],
-                    'reward':rewards[step]
+                    'reward':rewards[step],
+                    'hand_strength':handstrength[step]
                 }
                 db['game_data'].insert_one(state_json)
     client.close()
@@ -118,9 +154,9 @@ def scale_rewards(self,rewards,factor=1):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
 
-def learning_update(actor,critic,params):
+def learning_update(local_actor,target_actor,local_critic,target_critic,params):
     log = logging.getLogger(__name__)
-    actor = actor.train()
+    local_actor = local_actor.train()
     device = params['device']
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
@@ -148,7 +184,7 @@ def learning_update(actor,critic,params):
         ## Critic update ##
         critic_tic = time.time()
         critic_forward_tic = time.time()
-        local_values = critic(state)['value']
+        local_values = local_critic(state)['value']
         critic_forward_toc = time.time()
         log.debug(f'critic forward {critic_forward_toc - critic_forward_tic}')
         value_mask = return_value_mask(action)
@@ -161,49 +197,50 @@ def learning_update(actor,critic,params):
         critic_backward_toc = time.time()
         log.debug(f'critic backward {critic_backward_toc - critic_backward_tic}')
         critic_grad_tic = time.time()
-        torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
+        torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
         critic_grad_toc = time.time()
         log.debug(f'critic grad {critic_grad_toc - critic_grad_tic}')
         critic_optimizer_tic = time.time()
         critic_optimizer.step()
         critic_optimizer_toc = time.time()
         log.debug(f'critic optimizer {critic_optimizer_toc - critic_optimizer_tic}')
+        soft_update(local_critic,target_critic,tau=1e-1)
         critic_toc = time.time()
         log.debug(f'critic update {critic_toc - critic_tic}')
         # losses.append(critic_loss.item())
         # log.debug('local_values',local_values[value_mask],reward)
-        # Agent.soft_update(local_critic,target_critic,tau)
 
         # Actor update #
         actor_tic = time.time()
-        target_values = critic(state)['value']
-        actor_out = actor(state,action_mask,betsize_mask)
+        target_values = target_critic(state)['value']
+        actor_out = local_actor(state,action_mask,betsize_mask)
         expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
         advantages = (target_values[value_mask] - expected_value).view(-1)
         policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
         actor_optimizer.zero_grad()
         policy_loss.backward()
-        torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+        torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
         actor_optimizer.step()
         loop_toc = time.time()
         actor_toc = time.time()
+        soft_update(local_actor,target_actor,tau=1e-1)
         log.debug(f'actor update {actor_toc - actor_tic}')
         log.debug(f'learning loop {loop_toc - loop_tic}')
         # Agent.soft_update(self.actor,self.target_actor,self.tau)
-    return actor,critic,params
+    return local_actor,target_actor,local_critic,target_critic,params
 
-def train(env,actor,critic,training_params,learning_params,eval_params,id):
+def train(env,local_actor,target_actor,local_critic,target_critic,training_params,learning_params,eval_params,id):
     log = logging.getLogger(__name__)
     for e in range(training_params['training_epochs']):
         learning_params['training_round'] = e
         training_params['training_round'] = e
         trajectory_tic = time.time()
-        generate_trajectories(env,actor,training_params,id)
+        generate_trajectories(env,target_actor,training_params,id)
         trajectory_toc = time.time()
         log.debug(f'trajectory time {trajectory_toc - trajectory_tic}')
         # train on trajectories
         learning_tic = time.time()
-        actor,critic,learning_params = learning_update(actor,critic,learning_params)
+        local_actor,target_actor,local_critic,target_critic,learning_params = learning_update(local_actor,target_actor,local_critic,target_critic,learning_params)
         learning_toc = time.time()
         log.debug(f'learning time {learning_toc - learning_tic}')
         log.info(f'Training round {e}, ID {id}')
