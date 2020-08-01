@@ -56,14 +56,14 @@ if __name__ == "__main__":
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
-        'embedding_size':128,
+        'embedding_size':config.agent_params['embedding_size'],
         'device':device,
         'frozen_layer_path':os.path.join(os.getcwd(),'checkpoints/regression/PartialHandRegression')
     }
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':60,
+        'training_epochs':10,
         'epochs':30,
         'training_round':0,
         'game':'OmahaHi',
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     local_actor.share_memory()
     local_critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),8)
+    num_processes = min(mp.cpu_count(),2)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
