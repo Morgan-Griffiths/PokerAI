@@ -264,8 +264,12 @@ class MongoDB(object):
         hand_strengths = []
         actions = []
         for point in data:
-            hand_strengths.append(np.array(point['hand_strength']))
-            actions.append(np.array(point['action'][0]))
+            if point['hand_strength'] != None:
+                hand_strengths.append(np.array(point['hand_strength']))
+                if isinstance(point['action'],list):
+                    actions.append(np.array(point['action'][0]))
+                else:
+                    actions.append(np.array(point['action']))
         hand_strengths = np.vstack(hand_strengths)
         actions = np.vstack(actions)
         
@@ -355,8 +359,7 @@ class MongoDB(object):
     def get_gametype(self,training_round):
         query = {
             'training_round':training_round,
-            'poker_round': 0,
-            'step': 0
+            'poker_round': 0
         }
         projection ={'game':1,'_id':0}
         data = self.get_data(query,projection)
