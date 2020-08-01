@@ -9,6 +9,10 @@ def update_weights(networks,path):
             param.requires_grad = False
     return networks
 
+def soft_update(local,target,tau=1e-1):
+    for local_param,target_param in zip(local.parameters(),target.parameters()):
+        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
+
 def strip_padding(x,maxlen):
     assert(x.ndim == 3)
     mask = np.where(x.sum(-1).numpy() == 0)
