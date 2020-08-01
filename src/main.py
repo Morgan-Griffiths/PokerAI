@@ -12,7 +12,7 @@ from poker.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic
-from models.model_utils import update_weights
+from models.model_utils import update_weights,hard_update
 from agents.agent import return_agent
 from utils.utils import unpack_shared_dict
 
@@ -63,10 +63,10 @@ if __name__ == "__main__":
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':1,
-        'epochs':25,
+        'training_epochs':60,
+        'epochs':30,
         'training_round':0,
-        'game':'Omaha',
+        'game':'OmahaHi',
         'id':0,
         'evaluation_every':5
     }
@@ -75,12 +75,16 @@ if __name__ == "__main__":
         'epochs': 500
     }
 
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-    critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+    local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    local_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+    target_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
     # preload the hand board analyzer
-    actor,critic = update_weights([actor,critic],network_params['frozen_layer_path'])
-    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+    # actor,critic = update_weights([actor,critic],network_params['frozen_layer_path'])
+    hard_update(target_actor,local_actor)
+    hard_update(target_critic,local_critic)
+    actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(local_critic.parameters(), lr=config.agent_params['critic_lr'])
 
     learning_params = {
         'training_round':0,
@@ -99,14 +103,14 @@ if __name__ == "__main__":
     mongo.clean_db()
     mongo.close()
     # training loop
-    actor.share_memory()
-    critic.share_memory()
+    local_actor.share_memory()
+    local_critic.share_memory()
     processes = []
     num_processes = min(mp.cpu_count(),8)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
-        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,eval_params,id))
+        p = mp.Process(target=train, args=(env,local_actor,target_actor,local_critic,target_critic,training_params,learning_params,eval_params,id))
         p.start()
         processes.append(p)
     for p in processes: 
@@ -117,7 +121,8 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.mkdir(directory)
     print(f'saving weights to {path}')
-    torch.save(actor.state_dict(), path + '_actor')
-    torch.save(critic.state_dict(), path + '_critic')
+    torch.save(local_actor.state_dict(), path + '_actor')
+    torch.save(local_critic.state_dict(), path + '_critic')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
+    # Plot actor frequencies over time, frequencies given handstrength overtime. critic values overtime.
