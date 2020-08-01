@@ -14,40 +14,10 @@ import copy
 from tournament import tournament
 import time
 import logging
-
-from db import MongoDB
 from poker.env import Poker
 from agents.agent import BetAgent
 
 logging.basicConfig(level=logging.INFO)
-
-def find_strength(strength):
-    # 7462-6185 High card
-    # 6185-3325 Pair
-    # 3325-2467 2Pair
-    # 2467-1609 Trips
-    # 1609-1599  Stright
-    # 1599-322 Flush
-    # 322-166  FH
-    # 166-10 Quads
-    # 10-0 Str8 flush
-    if strength > 6185:
-        return 8
-    if strength > 3325:
-        return 7
-    if strength > 2467:
-        return 6
-    if strength > 1609:
-        return 5
-    if strength > 1599:
-        return 4
-    if strength > 322:
-        return 3
-    if strength > 166:
-        return 2
-    if strength > 10:
-        return 1
-    return 0
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
@@ -126,6 +96,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             for step,state in enumerate(states):
                 state_json = {
                     'game':gametype,
+                    'step':step,
                     'position':position,
                     'training_round':training_round,
                     'poker_round':i + (id * epochs),
