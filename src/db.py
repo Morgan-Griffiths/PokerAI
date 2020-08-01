@@ -216,7 +216,6 @@ class MongoDB(object):
             percentages.append(percentage_type)
         return percentages
 
-
     def byState(self,params:dict,pad=True):
         data = self.get_data(params)
         states = []
