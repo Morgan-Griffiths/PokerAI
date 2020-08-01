@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from db import MongoDB
+from poker.datatypes import ACTION_DICT
 import kuhn.datatypes as pdt
 
 label_dict = {5:['Check','Bet'],
@@ -95,14 +96,14 @@ def plot_betsize_probabilities(training_round=0):
         action_labels = [size for size in unique_betsize]
         plot_frequencies(f'{gametype}_betsize_probabilities_for_{query["position"]}',betsize,hand_labels,action_labels)
 
-def plot_action_frequencies(actiontype,handtype,training_round=0):
+def plot_action_frequencies_by_hand(actiontype,handtype,training_round=0):
     print(actiontype,handtype)
     query = {
-        'training_round':training_round
+        # 'training_round':training_round
     }
     projection ={'action':1,'hand_strength':1,'hand':1,'_id':0}
     data_params = {
-        'interval':100
+        'interval':10
     }
     mongo = MongoDB()
     gametype = mongo.get_gametype(training_round)
@@ -114,8 +115,28 @@ def plot_action_frequencies(actiontype,handtype,training_round=0):
         else:
             actions,hands,unique_actions = mongo.actionByHandStrength(data,data_params)
         hand_labels = HAND_LABELS_DICT[actiontype](hands)
-        action_labels = [pdt.ACTION_DICT[act] for act in unique_actions]
+        action_labels = [ACTION_DICT[act] for act in unique_actions]
         plot_frequencies(f'{gametype}_action_{handtype}_for_{query["position"]}',actions,hand_labels,action_labels)
+
+def plot_action_frequencies(actiontype,training_round=0):
+    print(actiontype)
+    query = {
+        'training_round':training_round
+    }
+    projection ={'action_probs':1,'_id':0}
+    data_params = {
+        'interval':10
+    }
+    mongo = MongoDB()
+    gametype = mongo.get_gametype(training_round)
+    for position in pdt.Positions.ALL:
+        query['position'] = position
+        data = mongo.get_data(query,projection)
+        action_probs = []
+        for point in data:
+            action_probs.append(point['action_probs'])
+        action_labels = [ACTION_DICT[act] for act in unique_actions]
+        plot_data(f'{gametype}_action_probs_for_{query["position"]}',action_probs,action_labels)
 
 def plot_critic_values(training_round=0):
     query = {
@@ -210,7 +231,8 @@ if __name__ == "__main__":
     assert(args.actiontype in pdt.VisualActionTypes.ALL)
     assert(args.handtype in pdt.VisualHandTypes.ALL)
     if args.category == 'action':
-        plot_action_frequencies(args.actiontype,args.handtype,args.run)
+        # plot_action_frequencies(args.actiontype,args.run)
+        plot_action_frequencies_by_hand(args.actiontype,args.handtype,args.run)
     elif args.category == 'betsize':
         plot_betsize_probabilities(args.run)
     elif args.category == 'reward':
