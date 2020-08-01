@@ -184,19 +184,11 @@ class OmahaActor(nn.Module):
         
         # self.seed = torch.manual_seed(seed)
         self.state_mapping = params['state_mapping']
-        self.hand_emb = Embedder(5,64)
-        self.action_emb = Embedder(6,64)
-        self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise(self.device)
         self.emb = 512
         n_heads = 8
         depth = 2
-        # self.lstm = nn.LSTM(self.emb, 128)
         self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
-
-        # self.fc1 = nn.Linear(1280,640)
-        # self.fc2 = nn.Linear(640,320)
-        # self.fc3 = nn.Linear(320,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -208,13 +200,6 @@ class OmahaActor(nn.Module):
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
-        # n_padding = self.maxlen - M
-        # if n_padding < 0:
-        #     h = out[:,-self.maxlen:,:]
-        # else:
-        #     padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-        #     h = torch.cat((out,padding),dim=1)
-        # lstm_out,_ = self.lstm(h)
         t_logits = self.transformer(out)
         category_logits = self.noise(t_logits)
         
@@ -251,7 +236,6 @@ class OmahaQCritic(nn.Module):
         self.maxlen = params['maxlen']
         self.device = params['device']
         self.mapping = params['state_mapping']
-        # self.lstm = nn.LSTM(1280, 128)
         self.emb = 512
         n_heads = 8
         depth = 2
@@ -265,21 +249,7 @@ class OmahaQCritic(nn.Module):
         if not isinstance(x,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
-        # B,M,c = out.size()
-        # n_padding = self.maxlen - M
-        # if n_padding < 0:
-        #     h = out[:,-self.maxlen:,:]
-        # else:
-        #     padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-        #     h = torch.cat((out,padding),dim=1)
-        # h = torch.cat((out,padding),dim=1)
         q_input = self.transformer(out)
-        # if n_padding > 0:
-        #     padding_mask_o = torch.ones(B,M,self.emb)
-        #     padding_mask_z = torch.zeros(B,n_padding,self.emb)
-        #     padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=0)
-        #     q_input = q_input.view(-1) * padding_mask.view(-1)).view(1,-1)
-        # zero out the padding outputs
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)
