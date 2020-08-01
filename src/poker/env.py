@@ -547,7 +547,6 @@ class Poker(object):
         """Gets all hands, gets all handranks,finds and counts lowest (strongest) hands. Assigns the pot to them."""
         hands,positions = self.players.return_active_hands()
         if len(positions) > 1:
-            # encode hands
             en_hands = []
             for hand in hands:
                 en_hand = [encode(c) for c in hand]
@@ -555,6 +554,7 @@ class Poker(object):
             en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
             hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
             self.players.update_handranks(hand_ranks,positions)
+            # encode hands
             best_hand = np.min(hand_ranks)
             winner_mask = np.where(best_hand == hand_ranks)[0]
             winner_positions = np.array(positions)[winner_mask]
