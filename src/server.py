@@ -268,6 +268,7 @@ app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 cors = CORS(app, resources={r"/api/*": {"origins": "http://localhost:*"}})
+cors = CORS(app, resources={r"/api/*": {"origins": "http://71.237.218.23*"}}) # This should be replaced with server public ip
 
 logging.basicConfig(level=logging.DEBUG)
 

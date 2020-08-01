@@ -14,5 +14,4 @@ scipy=1.4.1
 flask=1.1.2
 flask-cors=3.0.8
 flask-testing=0.7.1
-flask-cors=3.0.8
 werkzeug=0.16.1
