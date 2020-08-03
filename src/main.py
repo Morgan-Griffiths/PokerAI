@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # critic_network_params = copy.deepcopy(network_params)
     # critic_network_params['device'] = gpu2
     training_params = {
-        'training_epochs':10,
+        'training_epochs':60,
         'epochs':30,
         'training_round':0,
         'game':'OmahaHi',
@@ -95,7 +95,9 @@ if __name__ == "__main__":
         'device':device,
         'gpu1':gpu1,
         'gpu2':gpu2,
-        'learning_rounds':5
+        'learning_rounds':5,
+        'min_reward':-env_params['stacksize'],
+        'max_reward':env_params['pot']+env_params['stacksize']
     }
     mp.set_start_method('spawn')
     # generate trajectories and desposit in mongoDB
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     local_actor.share_memory()
     local_critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),2)
+    num_processes = min(mp.cpu_count(),8)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes
