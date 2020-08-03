@@ -5,8 +5,13 @@ import os
 from poker.env import Poker
 import torch
 from pymongo import MongoClient
-from models.model_utils import combined_masks
+from models.model_utils import combined_masks,scale_rewards
 from collections import defaultdict
+from train import return_value_mask 
+import numpy as np
+from torch import optim
+import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss,NLLLoss
 
 
 def find_strength(strength):
@@ -37,6 +42,102 @@ def find_strength(strength):
         return 1
     return 0
 
+
+def examine_actor_critic(actor,critic,data):
+    actor.eval()
+    critic.eval()
+    actor_probs = defaultdict(lambda:[])
+    critic_values = defaultdict(lambda:[])
+    for i,point in enumerate(data):
+        hand_strength = point['hand_strength']
+        if hand_strength is not None:
+            hand_strength = find_strength(hand_strength)
+            betsize_mask = torch.tensor(point['betsize_mask']).long()
+            action_mask = torch.tensor(point['action_mask']).long()
+            flat_mask = combined_masks(action_mask,betsize_mask)
+            state = torch.tensor(point['state'],dtype=torch.float32).to(device)
+            step = point['step']
+            values = critic(state)['value'].detach() * flat_mask
+            # values /= sum(values)
+            critic_values[hand_strength].append(values)
+            actor_out = actor(state,action_mask,betsize_mask)
+            actor_probs[hand_strength].append(actor_out['action_probs'])
+        if i == 100:
+            break
+    # print('0th hands',critic_values[0])
+    # print('1th hands',critic_values[1])
+    # print('2th values',critic_values[2])
+    # print('2th probs',actor_probs[2])
+    # print('3th hands',critic_values[3])
+    for i in range(len(critic_values[2])):
+        print(f'values {critic_values[2][i]}')
+        print(f'probs {actor_probs[2][i]}')
+        if i == 10:
+            break
+
+def examine_learning(actor,critic,data,examine_params):
+    # analyse learning step
+    actor.train()
+    critic.train()
+    actor_probs = defaultdict(lambda:[])
+    critic_values = defaultdict(lambda:[])
+    for i,point in enumerate(data):
+        hand_strength = point['hand_strength']
+        if hand_strength is not None:
+            print('\n### new round ###')
+            hand_strength = find_strength(hand_strength)
+            betsize_mask = torch.tensor(point['betsize_mask']).long()
+            action_mask = torch.tensor(point['action_mask']).long()
+            flat_mask = combined_masks(action_mask,betsize_mask)
+            action = np.array([point['action']])
+            state = torch.tensor(point['state'],dtype=torch.float32).to(device)
+            reward = torch.tensor(point['reward'],dtype=torch.float32).to(device)
+            scale_reward = scale_rewards(reward,-1,2)
+            step = point['step']
+            local_values = critic(state)['value']
+            # values /= sum(values)
+            critic_values[hand_strength].append(local_values.detach() * flat_mask)
+            actor_out = actor(state,action_mask,betsize_mask)
+            actor_probs[hand_strength].append(actor_out['action_probs'])
+
+            value_mask = return_value_mask(action)
+            TD_error = local_values[value_mask] - scale_reward
+            critic_loss = (TD_error**2*0.5).mean()
+            # critic_loss = F.smooth_l1_loss(scale_reward,TD_error,reduction='sum')
+            examine_params['critic_optimizer'].zero_grad()
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(critic.parameters(), examine_params['gradient_clip'])
+            examine_params['critic_optimizer'].step()
+            print(f'reward {reward}')
+            print(f'scale_reward {scale_reward}')
+            print(f'local_values[value_mask] {local_values[value_mask]}')
+            print(f'TD_error {TD_error}')
+            print(f'pre critic update {local_values}')
+            values = critic(state)['value'].detach() * flat_mask
+            target_values = critic(state)['value']
+            print(f'post critic update {target_values}')
+
+            print(f'action {action}')
+            print(f'critic best action {(values - values.min()).argmax(dim=-1)}')
+            # Actor update #
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
+            advantages = (target_values[value_mask] - expected_value).view(-1)
+            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).mean()
+            print('loss',(-actor_out['action_prob'].view(-1) * advantages).mean())
+            # loss = NLLLoss()
+            # policy_loss = loss(actor_out['action_probs'],values.argmax().unsqueeze(0))
+            examine_params['actor_optimizer'].zero_grad()
+            policy_loss.backward()
+            torch.nn.utils.clip_grad_norm_(actor.parameters(), examine_params['gradient_clip'])
+            examine_params['actor_optimizer'].step()
+            print('expected_value',expected_value)
+            print('advantages',advantages)
+            print(f"pre actor update {actor_out['action_probs']}")
+            actor_out = actor(state,action_mask,betsize_mask)
+            print(f'post actor update {actor_out["action_probs"]}')
+        if i == 50:
+            break
+
 if __name__ == "__main__":
     import argparse
 
@@ -62,7 +163,7 @@ if __name__ == "__main__":
     nA = env.action_space
     nB = env.betsize_space
     seed = 1235
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = 'cpu'#torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
@@ -78,40 +179,22 @@ if __name__ == "__main__":
 
     actor.load_state_dict(torch.load(config.agent_params['actor_path']))
     critic.load_state_dict(torch.load(config.agent_params['critic_path']))
-    actor.eval()
-    critic.eval()
+
+    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+
+    examine_params = {
+        'actor_optimizer':actor_optimizer,
+        'critic_optimizer':critic_optimizer,
+        'gradient_clip':config.agent_params['CLIP_NORM'],
+    }
 
     query = {
         'step':0
     }
-    projection ={'state':1,'betsize_mask':1,'action_mask':1,'step':1,'hand_strength':1,'_id':0}
+    projection ={'state':1,'betsize_mask':1,'action_mask':1,'action':1,'step':1,'hand_strength':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
-    data = db['game_data'].find(query,projection)
+    data = list(db['game_data'].find(query,projection))
 
-    actor_probs = defaultdict(lambda:[])
-    critic_values = defaultdict(lambda:[])
-    for point in data:
-        hand_strength = point['hand_strength']
-        if hand_strength is not None:
-            hand_strength = find_strength(hand_strength)
-            betsize_mask = torch.tensor(point['betsize_mask']).long()
-            action_mask = torch.tensor(point['action_mask']).long()
-            flat_mask = combined_masks(action_mask,betsize_mask)
-            state = torch.tensor(point['state'],dtype=torch.float32).to(device)
-            step = point['step']
-            values = critic(state)['value'].detach() * flat_mask
-            # values /= sum(values)
-            critic_values[hand_strength].append(values)
-            actor_out = actor(state,action_mask,betsize_mask)
-            actor_probs[hand_strength].append(actor_out['action_probs'])
-    # print('0th hands',critic_values[0])
-    # print('1th hands',critic_values[1])
-    # print('2th values',critic_values[2])
-    # print('2th probs',actor_probs[2])
-    # print('3th hands',critic_values[3])
-    for i in range(len(critic_values[2])):
-        print(f'values {critic_values[2][i]}')
-        print(f'probs {actor_probs[2][i]}')
-        if i == 10:
-            break
+    examine_learning(actor,critic,data,examine_params)
