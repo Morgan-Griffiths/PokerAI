@@ -205,7 +205,7 @@ class OmahaHI(object):
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 1.
-        self.state_params['pot']= 2.
+        self.state_params['pot']= 1.
         self.rule_params['betsizes'] = np.array([0.5,1.])
 
 class OmahaHILO(object):
