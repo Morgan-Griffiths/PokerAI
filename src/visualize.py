@@ -125,7 +125,7 @@ def plot_action_frequencies(actiontype,training_round=0):
     }
     projection ={'action_probs':1,'_id':0}
     data_params = {
-        'interval':10
+        'interval':1000
     }
     mongo = MongoDB()
     gametype = mongo.get_gametype(training_round)
