@@ -162,7 +162,6 @@ def plot_action_frequencies(actiontype,training_round=0):
         for point in data:
             action_probs.append(np.array(point['action_probs']))
         action_labels = list(ACTION_DICT.values())[:-1]
-        print(print(len(action_probs)))
         interval = len(action_probs) // 10
         action_freq_window = defaultdict(lambda:[])
         for i in range(0,len(action_probs)-interval):
@@ -172,7 +171,6 @@ def plot_action_frequencies(actiontype,training_round=0):
             action_freq_window[2].append(freqs[2])
             action_freq_window[3].append(freqs[3])
             action_freq_window[4].append(freqs[4])
-        print(print(len(action_freq_window)))
         plot_action_freqs(f'{gametype}_action_probs_for_{query["position"]}',action_freq_window,action_labels)
 
 def plot_critic_values(training_round=0):
@@ -268,8 +266,10 @@ if __name__ == "__main__":
     assert(args.actiontype in pdt.VisualActionTypes.ALL)
     assert(args.handtype in pdt.VisualHandTypes.ALL)
     if args.category == 'action':
-        # plot_action_frequencies(args.actiontype,args.run)
-        plot_action_frequencies_by_hand(args.actiontype,args.handtype,args.run)
+        if args.actiontype == 'probability':
+            plot_action_frequencies(args.actiontype,args.run)
+        else:
+            plot_action_frequencies_by_hand(args.actiontype,args.handtype,args.run)
     elif args.category == 'betsize':
         plot_betsize_probabilities(args.run)
     elif args.category == 'reward':

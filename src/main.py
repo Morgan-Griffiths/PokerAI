@@ -80,7 +80,7 @@ if __name__ == "__main__":
     local_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
     target_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
     # preload the hand board analyzer
-    # actor,critic = update_weights([actor,critic],network_params['frozen_layer_path'])
+    local_actor,local_critic = update_weights([local_actor,local_critic],network_params['frozen_layer_path'])
     hard_update(target_actor,local_actor)
     hard_update(target_critic,local_critic)
     actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     local_actor.share_memory()
     local_critic.share_memory()
     processes = []
-    num_processes = min(mp.cpu_count(),8)
+    num_processes = min(mp.cpu_count(),6)
     print(f"Number of processors used: {num_processes}")
     tic = time.time()
     for id in range(num_processes): # No. of processes

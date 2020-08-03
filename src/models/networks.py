@@ -185,12 +185,12 @@ class OmahaActor(nn.Module):
         # self.seed = torch.manual_seed(seed)
         self.state_mapping = params['state_mapping']
         self.noise = GaussianNoise(self.device)
-        self.emb = 512
+        self.emb = 256
         n_heads = 128
         depth = 8
         # self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
         self.lstm = nn.LSTM(self.emb,128)
-        self.action_out = nn.Linear(1280,self.nA)
+        self.action_out = nn.Linear(256,self.nA)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -200,19 +200,26 @@ class OmahaActor(nn.Module):
             action_mask = torch.tensor(action_mask,dtype=torch.long).to(self.device)
             betsize_mask = torch.tensor(betsize_mask,dtype=torch.long).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-        out = self.process_input(x.permute(1,0,2))
-        M,B,c = out.size()
+        out = self.process_input(x)#.permute(1,0,2))
+        B,M,c = out.size()
         n_padding = self.maxlen - M
         if n_padding <= 0:
-            h = out[-self.maxlen:,:,:]
+            # h = out[-self.maxlen:,:,:]
+            h = out[:,-self.maxlen:,:]
         else:
-            padding = torch.zeros(n_padding,B,out.size(-1)).to(self.device)
-            h = torch.cat((out,padding),dim=0)
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+            h = torch.cat((out,padding),dim=1)
+            # padding_mask_o = torch.ones(B,M,self.emb)
+            # padding_mask_z = torch.zeros(B,n_padding,self.emb)
+            # padding_mask = torch.cat((padding_mask_o,padding_mask_z),dim=1)
+            # print('pre',h)
+            # h = h * padding_mask
+            # print('post',h)
         # t_logits = self.transformer(out.permute(1,0,2))
-        # lstm_out,_ = self.lstm(h)
+        lstm_out,_ = self.lstm(h.permute(1,0,2))
         # lstm_out = lstm_out.permute(1,0,2)
         # print(lstm_out.size())
-        t_logits = self.action_out(h.permute(1,0,2).contiguous().view(B,-1))
+        t_logits = self.action_out(out.contiguous().permute(1,0,2).view(B,-1))
         category_logits = self.noise(t_logits)
         # print(category_logits.size())
         
@@ -249,7 +256,7 @@ class OmahaQCritic(nn.Module):
         self.maxlen = params['maxlen']
         self.device = params['device']
         self.mapping = params['state_mapping']
-        self.emb = 128
+        self.emb = 256
         n_heads = 8
         depth = 2
         self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,128)
