@@ -186,9 +186,11 @@ class OmahaActor(nn.Module):
         self.state_mapping = params['state_mapping']
         self.noise = GaussianNoise(self.device)
         self.emb = 512
-        n_heads = 8
-        depth = 2
-        self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
+        n_heads = 128
+        depth = 8
+        # self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
+        self.lstm = nn.LSTM(self.emb,128)
+        self.action_out = nn.Linear(1280,self.nA)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -198,10 +200,20 @@ class OmahaActor(nn.Module):
             action_mask = torch.tensor(action_mask,dtype=torch.long).to(self.device)
             betsize_mask = torch.tensor(betsize_mask,dtype=torch.long).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-        out = self.process_input(x)
-        B,M,c = out.size()
-        t_logits = self.transformer(out)
+        out = self.process_input(x.permute(1,0,2))
+        M,B,c = out.size()
+        n_padding = self.maxlen - M
+        if n_padding <= 0:
+            h = out[-self.maxlen:,:,:]
+        else:
+            padding = torch.zeros(n_padding,B,out.size(-1)).to(self.device)
+            h = torch.cat((out,padding),dim=0)
+        # t_logits = self.transformer(out.permute(1,0,2))
+        lstm_out,_ = self.lstm(h)
+        # print(lstm_out.size(),out.size())
+        t_logits = self.action_out(lstm_out.view(B,-1))
         category_logits = self.noise(t_logits)
+        # print(category_logits.size())
         
         action_soft = F.softmax(category_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
