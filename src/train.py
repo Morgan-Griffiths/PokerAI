@@ -1,7 +1,7 @@
 import os
 import poker.datatypes as pdt
 import models.network_config as ng
-from models.model_utils import soft_update
+from models.model_utils import soft_update,scale_rewards
 import copy
 import torch
 import torch.nn.functional as F
@@ -121,10 +121,6 @@ def return_value_mask(actions):
     value_mask = value_mask.bool()
     return value_mask.squeeze(0)
 
-def scale_rewards(self,rewards,factor=1):
-    """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
-    return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
-
 def learning_update(local_actor,target_actor,local_critic,target_critic,params):
     log = logging.getLogger(__name__)
     local_actor = local_actor.train()
@@ -147,6 +143,7 @@ def learning_update(local_actor,target_actor,local_critic,target_critic,params):
         reward = target['reward'].to(device)
         betsize_mask = trajectory['betsize_mask'].to(device)
         action_mask = trajectory['action_mask'].to(device)
+        scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
         # state = torch.tensor(poker_round['state'],dtype=torch.float32).to(device)
         # action = torch.tensor(poker_round['action'],dtype=torch.long).to(device)
         # reward = torch.tensor(poker_round['reward'],dtype=torch.float32).to(device)
@@ -159,9 +156,9 @@ def learning_update(local_actor,target_actor,local_critic,target_critic,params):
         critic_forward_toc = time.time()
         log.debug(f'critic forward {critic_forward_toc - critic_forward_tic}')
         value_mask = return_value_mask(action)
-        TD_error = local_values[value_mask] - reward
+        TD_error = local_values[value_mask] - scaled_rewards
         critic_loss = (TD_error**2*0.5).mean()
-        # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+        # critic_loss = F.smooth_l1_loss(scaled_rewards,TD_error,reduction='sum')
         critic_optimizer.zero_grad()
         critic_backward_tic = time.time()
         critic_loss.backward()
@@ -179,7 +176,7 @@ def learning_update(local_actor,target_actor,local_critic,target_critic,params):
         critic_toc = time.time()
         log.debug(f'critic update {critic_toc - critic_tic}')
         # losses.append(critic_loss.item())
-        # log.debug('local_values',local_values[value_mask],reward)
+        # log.debug('local_values',local_values[value_mask],scaled_rewards)
 
         # Actor update #
         actor_tic = time.time()
