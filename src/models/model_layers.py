@@ -270,14 +270,14 @@ class PreProcessLayer(nn.Module):
         B,M,C = x.size()
         h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
-        last_a = x[:,:,self.state_mapping['last_action']].long()
-        last_b = x[:,:,self.state_mapping['last_betsize']].unsqueeze(-1)
-        last_p = x[:,:,self.state_mapping['last_position']].long()
-        emb_a = self.action_emb(last_a)
-        emb_p = self.position_emb(last_p)
-        action_out,_ = self.action_lstm(emb_a)
-        pos_out,_ = self.position_lstm(emb_p)
-        bet_out,_ = self.betsize_lstm(last_b)
+        # last_a = x[:,:,self.state_mapping['last_action']].long()
+        # last_b = x[:,:,self.state_mapping['last_betsize']].unsqueeze(-1)
+        # last_p = x[:,:,self.state_mapping['last_position']].long()
+        # emb_a = self.action_emb(last_a)
+        # emb_p = self.position_emb(last_p)
+        # action_out,_ = self.action_lstm(emb_a)
+        # pos_out,_ = self.position_lstm(emb_p)
+        # bet_out,_ = self.betsize_lstm(last_b)
         hand_out,_ = self.hand_lstm(h)
         # action_out = self.action_transformer(emb_a).unsqueeze(1)
         # pos_out = self.position_transformer(emb_p).unsqueeze(1)
@@ -288,8 +288,8 @@ class PreProcessLayer(nn.Module):
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
         # print(hand_out.size(),action_out.size(),pos_out.size(),bet_out.size())
-        combined = torch.cat((hand_out,action_out,pos_out,bet_out),dim=-1)
-        return combined
+        # combined = torch.cat((hand_out,action_out,pos_out,bet_out),dim=-1)
+        return hand_out
 
 class PreProcessHistory(nn.Module):
     def __init__(self,params,critic=False):

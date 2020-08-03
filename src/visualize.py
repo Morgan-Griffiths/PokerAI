@@ -158,18 +158,22 @@ def plot_action_frequencies(actiontype,training_round=0):
     for position in pdt.Positions.ALL:
         query['position'] = position
         data = mongo.get_data(query,projection)
-        # action_probs = defaultdict(lambda:[])
         action_probs = []
         for point in data:
             action_probs.append(np.array(point['action_probs']))
-            # action_probs[0].append(point['action_probs'][0][0])
-            # action_probs[1].append(point['action_probs'][0][1])
-            # action_probs[2].append(point['action_probs'][0][2])
-            # action_probs[3].append(point['action_probs'][0][3])
-            # action_probs[4].append(point['action_probs'][0][4])
         action_labels = list(ACTION_DICT.values())[:-1]
-        print(action_labels)
-        plot_action_freqs(f'{gametype}_action_probs_for_{query["position"]}',action_probs,action_labels)
+        print(print(len(action_probs)))
+        interval = len(action_probs) // 10
+        action_freq_window = defaultdict(lambda:[])
+        for i in range(0,len(action_probs)-interval):
+            freqs = np.mean(np.vstack(action_probs[i:i+interval]),axis=0)
+            action_freq_window[0].append(freqs[0])
+            action_freq_window[1].append(freqs[1])
+            action_freq_window[2].append(freqs[2])
+            action_freq_window[3].append(freqs[3])
+            action_freq_window[4].append(freqs[4])
+        print(print(len(action_freq_window)))
+        plot_action_freqs(f'{gametype}_action_probs_for_{query["position"]}',action_freq_window,action_labels)
 
 def plot_critic_values(training_round=0):
     query = {

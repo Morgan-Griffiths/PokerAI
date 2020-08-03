@@ -209,9 +209,10 @@ class OmahaActor(nn.Module):
             padding = torch.zeros(n_padding,B,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=0)
         # t_logits = self.transformer(out.permute(1,0,2))
-        lstm_out,_ = self.lstm(h)
-        # print(lstm_out.size(),out.size())
-        t_logits = self.action_out(lstm_out.view(B,-1))
+        # lstm_out,_ = self.lstm(h)
+        # lstm_out = lstm_out.permute(1,0,2)
+        # print(lstm_out.size())
+        t_logits = self.action_out(h.permute(1,0,2).contiguous().view(B,-1))
         category_logits = self.noise(t_logits)
         # print(category_logits.size())
         
@@ -248,7 +249,7 @@ class OmahaQCritic(nn.Module):
         self.maxlen = params['maxlen']
         self.device = params['device']
         self.mapping = params['state_mapping']
-        self.emb = 512
+        self.emb = 128
         n_heads = 8
         depth = 2
         self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,128)
