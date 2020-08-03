@@ -108,6 +108,7 @@ def examine_learning(actor,critic,data,examine_params):
             critic_loss.backward()
             torch.nn.utils.clip_grad_norm_(critic.parameters(), examine_params['gradient_clip'])
             examine_params['critic_optimizer'].step()
+            # print(f'available actions {flat_mask}')
             print(f'reward {reward}')
             print(f'scale_reward {scale_reward}')
             print(f'local_values[value_mask] {local_values[value_mask]}')
@@ -118,7 +119,7 @@ def examine_learning(actor,critic,data,examine_params):
             print(f'post critic update {target_values}')
 
             print(f'action {action}')
-            print(f'critic best action {(values - values.min()).argmax(dim=-1)}')
+            print(f'critic best action {((values - values.min()) * flat_mask).argmax(dim=-1)}')
             # Actor update #
             expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
             advantages = (target_values[value_mask] - expected_value).view(-1)

@@ -223,7 +223,7 @@ class MongoDB(object):
             states.append(np.array([point['hand'],point['position']]))
         return states
 
-    def betsizeByHand(self,data:'pymongo.cursor',params,pad=True):
+    def betsizeByHand(self,data:'pymongo.cursor',pad=True):
         hands = []
         betsizes = []
         for point in data:
@@ -250,10 +250,11 @@ class MongoDB(object):
             N = max(N,betsizes[mask].shape[0])
         if pad == True:
             return_data = MongoDB.pad_inputs(return_data,N)
-        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        interval = actions.shape[0] // 10
+        return_data = MongoDB.return_frequency(return_data,interval,num_features)
         return return_data,unique_hands,unique_betsizes
 
-    def actionByHandStrength(self,data:'pymongo.cursor',params,pad=True):
+    def actionByHandStrength(self,data:'pymongo.cursor',pad=True):
         """
         Groups handstrengths by N categories. Where it grabs all actions contained within that category
         hand_strengths: INT 0-7462
@@ -287,10 +288,11 @@ class MongoDB(object):
             print(f'Number of hands in category {i} Between {hand_strength_categories[i]} and {category}: {actions[mask].shape[0]}')
         if pad == True:
             return_data = MongoDB.pad_inputs(return_data,N)
-        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        interval = actions.shape[0] // 10
+        return_data = MongoDB.return_frequency(return_data,interval,num_features)
         return return_data,hand_strength_categories,unique_actions
 
-    def actionByHand(self,data:'pymongo.cursor',params,pad=True):
+    def actionByHand(self,data:'pymongo.cursor',pad=True):
         hands = []
         actions = []
         for point in data:
@@ -311,7 +313,8 @@ class MongoDB(object):
             N = max(N,actions[mask].shape[0])
         if pad == True:
             return_data = MongoDB.pad_inputs(return_data,N)
-        return_data = MongoDB.return_frequency(return_data,params['interval'],num_features)
+        interval = actions.shape[0] // 10
+        return_data = MongoDB.return_frequency(return_data,interval,num_features)
         return return_data,unique_hands,unique_actions
 
     def byActions(self,data:'pymongo.cursor',pad=True,action_only=False):
