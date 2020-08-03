@@ -264,8 +264,8 @@ if __name__ == "__main__":
     assert(args.actiontype in pdt.VisualActionTypes.ALL)
     assert(args.handtype in pdt.VisualHandTypes.ALL)
     if args.category == 'action':
-        plot_action_frequencies(args.actiontype,args.run)
-        # plot_action_frequencies_by_hand(args.actiontype,args.handtype,args.run)
+        # plot_action_frequencies(args.actiontype,args.run)
+        plot_action_frequencies_by_hand(args.actiontype,args.handtype,args.run)
     elif args.category == 'betsize':
         plot_betsize_probabilities(args.run)
     elif args.category == 'reward':
