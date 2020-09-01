@@ -2,6 +2,8 @@
 import time
 import torch.multiprocessing as mp
 import torch
+import os
+import sys
 
 from kuhn_train import train
 from kuhn_train_parallel import gather_trajectories,train_shared_model
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     print("Number of processors: ", mp.cpu_count())
     print(f'args {args}')
     tic = time.time()
-    
+
     game_object = pdt.Globals.GameTypeDict[args.env]
     config = Config()
     config.agent = args.agent
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     for position in pdt.Globals.PLAYERS_POSITIONS_DICT[env_params['state_params']['n_players']]:
         training_data[position] = []
     training_data['action_records'] = []
-        
+
     training_params = config.training_params
     training_params['epochs'] = int(args.epochs)
     training_params['training_data'] = training_data
@@ -157,10 +159,11 @@ if __name__ == "__main__":
             p = mp.Process(target=train_shared_model, args=(agent_params,env_params,training_params,i,actor,critic))
             p.start()
             processes.append(p)
-        for p in processes: 
+        for p in processes:
             p.join()
-        torch.save(actor.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_actor')
-        torch.save(critic.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Historical_kuhn' + '_critic')
+        basepath = os.path.abspath(sys.argv[0])
+        torch.save(actor.state_dict(), os.path.join(basepath, 'checkpoints/RL/Historical_kuhn' + '_actor'))
+        torch.save(critic.state_dict(), os.path.join(basepath, 'checkpoints/RL/Historical_kuhn' + '_critic'))
     else:
         seed = 154
         agent = return_agent(training_params['agent_type'],nS,nO,nA,nB,seed,agent_params)
