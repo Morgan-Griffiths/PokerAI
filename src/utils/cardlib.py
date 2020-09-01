@@ -2,10 +2,10 @@ import ctypes
 from os import path
 from sys import platform, argv
 
-release_dir = path.join(
-    path.dirname(path.dirname(path.abspath(argv[0]))),
-    "rusteval/target/release"
-)
+release_dir = path.normpath(path.join(
+    path.abspath(__file__),
+    "../../../rusteval/target/release"
+))
 
 if platform == "linux" or platform == "linux2":
     # linux
