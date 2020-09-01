@@ -8,10 +8,14 @@ jobs:
     executor: python/default
     steps:
       - checkout
+      - python/load-cache
       - run:
           name: install-deps
           command: |
             pip install -r pip_requirements.txt
+            sudo apt install cargo
+            cargo build --release
+      - python/save-cache
       - run:
           name: Test
           command: |
