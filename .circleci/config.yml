@@ -20,6 +20,7 @@ jobs:
       - run:
           name: build-rust
           command: |
+            cd rusteval
             cargo build --release
       - python/save-cache
       - run:
