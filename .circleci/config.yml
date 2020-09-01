@@ -13,7 +13,13 @@ jobs:
           name: install-deps
           command: |
             pip install -r pip_requirements.txt
+      - run:
+          name: install-rust
+          command: |
             sudo apt install cargo
+      - run:
+          name: build-rust
+          command: |
             cargo build --release
       - python/save-cache
       - run:
