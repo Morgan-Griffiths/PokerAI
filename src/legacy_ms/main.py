@@ -2,6 +2,8 @@
 import time
 import torch.multiprocessing as mp
 import torch
+import os
+import sys
 
 from train import train
 from train_parallel import train_shared_model
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     print("Number of processors: ", mp.cpu_count())
     print(f'args {args}')
     tic = time.time()
-    
+
     assert args.agent in f"[{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS},{pdt.AgentTypes.SPLIT_OBS}]",'Invalid agent selection'
     assert args.network_output in f"[{pdt.OutputTypes.FLAT},{pdt.OutputTypes.TIERED}]",'Invalid output selection'
     assert args.game in f"[{pdt.GameTypes.HOLDEM},{pdt.GameTypes.OMAHAHI}]",'Invalid game selection'
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     for position in pdt.Globals.PLAYERS_POSITIONS_DICT[env_params['state_params']['n_players']]:
         training_data[position] = []
     training_data['action_records'] = []
-        
+
     training_params = config.training_params
     training_params['epochs'] = int(args.epochs)
     training_params['training_data'] = training_data
@@ -157,10 +159,12 @@ if __name__ == "__main__":
             p = mp.Process(target=train_shared_model, args=(agent_params,env_params,training_params,i,actor,critic))
             p.start()
             processes.append(p)
-        for p in processes: 
+        for p in processes:
             p.join()
-        torch.save(actor.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Holdem' + '_actor')
-        torch.save(critic.state_dict(), '/Users/morgan/Code/PokerAI/src/checkpoints/RL/Holdem' + '_critic')
+
+        basepath = os.path.abspath(sys.argv[0])
+        torch.save(actor.state_dict(), os.path.join(basepath, 'checkpoints/RL/Holdem' + '_actor'))
+        torch.save(critic.state_dict(), os.path.join(basepath, 'checkpoints/RL/Holdem' + '_critic'))
     else:
         seed = 154
         agent = return_agent(training_params['agent_type'],nS,nO,nA,nB,seed,agent_params)

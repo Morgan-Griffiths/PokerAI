@@ -1,14 +1,18 @@
 import ctypes
-from sys import platform
+from os import path
+from sys import platform, argv
+
+release_dir = path.join(
+    path.dirname(path.dirname(path.abspath(argv[0]))),
+    "rusteval/target/release"
+)
 
 if platform == "linux" or platform == "linux2":
     # linux
-    # lib = ctypes.cdll.LoadLibrary('/home/shuza/Code/PokerAI/rusteval/target/release/librusteval.so')
-    lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.so")
+    lib = ctypes.cdll.LoadLibrary(path.join(release_dir, "librusteval.so"))
 elif platform == "darwin":
     # OS X
-    lib = ctypes.cdll.LoadLibrary("/Users/morgan/Code/PokerAI/rusteval/target/release/librusteval.dylib")
-    # lib = ctypes.cdll.LoadLibrary("../rusteval/target/release/librusteval.dylib")
+    lib = ctypes.cdll.LoadLibrary(path.join(release_dir, "librusteval.dylib"))
 else:
     raise OSError('Unknown OS')
 
