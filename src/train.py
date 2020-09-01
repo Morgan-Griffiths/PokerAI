@@ -116,7 +116,7 @@ def learning_update(actor,critic,params):
     data = list(mongo.get_data(query,projection))
     # loss_dict = defaultdict(lambda:None)
     for i in range(params['learning_rounds']):
-        # losses = []
+        losses = []
         for poker_round in data:
             state = poker_round['state']
             action = poker_round['action']
@@ -148,7 +148,7 @@ def learning_update(actor,critic,params):
             actor_optimizer.step()
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
-        # print('loss sum',sum(losses))
+        print('loss sum',sum(losses))
     del data
     return actor,critic,params
 
