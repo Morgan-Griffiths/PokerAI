@@ -47,7 +47,7 @@ if __name__ == "__main__":
                         action='store_false',
                         help='Stores training data in database')
     parser.add_argument('-e','--epochs',
-                        default=1000,
+                        default=50,
                         type=int,
                         help='Number of training epochs')
     parser.add_argument('--critic',
