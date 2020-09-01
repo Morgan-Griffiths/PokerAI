@@ -8,6 +8,8 @@ There are two requirement files, one for pip and one for conda.
 ```pip install pip_requirements.txt```
 or 
 ```conda create --name <env> --file conda_requirements.txt```
+if not all the packages are available run
+```conda config --append channels conda-forge```
 
 ## To build the Omaha Evaluator
 
