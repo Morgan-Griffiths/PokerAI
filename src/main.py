@@ -53,8 +53,8 @@ if __name__ == "__main__":
         'embedding_size':128
     }
     training_params = {
-        'training_epochs':5,
-        'epochs':5,
+        'training_epochs':1,
+        'epochs':1,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         'actor_optimizer':actor_optimizer,
         'critic_optimizer':critic_optimizer,
         'path': os.path.join(os.getcwd(),'checkpoints/RL'),
-        'learning_rounds':5
+        'learning_rounds':1
     }
     # generate trajectories and desposit in mongoDB
     mongo = MongoDB()

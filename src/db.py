@@ -172,7 +172,7 @@ class MongoDB(object):
                     self.db['game_data'].insert_one(state_json)
                     
     def get_data(self,query:dict,projection:dict):
-        print(f'query {query}, projection {projection}')
+        # print(f'query {query}, projection {projection}')
         data = self.db['game_data'].find(query,projection)
         return data
 

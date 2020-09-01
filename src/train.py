@@ -49,7 +49,6 @@ def generate_trajectories(env,actor,training_params,id):
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
-    print(trajectories.keys())
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['epochs'])
 
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
@@ -96,7 +95,6 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
     client.close()
 
 def return_value_mask(actions):
-    # print('actions',actions)
     M = 1#actions.shape[0]
     value_mask = torch.zeros(M,5)
     value_mask[torch.arange(M),actions] = 1
@@ -148,7 +146,7 @@ def learning_update(actor,critic,params):
             actor_optimizer.step()
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
-        print('loss sum',sum(losses))
+        print(f'Training Round {i}, loss {sum(losses)}')
     del data
     return actor,critic,params
 
