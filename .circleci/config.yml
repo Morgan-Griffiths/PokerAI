@@ -13,7 +13,7 @@ jobs:
           name: install-deps
           command: |
             pip install -r pip_requirements.txt
-      - python/save-
+      - python/save-cache
       - run:
           name: Test
           command: |
