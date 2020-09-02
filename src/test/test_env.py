@@ -1,14 +1,14 @@
-from poker.env import Poker,Status
-import poker.datatypes as pdt
-from poker.config import Config
-import numpy as np
 
+import numpy as np
 import torch
 import unittest
 import numpy as np
 import os
 import copy
 
+from poker.env import Poker,Status
+import poker.datatypes as pdt
+from poker.config import Config
 from models.networks import OmahaActor,OmahaQCritic
 from poker.config import Config
 from poker.data_classes import Card,Evaluator
