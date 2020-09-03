@@ -241,8 +241,9 @@ class OmahaQCritic(nn.Module):
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
+        # self.emb = params['embedding_size']
         # self.lstm = nn.LSTM(1280, 128)
-        emb = 1280
+        emb = 2048
         n_heads = 8
         depth = 2
         self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
@@ -253,11 +254,12 @@ class OmahaQCritic(nn.Module):
     def forward(self,state):
         x = torch.tensor(state,dtype=torch.float32)
         out = self.process_input(x)
-        B,M,c = out.size()
-        n_padding = max(self.maxlen - M,0)
-        padding = torch.zeros(B,n_padding,out.size(-1))
-        # print('out',out.size())
-        h = torch.cat((out,padding),dim=1)
+        # B,M,c = out.size()
+        # n_padding = max(self.maxlen - M,0)
+        # padding = torch.zeros(B,n_padding,out.size(-1))
+        print('out',out.size())
+        # h = torch.cat((out,padding),dim=1)
+
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
