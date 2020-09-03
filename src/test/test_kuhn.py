@@ -65,36 +65,43 @@ class TestEnv(unittest.TestCase):
             print(f'Case {i}')
             env = run_kuhn_env(env,case)
         
-    def testScenario(self):
-        env = Poker(self.params)
-        scenarios = {}
-        for i,case in enumerate(self.actions):
-            print(f'Case {i}')
-            scenarios[i] = []
-            step = 0
-            state,obs,done = env.reset()
-            env.players.update_hands(self.hands[i])
-            while not done:
-                action,action_logprobs,complete_probs = case[step]
-                state,obs,done = env.step(action,action_logprobs,complete_probs)
-                step += 1
-                if step == 1:
-                    scenarios[i].append(env.save_scenario())
-            for scenario in scenarios[i]:
-                state,obs,done = env.reset()
-                env.load_scenario(scenario)
-                env = run_kuhn_env(env,case)
+    # def testScenario(self):
+    #     env = Poker(self.params)
+    #     scenarios = {}
+    #     for i,case in enumerate(self.actions):
+    #         print(f'Case {i}')
+    #         scenarios[i] = []
+    #         step = 0
+    #         state,player_state,obs,done,action_mask,betsize_mask = env.reset()
+    #         env.players.update_hands(self.hands[i])
+    #         while not done:
+    #             action,action_logprobs,complete_probs = case[step]
+    #             actor_output = {
+    #                 'action':action,
+    #                 'action_prob':action_logprobs,
+    #                 'action_probs':complete_probs,
+    #                 'action_category':action,
+    #                 'betsize':1,
+    #             }
+    #             state,player_state,obs,done,action_mask,betsize_mask = env.step(actor_output)
+    #             step += 1
+    #             if step == 1:
+    #                 scenarios[i].append(env.save_scenario())
+    #         for scenario in scenarios[i]:
+    #             state,player_state,obs,done,action_mask,betsize_mask = env.reset()
+    #             env.load_scenario(scenario)
+    #             env = run_kuhn_env(env,case)
                 
-        for i in range(len(self.actions)):
-            print(f'Scenario {i}')
-            env.load_scenario(scenarios[i][0])
-            print('env.pot.value',env.pot.value,self.scenario_verification[i]['pot'])
-            assert(env.pot.value == self.scenario_verification[i]['pot'])
-            player = env.players.get_player('SB')
-            print('player.stack',player.stack,self.scenario_verification[i]['stack'])
-            assert(player.stack == self.scenario_verification[i]['stack'])
-            print('env.game_turn.value',env.game_turn.value,self.scenario_verification[i]['game_turn'])
-            assert(env.game_turn.value == self.scenario_verification[i]['game_turn'])
+    #     for i in range(len(self.actions)):
+    #         print(f'Scenario {i}')
+    #         env.load_scenario(scenarios[i][0])
+    #         print('env.pot.value',env.pot.value,self.scenario_verification[i]['pot'])
+    #         assert(env.pot.value == self.scenario_verification[i]['pot'])
+    #         player = env.players.get_player('SB')
+    #         print('player.stack',player.stack,self.scenario_verification[i]['stack'])
+    #         assert(player.stack == self.scenario_verification[i]['stack'])
+    #         print('env.game_turn.value',env.game_turn.value,self.scenario_verification[i]['game_turn'])
+    #         assert(env.game_turn.value == self.scenario_verification[i]['game_turn'])
 
     def testRepresentations(self):
         env = Poker(self.params)
@@ -129,7 +136,6 @@ class TestEnv(unittest.TestCase):
         betsize_answers = [torch.tensor([1.]),torch.tensor([0.]),torch.tensor([0.]),torch.tensor([1.])]
         for i,state in enumerate(states):
             available_categories,available_betsizes = env.action_mask(state)
-            print(env.action_mask(state))
             self.assertTrue(np.array_equal(available_categories.numpy(),action_answers[i].numpy()))
             self.assertTrue(np.array_equal(available_betsizes.numpy(),betsize_answers[i].numpy()))
         # for i,case in enumerate(self.actions):

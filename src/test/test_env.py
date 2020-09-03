@@ -566,7 +566,7 @@ class TestEnv(unittest.TestCase):
         output = actor(state,mask,betsize_mask)
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
         output = actor(state,mask,betsize_mask)
-        print(output)
+        print('actor output',output)
 
     def testCritic(self):
         params = copy.deepcopy(self.env_params)
@@ -576,10 +576,11 @@ class TestEnv(unittest.TestCase):
         nS = env.state_space
         seed = 152
         params['maxlen'] = 10
-        params['embedding_size'] = 1024
+        params['embedding_size'] = 512
         critic = OmahaQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
-        critic(state)
+        output = critic(state)
+        print('critic output',output)
 
     def testMasks(self):
         params = copy.deepcopy(self.env_params)
