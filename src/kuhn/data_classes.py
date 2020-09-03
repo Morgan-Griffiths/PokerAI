@@ -185,7 +185,7 @@ class Players(object):
     def update_hands(self,hands):
         self.hands = hands
         for i,position in enumerate(self.initial_positions):
-            self.players[position].hand = self.hands[i]
+            self.players[position].hand = [self.hands[i]]
 
     def update_position_order(self,street):
         self.poker_positions = deque(pdt.Globals.HEADSUP_POSITION_DICT[street],maxlen=9)
@@ -231,7 +231,6 @@ class Players(object):
         self.historical_game_states[position].append(copy.deepcopy(state))
 
     def store_masks(self,action_mask:torch.Tensor,betsize_mask:torch.Tensor):
-        # print(action_mask,betsize_mask)
         self.action_masks[self.current_player].append(action_mask)
         self.betsize_masks[self.current_player].append(betsize_mask)
         

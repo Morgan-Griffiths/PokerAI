@@ -196,8 +196,6 @@ class Poker(object):
                 raw_ml[position]['betsize_masks'] = torch.stack(raw_ml[position]['betsize_masks']).view(-1,self.betsize_space)
                 # raw_ml[position]['full_states'] = torch.cat((hand,combined_states),dim=-1).view(-1,self.state_space)
                 if self.rules.betsize == True:
-                    # print(raw_ml[position]['betsizes'])
-                    # [print(point.size()) for point in raw_ml[position]['betsizes']]
                     if self.rules.network_output == 'flat':
                         raw_ml[position]['betsizes'] = torch.stack(raw_ml[position]['betsizes']).view(-1,1)
                         raw_ml[position]['action_probs'] = torch.stack(raw_ml[position]['action_probs']).view(-1,self.action_space - 2 + self.betsize_space)
@@ -331,7 +329,6 @@ class Poker(object):
         state = torch.cat((current_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
         # Obs
         obs = torch.cat((current_hand.float(),vil_hand.float(),action.float(),previous_betsize.float())).unsqueeze(0)
-        # print('obs',obs)
         return state,obs
 
     def action_mask(self,state):
@@ -392,16 +389,11 @@ class Poker(object):
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
                 betsize_value = self.rules.betsizes[betsize_category.long()] * self.pot.value
                 betsize = min(max(self.rules.minbet,betsize_value),self.players.current_stack)
-                # print('betsize_value',betsize_value)
             elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
                 betsize_value = self.rules.betsizes[betsize_category.long()] * self.pot.value
                 betsize = min(max(self.history.last_betsize * 2,betsize_value),self.players.current_stack)
-                # print('betsize_value',betsize_value)
         else:
             betsize = 0
-        # print('self.players.current_stack',self.players.current_stack)
-        # print('action',action)
-        # print('betsize',betsize)
         return torch.tensor([betsize])
             
     ## POT LIMIT
@@ -412,6 +404,5 @@ class Poker(object):
             betsize = min(max(min_betsize,self.rules.betsizes[betsize_category.long()] * self.pot.value),self.players.current_stack)
         else:
             betsize = 0
-        print('betsize',betsize)
         return torch.tensor([betsize])
         
