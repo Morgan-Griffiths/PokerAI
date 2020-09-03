@@ -26,6 +26,7 @@ jobs:
       - run:
           name: Test
           command: |
+            cd src
             python -m unittest
 workflows:
   main:
