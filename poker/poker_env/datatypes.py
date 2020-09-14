@@ -12,7 +12,7 @@ ACTION_MASKS = {
         4:T([0,1,1,0,1]),
         5:T([1,0,0,1,0])
         }
-        
+
 """
 High is noninclusive
 """
@@ -288,3 +288,43 @@ class Globals:
         'omaha_hi':4,
         'omaha_hi_lo':4
     }
+    STARTING_INDEX = { 
+        2:{
+            0:0,
+            1:1,
+            2:1,
+            3:1
+        },
+        3: {
+            0:0,
+            1:0,
+            2:0,
+            3:0
+        }
+    }
+    STARTING_AGGRESSION = {
+        0:(4,1),
+        1:(5,0),
+        2:(5,0),
+        3:(5,0)
+    }
+    ACTION_MASKS = {
+            0:np.array([1,0,0,1,0]),
+            1:np.array([0,0,0,0,0]),
+            2:np.array([1,0,0,0,1]),
+            3:np.array([0,1,1,0,1]),
+            4:np.array([0,1,1,0,1]),
+            5:np.array([1,0,0,1,0])
+            }
+
+    BOARD_UPDATE = {
+        1:(0,6),
+        2:(6,8),
+        3:(8,10)
+    }
+    POSITION_INDEX = {
+        0:'SB',
+        1:'BB',
+        2:'BTN'
+    }
+    NAME_INDEX = {v:k for k,v in POSITION_INDEX.items()}

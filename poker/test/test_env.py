@@ -6,7 +6,6 @@ import numpy as np
 import os
 import copy
 
-from poker_env.data_classes import Card,Evaluator
 from models.networks import OmahaActor,OmahaQCritic
 from poker_env.env import Poker,Status
 from poker_env.config import Config

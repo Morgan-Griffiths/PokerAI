@@ -5,316 +5,14 @@ from random import shuffle
 import poker_env.datatypes as pdt
 from collections import deque
 from utils.cardlib import hand_rank,encode
+from poker_env.data_classes import Status,PlayerIndex,Player,Players,LastAggression,Deck,GlobalState
 
 """
 last_position: int list of positions. last position is the null position. Used for the beginning of streets.
 """
 
-ACTION_MASKS = {
-        0:np.array([1,0,0,1,0]),
-        1:np.array([0,0,0,0,0]),
-        2:np.array([1,0,0,0,1]),
-        3:np.array([0,1,1,0,1]),
-        4:np.array([0,1,1,0,1]),
-        5:np.array([1,0,0,1,0])
-        }
-
-BOARD_UPDATE = {
-    1:(0,6),
-    2:(6,8),
-    3:(8,10)
-}
-POSITION_INDEX = {
-    0:'SB',
-    1:'BB',
-    2:'BTN'
-}
-STARTING_INDEX = { 
-    2:{
-        0:0,
-        1:1,
-        2:1,
-        3:1
-    },
-    3: {
-        0:0,
-        1:0,
-        2:0,
-        3:0
-    }
-}
-NAME_INDEX = {v:k for k,v in POSITION_INDEX.items()}
-
-STARTING_AGGRESSION = {
-    0:(4,1),
-    1:(5,0),
-    2:(5,0),
-    3:(5,0)
-}
-
-class Status(object):
-    ACTIVE = 'active'
-    FOLDED = 'folded'
-    ALLIN = 'allin'
-
-STATUS_DICT = {
-    Status.ACTIVE:0,
-    Status.ALLIN:1,
-    Status.FOLDED:2
-}
-
 def flatten(l):
     return [item for sublist in l for item in sublist]
-
-class PlayerIndex(object):
-    def __init__(self,n_players,street):
-        self.n_players = n_players
-        self.starting_street = street
-        self.starting_index = STARTING_INDEX[n_players][street]
-        self.current_index = self.starting_index
-
-    def increment(self):
-        self.current_index = (self.current_index + 1) % self.n_players
-
-    def reset(self):
-        self.current_index = self.starting_index
-
-    def next_street(self,street):
-        self.current_index = STARTING_INDEX[self.n_players][street]
-
-    def update(self,value):
-        self.current_index = copy.copy(value)
-
-    def value(self):
-        return self.current_index
-
-    def __eq__(self,other):
-        return True if self.current_index == other else False
-
-    def __ne__(self, other):
-        return not(self.current_index == other)
-
-    def __str__(self):
-        return POSITION_INDEX[self.current_index]
-
-    def __index__(self):
-        return self.current_index
-
-    def __repr__(self):
-        return f' Starting index {self.starting_index}, Current index {self.current_index}, N players {self.n_players}, Starting street {self.starting_street}'
-
-    def clone(self):
-        temp = PlayerIndex(self.n_players,self.starting_street)
-        temp.update(self.current_index)
-        return temp
-
-    @property
-    def key(self):
-        return POSITION_INDEX[self.current_index]
-
-class Player(object):
-    def __init__(self,position,stack,street_total=0,status=Status,hand=None):
-        """Status: Active,Folded,Allin"""
-        self.position = position
-        self.stack = stack
-        self.street_total = street_total
-        self.status = Status.ACTIVE
-        self.hand = hand
-    
-    def update_hand(self,hand):
-        self.hand = hand
-        
-class Players(object):
-    def __init__(self,n_players,starting_stack,cards_per_player):
-        """Status: Active,Folded,Allin"""
-        self.n_players = n_players
-        self.starting_stack = starting_stack
-        self.cards_per_player = cards_per_player
-        self.initial_positions = pdt.Globals.PLAYERS_POSITIONS_DICT[n_players]
-        self.reset()
-
-    def reset(self):
-        self.players = {position:Player(position,copy.copy(self.starting_stack)) for position in self.initial_positions}
-        for player in self.players.values():
-            assert(player.status == Status.ACTIVE)
-            assert(player.stack == self.starting_stack)
-            assert(player.street_total == 0)
-    
-    def initialize_hands(self,hands):
-        for i,position in enumerate(self.initial_positions):
-            start = i*self.cards_per_player
-            end = (i+1)*self.cards_per_player
-            player_cards = hands[start:end]
-            self.players[position].update_hand(player_cards)
-    
-    def update_stack(self,amount:int,position:str):
-        """
-        Updates player stack,street_total and status after putting money into the pot.
-        """
-        self.players[position].stack += amount
-        self.players[position].street_total -= amount
-        if self.players[position].stack == 0:
-            self.players[position].status = Status.ALLIN
-        assert self.players[position].stack >= 0,'Player stack below zero'
-
-    def reset_street_totals(self):
-        for player in self.players.values():
-            player.street_total = 0
-
-    def update_status(self,player,status):
-        self.players[player].status = status
-
-    def info(self,player):
-        """Returns position,stack,street_total for given player"""
-        return [NAME_INDEX[self.players[player].position],self.players[player].stack,self.players[player].street_total,STATUS_DICT[self.players[player].status]]
-
-    def hero_info(self,player):
-        """Returns position,stack,hand for given player"""
-        return [NAME_INDEX[self.players[player].position],self.players[player].stack,*flatten(self.players[player].hand)]
-
-    def observation_info(self,hero):
-        """Returns position,stack,hand for all players other than hero"""
-        return flatten([[NAME_INDEX[self.players[player].position],self.players[player].stack,*flatten(self.players[player].hand)] for player in self.initial_positions if player != hero])
-
-    def return_active_hands(self):
-        hands = []
-        positions = []
-        for i,position in enumerate(self.initial_positions):
-            if self.players[position].status != Status.FOLDED:
-                hands.append(self.players[position].hand)
-                positions.append(position)
-        return hands,positions
-
-    def __getitem__(self,key):
-        return self.players[key]
-
-    def __len__(self):
-        return len(self.players.keys())
-
-    @property
-    def num_active_players(self):
-        return [self.players[player].status for player in self.players if self.players[player].status == Status.ACTIVE].count(Status.ACTIVE)
-    
-    @property
-    def num_folded_players(self):
-        return [self.players[player].status for player in self.players if self.players[player].status == Status.FOLDED].count(Status.FOLDED)
-    
-    @property
-    def to_showdown(self):
-        """Fast forwards to showdown if all players are allin"""
-        statuses = [self.players[position].status for position in self.initial_positions]
-        if Status.ACTIVE not in statuses and statuses.count(Status.ALLIN) > 1:
-            return True
-        return False
-
-class LastAggression(PlayerIndex):
-    def __init__(self,n_players,street):
-        self.n_players = n_players
-        self.starting_street = street
-        self.starting_index = STARTING_INDEX[n_players][street]
-        self.current_index = self.starting_index
-        self.starting_action,self.starting_betsize = STARTING_AGGRESSION[street]
-        self.aggressive_action = self.starting_action
-        self.aggressive_betsize = self.starting_betsize
-
-    def player_values(self):
-        return [self.current_index,self.action,self.betsize]
-
-    def update_aggression(self,position,action,betsize):
-        self.current_index = copy.copy(position)
-        self.aggressive_action = action
-        self.aggressive_betsize = betsize
-
-    def next_street(self,street):
-        self.current_index = self.n_players
-        self.aggressive_action = 5
-        self.aggressive_betsize = 0
-
-    def reset(self):
-        self.current_index = self.starting_index
-        self.aggressive_action = self.starting_action
-        self.aggressive_betsize = self.starting_betsize
-
-    @property
-    def action(self):
-        return self.aggressive_action
-
-    @property
-    def betsize(self):
-        return self.aggressive_betsize
-
-class Deck(object):
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.deck = deque(maxlen=52)
-        for i in range(2,15):
-            for j in range(0,4):
-                self.deck.append([i,j])
-
-    def deal(self,N):
-        """Returns a list of cards (rank,suit)"""
-        cards = []
-        for card in range(N):
-            cards.append(self.deck.pop())
-        return cards
-
-    def initialize_board(self,street):
-        assert isinstance(street,int),f'street type incorrect {type(street)}'
-        num_cards = pdt.Globals.INITIALIZE_BOARD_CARDS[street]
-        return self.deal(num_cards)
-
-    def deal_board(self,street):
-        assert isinstance(street,int),f'street type incorrect {type(street)}'
-        num_cards = pdt.Globals.ADDITIONAL_BOARD_CARDS[street]
-        return self.deal(num_cards)
-
-    def shuffle(self):
-        shuffle(self.deck)
-
-    def __len__(self):
-        return len(self.deck)
-
-class GlobalState(object):
-    def __init__(self,mapping):
-        self.mapping = mapping
-        self.reset()
-
-    def add(self,state):
-        self.global_states.append(state)
-
-    def stack(self):
-        return np.vstack(self.global_states)
-
-    def reset(self):
-        self.global_states = []
-
-    @property
-    def last_aggressive_action(self):
-        return self.global_states[-1][self.mapping['last_aggressive_action']][0]
-        
-    @property
-    def last_aggressive_betsize(self):
-        return self.global_states[-1][self.mapping['last_aggressive_betsize']][0]
-
-    @property
-    def last_aggressive_position(self):
-        return self.global_states[-1][self.mapping['last_aggressive_position']][0]
-        
-    @property
-    def last_action(self):
-        return self.global_states[-1][self.mapping['last_action']][0]
-        
-    @property
-    def last_betsize(self):
-        return self.global_states[-1][self.mapping['last_betsize']][0]
-
-    @property
-    def penultimate_betsize(self):
-        if len(self.global_states) > 1:
-            return self.global_states[-2][self.mapping['last_betsize']][0]
-        return 0
 
 class Poker(object):
     def __init__(self,params):
@@ -338,7 +36,7 @@ class Poker(object):
         self.current_index = PlayerIndex(self.n_players,self.starting_street)
         self.last_aggressor = LastAggression(self.n_players,self.starting_street)
         self.players_remaining = self.n_players
-        self.mask_dict = ACTION_MASKS
+        self.mask_dict = pdt.Globals.ACTION_MASKS
         betsize_funcs = {
             pdt.LimitTypes.LIMIT : self.return_limit_betsize,
             pdt.LimitTypes.NO_LIMIT : self.return_nolimit_betsize,
@@ -358,7 +56,7 @@ class Poker(object):
     def update_board(self):
         assert(self.street > 0 and self.street < 4)
         new_board_cards = flatten(self.deck.deal_board(self.street))
-        start,end = BOARD_UPDATE[self.street]
+        start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
     def reset(self):
@@ -422,7 +120,7 @@ class Poker(object):
         player_data = []
         temp_index = self.current_index.clone()
         for i in range(self.n_players):
-            position = POSITION_INDEX[temp_index.current_index]
+            position = pdt.Globals.POSITION_INDEX[temp_index.current_index]
             player_data.append(self.players.info(position))
             temp_index.increment()
         return flatten(player_data)
@@ -439,7 +137,7 @@ class Poker(object):
             self.players.update_status(self.current_player,Status.FOLDED)
         self.pot += betsize
         self.players.update_stack(-betsize,self.current_player)
-        last_position = NAME_INDEX[self.current_player]
+        last_position = pdt.Globals.NAME_INDEX[self.current_player]
         self.increment_current_player_index()
         self.store_global_state(last_position,action,betsize,blind)
     
