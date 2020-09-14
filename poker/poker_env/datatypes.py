@@ -21,8 +21,8 @@ class RANKS(object):
     LOW = 2
 
 class SUITS(object):
-    HIGH = 4
-    LOW = 0
+    HIGH = 5
+    LOW = 1
 
 class LimitTypes:
     POT_LIMIT = 'pot_limit'
@@ -43,13 +43,22 @@ class Positions:
     BB = 'BB'
     ALL = ['SB','BB']
 
-class Street:
+class StreetStrs:
+    PADDING = 'padding'
     RIVER = 'river'
     TURN = 'turn'
     FLOP = 'flop'
     PREFLOP = 'preflop'
 
+class Street:
+    PADDING = 0
+    PREFLOP = 1
+    FLOP = 2
+    TURN = 3
+    RIVER = 4
+
 class Actions:
+    PADDING = 'padding'
     CHECK = 'check'
     BET = 'bet'
     CALL = 'call'
@@ -70,10 +79,10 @@ BLIND_DICT = {
 
 class BaseHoldem(object):
     def __init__(self):
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.state_params = {}
-        self.state_params['ranks'] = list(range(2,15))
-        self.state_params['suits'] = list(range(0,4))
+        self.state_params['ranks'] = list(range(RANKS.LOW,RANKS.HIGH))
+        self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 2
         self.state_params['n_players'] = 2
         self.state_params['stacksize'] = 10
@@ -141,15 +150,15 @@ class Holdem(object):
         self.state_params['stacksize'] = 2.
         self.state_params['pot']= 2.
         self.rule_params['betsizes'] = T([0.5,1.])
-        self.starting_street = 3
+        self.starting_street = Street.RIVER
 
 
 class BaseOmaha(object):
     def __init__(self):
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.state_params = {}
-        self.state_params['ranks'] = list(range(2,15))
-        self.state_params['suits'] = list(range(0,4))
+        self.state_params['ranks'] = list(range(RANKS.LOW,RANKS.HIGH))
+        self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 4
         self.state_params['n_players'] = 2
         self.state_params['stacksize'] = 10
@@ -212,7 +221,7 @@ class BaseOmaha(object):
 class OmahaHI(object):
     def __init__(self):
         K = BaseOmaha()
-        self.starting_street = 3
+        self.starting_street = Street.RIVER
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
@@ -223,7 +232,7 @@ class OmahaHILO(object):
     def __init__(self):
         ## NOT IMPLEMENTED ##
         K = BaseHoldem()
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
@@ -253,7 +262,8 @@ class Globals:
     BROADWAY = {11:'J',12:'Q',13:'K',14:'A'}
     for k,v in BROADWAY.items():
         POKER_RANK_DICT[k] = v
-    POKER_SUIT_DICT = {0:'s',1:'h',2:'d',3:'c'}
+    LETTER_SUITS = ['s','h','d','c']
+    POKER_SUIT_DICT = {k:v for k,v in zip(range(SUITS.LOW,SUITS.HIGH),LETTER_SUITS)}
     BLIND_DICT = BLIND_DICT
     BETSIZE_DICT = {
         2: T([0.5,1.]),
@@ -262,27 +272,28 @@ class Globals:
         5: T([0.2,0.4,0.6,0.8,1.]),
         11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.])
     }
+    STREET_DICT = {
+        0:Street.PADDING,
+        1:Street.PREFLOP,
+        2:Street.FLOP,
+        3:Street.TURN,
+        4:Street.RIVER
+    }
+    REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     # Takes street as key
     ADDITIONAL_BOARD_CARDS = {
-        0 : 0,
-        1 : 3,
-        2 : 1,
-        3 : 1
+        Street.PREFLOP : 0,
+        Street.FLOP : 3,
+        Street.TURN : 1,
+        Street.RIVER : 1
     }
     # Takes street as key
     INITIALIZE_BOARD_CARDS = {
-        0 : 0,
-        1 : 3,
-        2 : 4,
-        3 : 5
+        Street.PREFLOP : 0,
+        Street.FLOP : 3,
+        Street.TURN : 4,
+        Street.RIVER : 5
     }
-    STREET_DICT = {
-        0:Street.PREFLOP,
-        1:Street.FLOP,
-        2:Street.TURN,
-        3:Street.RIVER
-    }
-    REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     HAND_LENGTH_DICT = {
         'holdem':2,
         'omaha_hi':4,
@@ -290,23 +301,23 @@ class Globals:
     }
     STARTING_INDEX = { 
         2:{
-            0:0,
-            1:1,
-            2:1,
-            3:1
+            Street.PREFLOP: 0,
+            Street.FLOP:    1,
+            Street.TURN:    1,
+            Street.RIVER:   1
         },
         3: {
-            0:0,
-            1:0,
-            2:0,
-            3:0
+            Street.PREFLOP  :0,
+            Street.FLOP     :0,
+            Street.TURN     :0,
+            Street.RIVER    :0
         }
     }
     STARTING_AGGRESSION = {
-        0:(4,1),
-        1:(5,0),
-        2:(5,0),
-        3:(5,0)
+        Street.PREFLOP  :(4,1),
+        Street.FLOP     :(5,0),
+        Street.TURN     :(5,0),
+        Street.RIVER    :(5,0)
     }
     ACTION_MASKS = {
             0:np.array([1,0,0,1,0]),
@@ -318,9 +329,9 @@ class Globals:
             }
 
     BOARD_UPDATE = {
-        1:(0,6),
-        2:(6,8),
-        3:(8,10)
+        Street.FLOP:(0,6),
+        Street.TURN:(6,8),
+        Street.RIVER:(8,10)
     }
     POSITION_INDEX = {
         0:'SB',
