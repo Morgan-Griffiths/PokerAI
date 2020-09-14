@@ -5,6 +5,9 @@ orbs:
 
 jobs:
   build-and-test:
+    docker:
+      - image: circleci/python:3.8
+      - image: mongo:4.2.0
     executor: python/default
     steps:
       - checkout
@@ -24,9 +27,14 @@ jobs:
             cargo build --release
       - python/save-cache
       - run:
-          name: Test
+          name: test-kuhn
           command: |
-            cd src
+            cd kuhn
+            python -m unittest
+      - run:
+          name: test-poker-env
+          command: |
+            cd poker
             python -m unittest
 workflows:
   main:

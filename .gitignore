@@ -7,6 +7,10 @@
 .DS_Store
 rusteval/target
 legacy/handattributes.pickle
-src/data/
-src/assets/
-src/checkpoints/
+hand_recognition/data/
+hand_recognition/assets/
+hand_recognition/checkpoints/
+kuhn/assets/
+kuhn/checkpoints/
+poker/assets/
+poker/checkpoints/
