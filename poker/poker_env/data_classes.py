@@ -9,14 +9,16 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 class Status(object):
+    PADDING = 'pad'
     ACTIVE = 'active'
     FOLDED = 'folded'
     ALLIN = 'allin'
 
 STATUS_DICT = {
-    Status.ACTIVE:0,
-    Status.ALLIN:1,
-    Status.FOLDED:2
+    Status.PADDING:0,
+    Status.ACTIVE:1,
+    Status.ALLIN:2,
+    Status.FOLDED:3
 }
 
 class PlayerIndex(object):
