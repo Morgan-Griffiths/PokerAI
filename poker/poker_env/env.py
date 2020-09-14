@@ -54,7 +54,7 @@ class Poker(object):
         self.board[:len(starting_board_cards)] = starting_board_cards
         
     def update_board(self):
-        assert(self.street > 0 and self.street < 4)
+        assert(self.street > pdt.Street.PREFLOP and self.street <= pdt.Street.RIVER), f'Street is outside bounds {self.street}'
         new_board_cards = flatten(self.deck.deal_board(self.street))
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
@@ -78,7 +78,7 @@ class Poker(object):
         hands = self.deck.deal(self.cards_per_player*self.n_players)
         self.players.initialize_hands(hands)
         # Blinds
-        if self.starting_street == 0:
+        if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
         else:
             self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
@@ -165,7 +165,7 @@ class Poker(object):
     
     def increment_street(self):
         self.street += 1
-        assert not self.street > pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER],'Street is greater than river'
+        assert not self.street > pdt.Street.RIVER,'Street is greater than river'
         # clear previous street totals
         self.players.reset_street_totals()
         # update board
@@ -177,7 +177,7 @@ class Poker(object):
         self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
         # Fast forward to river if allin
         if self.players.to_showdown:
-            for _ in range(pdt.Globals.REVERSE_STREET_DICT[pdt.Street.RIVER] - self.street):
+            for _ in range(pdt.Street.RIVER - self.street):
                 self.street += 1
                 self.update_board()
             self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
@@ -224,12 +224,12 @@ class Poker(object):
         return actives
     
     def round_over(self):
-        if self.players_remaining == 0 and self.street != 3 and self.players.num_folded_players != self.n_players - 1:
+        if self.players_remaining == 0 and self.street != pdt.Street.RIVER and self.players.num_folded_players != self.n_players - 1:
             return True
         return False
     
     def game_over(self):
-        if (self.players_remaining == 0 and self.street == 3) or (self.players.num_folded_players == self.n_players - 1):
+        if (self.players_remaining == 0 and self.street == pdt.Street.RIVER) or (self.players.num_folded_players == self.n_players - 1):
             return True
         return False
     
@@ -281,7 +281,7 @@ class Poker(object):
         if action == 0 or action == 1 or action == 2: # fold check call
             category[action] = 1
             bet_category[0] = 1
-        elif action == 4:
+        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
             if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
                 min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
             else:
