@@ -5,6 +5,8 @@ orbs:
 
 jobs:
   build-and-test:
+    docker: 
+      - image: mongo:4.2.0
     executor: python/default
     steps:
       - checkout
