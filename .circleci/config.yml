@@ -1,11 +1,8 @@
 version: 2.1
-
-orbs:
-  python: circleci/python@0.2.1
-
 jobs:
   build-and-test:
-    docker: 
+    docker:
+      - image: circleci/python:3.8
       - image: mongo:4.2.0
     executor: python/default
     steps:
