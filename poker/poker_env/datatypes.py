@@ -1,21 +1,11 @@
 from torch import Tensor as T
 import numpy as np
 
-ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
-REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
-ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
-ACTION_MASKS = {
-        0:T([1,0,0,1,0]),
-        1:T([0,0,0,0,0]),
-        2:T([1,0,0,0,1]),
-        3:T([0,1,1,0,1]),
-        4:T([0,1,1,0,1]),
-        5:T([1,0,0,1,0])
-        }
-
 """
 High is noninclusive
 """
+
+
 class RANKS(object):
     HIGH = 15
     LOW = 2
@@ -67,7 +57,7 @@ class Street:
     TURN = 3
     RIVER = 4
 
-class Actions:
+class ActionStrs:
     PADDING = 'padding'
     CHECK = 'check'
     BET = 'bet'
@@ -76,16 +66,39 @@ class Actions:
     RAISE = 'raise'
     UNOPENED = 'unopened'
 
+class Action:
+    PADDING = 0
+    CHECK = 1
+    FOLD = 2
+    CALL = 3
+    BET = 4
+    RAISE = 5
+    UNOPENED = 6
+
 class AgentTypes:
     SPLIT = 'split'
     SINGLE = 'single'
     SPLIT_OBS = 'split_obs'
     ALL = [SPLIT,SINGLE,SPLIT_OBS]
 
+
 BLIND_DICT = {
     PositionStrs.BB : T([1]),
     PositionStrs.SB : T([0.5])
 }
+
+ACTION_DICT = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise',Action.UNOPENED:'unopened'}
+REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
+ACTION_ORDER = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise'}
+REVERSE_ACTION_ORDER = {v:k for k,v in ACTION_ORDER.items()}
+ACTION_MASKS = {
+        Action.CHECK:T([1,0,0,1,0]),
+        Action.FOLD:T([0,0,0,0,0]),
+        Action.CALL:T([1,0,0,0,1]),
+        Action.BET:T([0,1,1,0,1]),
+        Action.RAISE:T([0,1,1,0,1]),
+        Action.UNOPENED:T([1,0,0,1,0])
+        }
 
 class BaseHoldem(object):
     def __init__(self):
@@ -264,9 +277,9 @@ class Globals:
         Street.TURN:['BB','SB'],
         Street.RIVER:['BB','SB']
     }
-    ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
-    ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
-    REVERSE_ACTION_ORDER = {v:k for k,v in ACTION_ORDER.items()}
+    ACTION_DICT = ACTION_DICT
+    ACTION_ORDER = ACTION_ORDER
+    REVERSE_ACTION_ORDER = REVERSE_ACTION_ORDER
     ACTION_MASKS = ACTION_MASKS
     POKER_RANK_DICT = {v:v for v in range(2,11)}
     BROADWAY = {11:'J',12:'Q',13:'K',14:'A'}
@@ -324,20 +337,11 @@ class Globals:
         }
     }
     STARTING_AGGRESSION = {
-        Street.PREFLOP  :(4,1),
-        Street.FLOP     :(5,0),
-        Street.TURN     :(5,0),
-        Street.RIVER    :(5,0)
+        Street.PREFLOP  :(Action.RAISE,1),
+        Street.FLOP     :(Action.UNOPENED,0),
+        Street.TURN     :(Action.UNOPENED,0),
+        Street.RIVER    :(Action.UNOPENED,0)
     }
-    ACTION_MASKS = {
-            0:np.array([1,0,0,1,0]),
-            1:np.array([0,0,0,0,0]),
-            2:np.array([1,0,0,0,1]),
-            3:np.array([0,1,1,0,1]),
-            4:np.array([0,1,1,0,1]),
-            5:np.array([1,0,0,1,0])
-            }
-
     BOARD_UPDATE = {
         Street.FLOP:(0,6),
         Street.TURN:(6,8),
