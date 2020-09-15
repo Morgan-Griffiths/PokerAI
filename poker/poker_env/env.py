@@ -37,6 +37,7 @@ class Poker(object):
         self.last_aggressor = LastAggression(self.n_players,self.starting_street)
         self.players_remaining = self.n_players
         self.mask_dict = pdt.Globals.ACTION_MASKS
+        self.dealer_position = self.n_players + 1
         betsize_funcs = {
             pdt.LimitTypes.LIMIT : self.return_limit_betsize,
             pdt.LimitTypes.NO_LIMIT : self.return_nolimit_betsize,
@@ -81,7 +82,7 @@ class Poker(object):
         if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
         else:
-            self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
         # Generate state and masks
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
@@ -148,7 +149,7 @@ class Poker(object):
         """
         # last aggression
         aggressor_values = self.last_aggressor.player_values()
-        if self.last_aggressor.current_index == self.n_players:
+        if self.last_aggressor.current_index == self.dealer_position:
             total_bet = 0
         else:
             total_bet = self.players[self.last_aggressor.key].street_total
@@ -174,13 +175,13 @@ class Poker(object):
         self.players_remaining = self.players.num_active_players
         self.street_starting_index()
         self.last_aggressor.next_street(self.street)
-        self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
+        self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
         # Fast forward to river if allin
         if self.players.to_showdown:
             for _ in range(pdt.Street.RIVER - self.street):
                 self.street += 1
                 self.update_board()
-            self.store_global_state(last_position=self.n_players,last_action=5,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
