@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from poker_env.datatypes import Globals,SUITS,RANKS
+from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street
 import numpy as np
 from models.model_utils import strip_padding
 
@@ -153,8 +153,8 @@ class ProcessOrdinal(nn.Module):
     def __init__(self,params):
         super().__init__()
         self.mapping = params['mapping']
-        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=4)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
+        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Street.RIVER,padding_idx=0)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
         self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
         self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
 
@@ -255,7 +255,7 @@ class PreProcessLayer(nn.Module):
         self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=6)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
         self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
