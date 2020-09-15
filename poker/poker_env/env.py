@@ -82,7 +82,7 @@ class Poker(object):
         if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
         else:
-            self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
         # Generate state and masks
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
@@ -91,10 +91,10 @@ class Poker(object):
     def instantiate_blinds(self):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5
-        SB_action = pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]
+        SB_action = pdt.Action.BET
         self.update_state(SB_action,SB_post,blind=1)
         BB_post = 1.
-        BB_action = pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]
+        BB_action = pdt.Action.RAISE
         self.update_state(BB_action,BB_post,blind=1)
     
     def step(self,inputs):
@@ -104,7 +104,7 @@ class Poker(object):
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
-        action = inputs['action_category']
+        action = inputs['action_category'] + 1
         betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
         if self.round_over():
@@ -130,11 +130,11 @@ class Poker(object):
         """Updates the global state. Appends the new global state to storage"""
         if not blind:
             self.players_remaining -= 1
-        if (action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE] or action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]):
+        if (action == pdt.Action.RAISE or action == pdt.Action.BET):
             self.last_aggressor.update_aggression(self.current_index.value(),action,betsize)
             if not blind:
                 self.players_remaining = self.players.num_active_players - 1 # Current active player won't act again unless action is reopened
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.FOLD]:
+        elif action == pdt.Action.FOLD:
             self.players.update_status(self.current_player,Status.FOLDED)
         self.pot += betsize
         self.players.update_stack(-betsize,self.current_player)
@@ -175,13 +175,13 @@ class Poker(object):
         self.players_remaining = self.players.num_active_players
         self.street_starting_index()
         self.last_aggressor.next_street(self.street)
-        self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
+        self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
         # Fast forward to river if allin
         if self.players.to_showdown:
             for _ in range(pdt.Street.RIVER - self.street):
                 self.street += 1
                 self.update_board()
-            self.store_global_state(last_position=self.dealer_position,last_action=5,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
@@ -260,16 +260,16 @@ class Poker(object):
         etc. are valid. If both players are allin, then game finishes.
         """
         available_categories = self.return_mask()
-        available_betsizes = self.return_betsizes(state)
+        available_betsizes = self.return_betsizes()
         if available_betsizes.sum() == 0:
-            available_categories[pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]] = 0
+            available_categories[-2:] = 0 # Zero out raise and bet
         return available_categories,available_betsizes
     
     def return_mask(self):
         """Taking into account SB calling BB"""
         if self.global_states.last_aggressive_position == pdt.Globals.POSITION_MAPPING[self.current_player]:
-            return copy.copy(self.mask_dict[self.global_states.last_action])
-        return copy.copy(self.mask_dict[self.global_states.last_aggressive_action])
+            return copy.deepcopy(self.mask_dict[self.global_states.last_action])
+        return copy.deepcopy(self.mask_dict[self.global_states.last_aggressive_action])
 
     def convert_to_category(self,action,betsize):
         """
@@ -279,11 +279,11 @@ class Poker(object):
         """
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
-        if action == 0 or action == 1 or action == 2: # fold check call
-            category[action] = 1
+        if action == pdt.Action.FOLD or action == pdt.Action.CHECK or action == pdt.Action.CALL: # fold check call
+            category[action-1] = 1
             bet_category[0] = 1
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
-            if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
+        elif action == pdt.Action.RAISE:
+            if self.global_states.last_aggressive_action == pdt.Action.RAISE:
                 min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
             else:
                 min_raise = 2 * self.global_states.last_aggressive_betsize
@@ -308,13 +308,13 @@ class Poker(object):
 #                  BETSIZES                    #
 ################################################
 
-    def return_betsizes(self,state):
+    def return_betsizes(self):
         """Returns possible betsizes. If betsize > player stack no betsize is possible"""
         # STREAMLINE THIS
         possible_betsizes = np.zeros((self.num_betsizes))
         if self.global_states.last_aggressive_betsize > 0:
             # Facing a Raise
-            if self.global_states.last_aggressive_action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]:
+            if self.global_states.last_aggressive_action == pdt.Action.RAISE:
                 last_betsize = self.players[self.last_aggressor.key].street_total - self.players[self.current_player].street_total
             else:
                 last_betsize = self.global_states.last_aggressive_betsize
@@ -322,13 +322,11 @@ class Poker(object):
                 # player allin is always possible if stack > betsize.
                 min_raise = 2 * last_betsize
                 max_raise = self.pot + last_betsize
-                for i,betsize in enumerate(self.betsizes,0):
+                for i,betsize in enumerate(self.betsizes):
                     possible_betsizes[i] = 1
-                    if i == 0 and min_raise >= self.players[self.current_player].stack:
+                    if i == 0 and min_raise >= self.players[self.current_player].stack or max_raise * betsize >= self.players[self.current_player].stack:
                         break
-                    elif max_raise * betsize >= self.players[self.current_player].stack:
-                        break
-        elif self.global_states.last_aggressive_action == 5 or self.global_states.last_aggressive_action == 0:
+        elif self.global_states.last_aggressive_action == pdt.Action.UNOPENED or self.global_states.last_aggressive_action == pdt.Action.CHECK:
             for i,betsize in enumerate(self.betsizes,0):
                 possible_betsizes[i] = 1
                 if betsize * self.pot >= self.players[self.current_player].stack:
@@ -340,11 +338,11 @@ class Poker(object):
         """TODO Betsizes should be indexed by street"""
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]: # Call
+        if action == pdt.Action.CALL:
             betsize = min(self.players[self.current_player].stack,self.players[self.last_aggressor.key].street_total - self.players[self.current_player].street_total)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
+        elif action == pdt.Action.BET:
             betsize = min(1,self.players[self.current_player].stack)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise can be more than 2 with multiple people
+        elif action == pdt.Action.RAISE: # Raise can be more than 2 with multiple people
             betsize = min(self.players[self.last_aggressor.key].street_total+1,self.players[self.current_player].stack) - self.players[self.current_player].street_total
         else: # fold or check
             betsize = 0
@@ -359,12 +357,12 @@ class Poker(object):
         """
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
+        if action == pdt.Action.CALL:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
+        elif action == pdt.Action.BET: # Bet
             betsize_value = self.betsizes[betsize_category] * self.pot
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
+        elif action == pdt.Action.RAISE: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
             betsize_value = self.betsizes[betsize_category] * max_raise
             previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total
@@ -377,12 +375,12 @@ class Poker(object):
         """TODO Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.CALL]:
+        if action == pdt.Action.CALL:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.BET]: # Bet
+        elif action == pdt.Action.BET: # Bet
             betsize_value = self.betsizes[betsize_category] * self.pot
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
-        elif action == pdt.Globals.REVERSE_ACTION_ORDER[pdt.Actions.RAISE]: # Raise
+        elif action == pdt.Action.RAISE: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
             # min_raise = min(2,self.players[self.current_player].stack)
             previous_bet = max(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,1)
