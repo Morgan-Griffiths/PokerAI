@@ -260,7 +260,7 @@ class TestEnv(unittest.TestCase):
         assert env.players['SB'].status == Status.ACTIVE
         assert env.players['BB'].stack == 0
         assert env.players['BB'].status == Status.ALLIN
-        assert state[0,-1,env.state_mapping['blind']] == 0
+        assert state[0,-1,env.state_mapping['blind']] == pdt.Blind.NO_BLIND
         assert np.array_equal(mask,np.array([0., 1., 1., 0., 0.]))
         assert np.array_equal(betsize_mask,np.array([0.,0.]))
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
@@ -291,7 +291,7 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 4.
         assert env.players['SB'].street_total == 0.5
         assert env.players['BB'].street_total == 1.
-        assert state[0,-1,env.state_mapping['blind']] == 1
+        assert state[0,-1,env.state_mapping['blind']] == pdt.Blind.POSTED
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.BB
         assert done == False
