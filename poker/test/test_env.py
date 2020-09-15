@@ -119,7 +119,8 @@ class TestEnv(unittest.TestCase):
         assert state[0,-1,env.state_mapping['player2_position']] == pdt.Position.SB
         assert state[0,-1,env.state_mapping['player2_stacksize']] == self.env_params['stacksize']
         assert state[0,-1,env.state_mapping['player2_street_total']] == 0
-        assert state[0,-1,env.state_mapping['last_action']] == 5
+        assert state[0,-1,env.state_mapping['last_action']] == pdt.Action.UNOPENED
+        assert state[0,-1,env.state_mapping['last_aggressive_action']] == pdt.Action.UNOPENED
         assert state[0,-1,env.state_mapping['last_betsize']] == 0
         assert state[0,-1,env.state_mapping['last_position']] == pdt.Position.BTN
         assert state[0,-1,env.state_mapping['amount_to_call']] == 0
@@ -144,7 +145,7 @@ class TestEnv(unittest.TestCase):
         assert state[:,1][:,env.state_mapping['hero_position']] == pdt.Position.SB
         assert state[:,1][:,env.state_mapping['player2_position']] == pdt.Position.BB
         assert state[:,1][:,env.state_mapping['last_position']] == pdt.Position.BB
-        assert state[:,1][:,env.state_mapping['last_action']] == 0
+        assert state[:,1][:,env.state_mapping['last_action']] == pdt.Action.CHECK
         assert state[:,1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
         assert state[:,1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize']
         assert state[:,1][:,env.state_mapping['amount_to_call']] == 0
@@ -175,7 +176,7 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
-        assert state[:,-1][:,env.state_mapping['last_action']] == 3
+        assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.BET
         assert state[:,-1][:,env.state_mapping['last_betsize']] == 1
         assert state[:,-1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize'] - 1
@@ -211,11 +212,10 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['street']] == pdt.Street.RIVER
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.BB
-        assert state[:,-1][:,env.state_mapping['last_action']] == 3
+        assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.BET
         assert state[:,-1][:,env.state_mapping['last_betsize']] == 1
         assert state[:,-1][:,env.state_mapping['hero_stacksize']] == 5
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 5 - 1
-        print('betraise',state[:,-1][:,env.state_mapping['amount_to_call']])
         assert state[:,-1][:,env.state_mapping['amount_to_call']] == 1
         self.assertAlmostEqual(state[:,-1][:,env.state_mapping['pot_odds']][0],0.333,places=2)
         assert done == False
@@ -235,7 +235,7 @@ class TestEnv(unittest.TestCase):
         assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
-        assert state[:,-1][:,env.state_mapping['last_action']] == 4
+        assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.RAISE
         assert state[:,-1][:,env.state_mapping['last_betsize']] == 4
         assert state[:,-1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize'] - 1
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize'] - 4
@@ -631,29 +631,29 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
-        assert env.convert_to_category(4,3)[0] == 4
-        assert env.convert_to_category(4,2)[0] == 3
-        assert env.convert_to_category(2,0.5)[0] == 2
-        assert env.convert_to_category(0,0)[0] == 0
+        assert env.convert_to_category(pdt.Action.RAISE,3)[0] == 4
+        assert env.convert_to_category(pdt.Action.RAISE,2)[0] == 3
+        assert env.convert_to_category(pdt.Action.CALL,0.5)[0] == 2
+        assert env.convert_to_category(pdt.Action.CHECK,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(4,9)[0] == 4
-        assert env.convert_to_category(4,5)[0] == 3
-        assert env.convert_to_category(2,2)[0] == 2
-        assert env.convert_to_category(0,0)[0] == 0
+        assert env.convert_to_category(pdt.Action.RAISE,9)[0] == 4
+        assert env.convert_to_category(pdt.Action.RAISE,5)[0] == 3
+        assert env.convert_to_category(pdt.Action.CALL,2)[0] == 2
+        assert env.convert_to_category(pdt.Action.CHECK,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
-        assert env.convert_to_category(3,6)[0] == 4
-        assert env.convert_to_category(3,3)[0] == 3
-        assert env.convert_to_category(1,0)[0] == 1
+        assert env.convert_to_category(pdt.Action.BET,6)[0] == 4
+        assert env.convert_to_category(pdt.Action.BET,3)[0] == 3
+        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
-        assert env.convert_to_category(4,24)[0] == 4
-        assert env.convert_to_category(4,12)[0] == 3
-        assert env.convert_to_category(2,6)[0] == 2
-        assert env.convert_to_category(1,0)[0] == 1
+        assert env.convert_to_category(pdt.Action.RAISE,24)[0] == 4
+        assert env.convert_to_category(pdt.Action.RAISE,12)[0] == 3
+        assert env.convert_to_category(pdt.Action.CALL,6)[0] == 2
+        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(4,47)[0] == 4
-        assert env.convert_to_category(4,42)[0] == 3
-        assert env.convert_to_category(2,18)[0] == 2
-        assert env.convert_to_category(1,0)[0] == 1
+        assert env.convert_to_category(pdt.Action.RAISE,47)[0] == 4
+        assert env.convert_to_category(pdt.Action.RAISE,42)[0] == 3
+        assert env.convert_to_category(pdt.Action.CALL,18)[0] == 2
+        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
         del env
         params['stacksize'] = 3
         params['n_players'] = 2
@@ -661,10 +661,10 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
-        assert env.convert_to_category(4,3)[0] == 4
-        assert env.convert_to_category(4,2)[0] == 3
-        assert env.convert_to_category(2,0)[0] == 2
-        assert env.convert_to_category(1,0)[0] == 1
+        assert env.convert_to_category(pdt.Action.RAISE,3)[0] == 4
+        assert env.convert_to_category(pdt.Action.RAISE,2)[0] == 3
+        assert env.convert_to_category(pdt.Action.CALL,0)[0] == 2
+        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
         
     def testStreetInitialization(self):
         params = copy.deepcopy(self.env_params)
