@@ -38,9 +38,19 @@ class GameTypes:
     OMAHAHI = 'omaha_hi'
     OMAHAHILO = 'omaha_hi_lo'
 
-class Positions:
+class PositionStrs:
+    PADDING = 'PADDING'
     SB = 'SB'
     BB = 'BB'
+    BTN = 'BTN'
+    CO = 'CO'
+
+class Position:
+    PADDING = 0
+    SB = 1
+    BB = 2
+    BTN = 3
+    CO = 4
     ALL = ['SB','BB']
 
 class StreetStrs:
@@ -73,8 +83,8 @@ class AgentTypes:
     ALL = [SPLIT,SINGLE,SPLIT_OBS]
 
 BLIND_DICT = {
-    Positions.BB : T([1]),
-    Positions.SB : T([0.5])
+    PositionStrs.BB : T([1]),
+    PositionStrs.SB : T([0.5])
 }
 
 class BaseHoldem(object):
@@ -245,14 +255,14 @@ class Globals:
         GameTypes.OMAHAHI:OmahaHI(),
         GameTypes.OMAHAHILO:OmahaHILO(),
     }
-    POSITION_DICT = {Positions.SB:Positions.SB,Positions.BB:Positions.BB}
-    POSITION_MAPPING = {'SB':0,'BB':1,'BTN':2}
+    POSITION_DICT = {PositionStrs.SB:Position.SB,PositionStrs.BB:Position.BB}
+    POSITION_MAPPING = {'SB':Position.SB,'BB':Position.BB,'BTN':Position.BTN}
     PLAYERS_POSITIONS_DICT = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
     HEADSUP_POSITION_DICT = {
-        0:['SB','BB'],
-        1:['BB','SB'],
-        2:['BB','SB'],
-        3:['BB','SB']
+        Street.PREFLOP:['SB','BB'],
+        Street.FLOP:['BB','SB'],
+        Street.TURN:['BB','SB'],
+        Street.RIVER:['BB','SB']
     }
     ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
     ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
@@ -301,16 +311,16 @@ class Globals:
     }
     STARTING_INDEX = { 
         2:{
-            Street.PREFLOP: 0,
-            Street.FLOP:    1,
-            Street.TURN:    1,
-            Street.RIVER:   1
+            Street.PREFLOP: Position.SB,
+            Street.FLOP:    Position.BB,
+            Street.TURN:    Position.BB,
+            Street.RIVER:   Position.BB
         },
         3: {
-            Street.PREFLOP  :0,
-            Street.FLOP     :0,
-            Street.TURN     :0,
-            Street.RIVER    :0
+            Street.PREFLOP  :Position.SB,
+            Street.FLOP     :Position.SB,
+            Street.TURN     :Position.SB,
+            Street.RIVER    :Position.SB
         }
     }
     STARTING_AGGRESSION = {
@@ -334,8 +344,9 @@ class Globals:
         Street.RIVER:(8,10)
     }
     POSITION_INDEX = {
-        0:'SB',
-        1:'BB',
-        2:'BTN'
+        Position.PADDING:'PADDING',
+        Position.SB:'SB',
+        Position.BB:'BB',
+        Position.BTN:'BTN'
     }
     NAME_INDEX = {v:k for k,v in POSITION_INDEX.items()}
