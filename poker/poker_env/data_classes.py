@@ -9,7 +9,7 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 class Status(object):
-    PADDING = 'pad'
+    PADDING = 'padding'
     ACTIVE = 'active'
     FOLDED = 'folded'
     ALLIN = 'allin'
@@ -22,14 +22,26 @@ STATUS_DICT = {
 }
 
 class PlayerIndex(object):
-    def __init__(self,n_players,street):
+    def __init__(self,n_players:int,street:int):
+        """
+        Class for keeping track of whose turn it is.
+        current_index: int
+        starting_index: int
+        starting_street: int
+        n_players: int
+        """
         self.n_players = n_players
         self.starting_street = street
         self.starting_index = Globals.STARTING_INDEX[n_players][street]
         self.current_index = self.starting_index
+        self.offset = 1
+        assert isinstance(street,int)
+        assert isinstance(self.current_index,int)
+        assert isinstance(self.n_players,int)
+        assert isinstance(self.starting_index,int)
 
     def increment(self):
-        self.current_index = (self.current_index + 1) % self.n_players
+        self.current_index = max((self.current_index + 1) % (self.n_players + self.offset),1)
 
     def reset(self):
         self.current_index = self.starting_index
@@ -102,10 +114,11 @@ class Players(object):
             player_cards = hands[start:end]
             self.players[position].update_hand(player_cards)
     
-    def update_stack(self,amount:int,position:str):
+    def update_stack(self,amount,position:str):
         """
         Updates player stack,street_total and status after putting money into the pot.
         """
+        assert isinstance(position,str)
         self.players[position].stack += amount
         self.players[position].street_total -= amount
         if self.players[position].stack == 0:
