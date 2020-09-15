@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from poker_env.datatypes import Action
 
 from models.model_utils import padding_index
 from models.buffers import PriorityReplayBuffer,PriorityTree
@@ -182,7 +183,7 @@ class OmahaActor(nn.Module):
         # self.seed = torch.manual_seed(seed)
         self.state_mapping = params['state_mapping']
         self.hand_emb = Embedder(5,64)
-        self.action_emb = Embedder(6,64)
+        self.action_emb = Embedder(Action.UNOPENED,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise()
         self.emb = 1248
@@ -255,7 +256,6 @@ class OmahaQCritic(nn.Module):
         # B,M,c = out.size()
         # n_padding = max(self.maxlen - M,0)
         # padding = torch.zeros(B,n_padding,out.size(-1))
-        print('out',out.size())
         # h = torch.cat((out,padding),dim=1)
 
         q_input = self.transformer(out)

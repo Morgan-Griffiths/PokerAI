@@ -34,7 +34,7 @@ class API(object):
             'pot':0,
             'stacksize': 100,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': 0, #self.game_object.starting_street,
+            'starting_street': pdt.Street.PREFLOP, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,

@@ -1,28 +1,18 @@
 from torch import Tensor as T
 import numpy as np
 
-ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
-REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
-ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
-ACTION_MASKS = {
-        0:T([1,0,0,1,0]),
-        1:T([0,0,0,0,0]),
-        2:T([1,0,0,0,1]),
-        3:T([0,1,1,0,1]),
-        4:T([0,1,1,0,1]),
-        5:T([1,0,0,1,0])
-        }
-        
 """
 High is noninclusive
 """
+
+
 class RANKS(object):
     HIGH = 15
     LOW = 2
 
 class SUITS(object):
-    HIGH = 4
-    LOW = 0
+    HIGH = 5
+    LOW = 1
 
 class LimitTypes:
     POT_LIMIT = 'pot_limit'
@@ -38,18 +28,42 @@ class GameTypes:
     OMAHAHI = 'omaha_hi'
     OMAHAHILO = 'omaha_hi_lo'
 
-class Positions:
+class Blind:
+    POSTED = 2
+    NO_BLIND = 1
+    PADDING = 0
+
+class PositionStrs:
+    PADDING = 'PADDING'
     SB = 'SB'
     BB = 'BB'
+    BTN = 'BTN'
+    CO = 'CO'
+
+class Position:
+    PADDING = 0
+    SB = 1
+    BB = 2
+    BTN = 3
+    CO = 4
     ALL = ['SB','BB']
 
-class Street:
+class StreetStrs:
+    PADDING = 'padding'
     RIVER = 'river'
     TURN = 'turn'
     FLOP = 'flop'
     PREFLOP = 'preflop'
 
-class Actions:
+class Street:
+    PADDING = 0
+    PREFLOP = 1
+    FLOP = 2
+    TURN = 3
+    RIVER = 4
+
+class ActionStrs:
+    PADDING = 'padding'
     CHECK = 'check'
     BET = 'bet'
     CALL = 'call'
@@ -57,23 +71,46 @@ class Actions:
     RAISE = 'raise'
     UNOPENED = 'unopened'
 
+class Action:
+    PADDING = 0
+    CHECK = 1
+    FOLD = 2
+    CALL = 3
+    BET = 4
+    RAISE = 5
+    UNOPENED = 6
+
 class AgentTypes:
     SPLIT = 'split'
     SINGLE = 'single'
     SPLIT_OBS = 'split_obs'
     ALL = [SPLIT,SINGLE,SPLIT_OBS]
 
+
 BLIND_DICT = {
-    Positions.BB : T([1]),
-    Positions.SB : T([0.5])
+    PositionStrs.BB : T([1]),
+    PositionStrs.SB : T([0.5])
 }
+
+ACTION_DICT = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise',Action.UNOPENED:'unopened'}
+REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
+ACTION_ORDER = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise'}
+REVERSE_ACTION_ORDER = {v:k for k,v in ACTION_ORDER.items()}
+ACTION_MASKS = {
+        Action.CHECK:T([1,0,0,1,0]),
+        Action.FOLD:T([0,0,0,0,0]),
+        Action.CALL:T([1,0,0,0,1]),
+        Action.BET:T([0,1,1,0,1]),
+        Action.RAISE:T([0,1,1,0,1]),
+        Action.UNOPENED:T([1,0,0,1,0])
+        }
 
 class BaseHoldem(object):
     def __init__(self):
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.state_params = {}
-        self.state_params['ranks'] = list(range(2,15))
-        self.state_params['suits'] = list(range(0,4))
+        self.state_params['ranks'] = list(range(RANKS.LOW,RANKS.HIGH))
+        self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 2
         self.state_params['n_players'] = 2
         self.state_params['stacksize'] = 10
@@ -141,15 +178,15 @@ class Holdem(object):
         self.state_params['stacksize'] = 2.
         self.state_params['pot']= 2.
         self.rule_params['betsizes'] = T([0.5,1.])
-        self.starting_street = 3
+        self.starting_street = Street.RIVER
 
 
 class BaseOmaha(object):
     def __init__(self):
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.state_params = {}
-        self.state_params['ranks'] = list(range(2,15))
-        self.state_params['suits'] = list(range(0,4))
+        self.state_params['ranks'] = list(range(RANKS.LOW,RANKS.HIGH))
+        self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 4
         self.state_params['n_players'] = 2
         self.state_params['stacksize'] = 10
@@ -212,7 +249,7 @@ class BaseOmaha(object):
 class OmahaHI(object):
     def __init__(self):
         K = BaseOmaha()
-        self.starting_street = 3
+        self.starting_street = Street.RIVER
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
@@ -223,7 +260,7 @@ class OmahaHILO(object):
     def __init__(self):
         ## NOT IMPLEMENTED ##
         K = BaseHoldem()
-        self.starting_street = 0
+        self.starting_street = Street.PREFLOP
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 5.
@@ -236,24 +273,25 @@ class Globals:
         GameTypes.OMAHAHI:OmahaHI(),
         GameTypes.OMAHAHILO:OmahaHILO(),
     }
-    POSITION_DICT = {Positions.SB:Positions.SB,Positions.BB:Positions.BB}
-    POSITION_MAPPING = {'SB':0,'BB':1,'BTN':2}
+    POSITION_DICT = {PositionStrs.SB:Position.SB,PositionStrs.BB:Position.BB}
+    POSITION_MAPPING = {'SB':Position.SB,'BB':Position.BB,'BTN':Position.BTN}
     PLAYERS_POSITIONS_DICT = {2:['SB','BB'],3:['SB','BB','BTN'],4:['SB','BB','CO','BTN'],5:['SB','BB','MP','CO','BTN'],6:['SB','BB','UTG','MP','CO','BTN']}
     HEADSUP_POSITION_DICT = {
-        0:['SB','BB'],
-        1:['BB','SB'],
-        2:['BB','SB'],
-        3:['BB','SB']
+        Street.PREFLOP:['SB','BB'],
+        Street.FLOP:['BB','SB'],
+        Street.TURN:['BB','SB'],
+        Street.RIVER:['BB','SB']
     }
-    ACTION_DICT = {0:'check',1:'fold',2:'call',3:'bet',4:'raise',5:'unopened'}
-    ACTION_ORDER = {0:'check',1:'fold',2:'call',3:'bet',4:'raise'}
-    REVERSE_ACTION_ORDER = {v:k for k,v in ACTION_ORDER.items()}
+    ACTION_DICT = ACTION_DICT
+    ACTION_ORDER = ACTION_ORDER
+    REVERSE_ACTION_ORDER = REVERSE_ACTION_ORDER
     ACTION_MASKS = ACTION_MASKS
     POKER_RANK_DICT = {v:v for v in range(2,11)}
     BROADWAY = {11:'J',12:'Q',13:'K',14:'A'}
     for k,v in BROADWAY.items():
         POKER_RANK_DICT[k] = v
-    POKER_SUIT_DICT = {0:'s',1:'h',2:'d',3:'c'}
+    LETTER_SUITS = ['s','h','d','c']
+    POKER_SUIT_DICT = {k:v for k,v in zip(range(SUITS.LOW,SUITS.HIGH),LETTER_SUITS)}
     BLIND_DICT = BLIND_DICT
     BETSIZE_DICT = {
         2: T([0.5,1.]),
@@ -262,29 +300,62 @@ class Globals:
         5: T([0.2,0.4,0.6,0.8,1.]),
         11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.])
     }
+    STREET_DICT = {
+        0:Street.PADDING,
+        1:Street.PREFLOP,
+        2:Street.FLOP,
+        3:Street.TURN,
+        4:Street.RIVER
+    }
+    REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     # Takes street as key
     ADDITIONAL_BOARD_CARDS = {
-        0 : 0,
-        1 : 3,
-        2 : 1,
-        3 : 1
+        Street.PREFLOP : 0,
+        Street.FLOP : 3,
+        Street.TURN : 1,
+        Street.RIVER : 1
     }
     # Takes street as key
     INITIALIZE_BOARD_CARDS = {
-        0 : 0,
-        1 : 3,
-        2 : 4,
-        3 : 5
+        Street.PREFLOP : 0,
+        Street.FLOP : 3,
+        Street.TURN : 4,
+        Street.RIVER : 5
     }
-    STREET_DICT = {
-        0:Street.PREFLOP,
-        1:Street.FLOP,
-        2:Street.TURN,
-        3:Street.RIVER
-    }
-    REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     HAND_LENGTH_DICT = {
         'holdem':2,
         'omaha_hi':4,
         'omaha_hi_lo':4
     }
+    STARTING_INDEX = { 
+        2:{
+            Street.PREFLOP: Position.SB,
+            Street.FLOP:    Position.BB,
+            Street.TURN:    Position.BB,
+            Street.RIVER:   Position.BB
+        },
+        3: {
+            Street.PREFLOP  :Position.SB,
+            Street.FLOP     :Position.SB,
+            Street.TURN     :Position.SB,
+            Street.RIVER    :Position.SB
+        }
+    }
+    STARTING_AGGRESSION = {
+        Street.PREFLOP  :(Action.RAISE,1),
+        Street.FLOP     :(Action.UNOPENED,0),
+        Street.TURN     :(Action.UNOPENED,0),
+        Street.RIVER    :(Action.UNOPENED,0)
+    }
+    BOARD_UPDATE = {
+        Street.FLOP:(0,6),
+        Street.TURN:(6,8),
+        Street.RIVER:(8,10)
+    }
+    POSITION_INDEX = {
+        Position.PADDING:'PADDING',
+        Position.SB:'SB',
+        Position.BB:'BB',
+        Position.BTN:'BTN'
+    }
+    NAME_INDEX = {v:k for k,v in POSITION_INDEX.items()}
