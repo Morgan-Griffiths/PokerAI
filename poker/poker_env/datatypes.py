@@ -28,6 +28,11 @@ class GameTypes:
     OMAHAHI = 'omaha_hi'
     OMAHAHILO = 'omaha_hi_lo'
 
+class Blind:
+    POSTED = 2
+    NO_BLIND = 1
+    PADDING = 0
+
 class PositionStrs:
     PADDING = 'PADDING'
     SB = 'SB'
