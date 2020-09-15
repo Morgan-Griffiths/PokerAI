@@ -255,7 +255,6 @@ class OmahaQCritic(nn.Module):
         # B,M,c = out.size()
         # n_padding = max(self.maxlen - M,0)
         # padding = torch.zeros(B,n_padding,out.size(-1))
-        print('out',out.size())
         # h = torch.cat((out,padding),dim=1)
 
         q_input = self.transformer(out)
