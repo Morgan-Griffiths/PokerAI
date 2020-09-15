@@ -92,10 +92,10 @@ class Poker(object):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5
         SB_action = pdt.Action.BET
-        self.update_state(SB_action,SB_post,blind=1)
+        self.update_state(SB_action,SB_post,blind=pdt.Blind.POSTED)
         BB_post = 1.
         BB_action = pdt.Action.RAISE
-        self.update_state(BB_action,BB_post,blind=1)
+        self.update_state(BB_action,BB_post,blind=pdt.Blind.POSTED)
     
     def step(self,inputs):
         """
@@ -126,13 +126,13 @@ class Poker(object):
             temp_index.increment()
         return flatten(player_data)
     
-    def update_state(self,action,betsize,blind=0):
+    def update_state(self,action,betsize,blind=pdt.Blind.NO_BLIND):
         """Updates the global state. Appends the new global state to storage"""
-        if not blind:
+        if blind != pdt.Blind.POSTED:
             self.players_remaining -= 1
         if (action == pdt.Action.RAISE or action == pdt.Action.BET):
             self.last_aggressor.update_aggression(self.current_index.value(),action,betsize)
-            if not blind:
+            if blind != pdt.Blind.POSTED:
                 self.players_remaining = self.players.num_active_players - 1 # Current active player won't act again unless action is reopened
         elif action == pdt.Action.FOLD:
             self.players.update_status(self.current_player,Status.FOLDED)
@@ -175,13 +175,13 @@ class Poker(object):
         self.players_remaining = self.players.num_active_players
         self.street_starting_index()
         self.last_aggressor.next_street(self.street)
-        self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
+        self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
         # Fast forward to river if allin
         if self.players.to_showdown:
             for _ in range(pdt.Street.RIVER - self.street):
                 self.street += 1
                 self.update_board()
-            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
