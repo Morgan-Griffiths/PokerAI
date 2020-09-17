@@ -345,7 +345,6 @@ class Dueling_QNetwork(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(seed)
-        print('hidden_dims',hidden_dims)
         self.input_layer = nn.Linear(state_space,hidden_dims[0])
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
