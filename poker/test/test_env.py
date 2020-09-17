@@ -706,6 +706,7 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
+        assert np.array_equal(mask,np.array([0,1,1,0,1]))
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 4
         assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4
