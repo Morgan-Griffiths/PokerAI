@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from collections import deque
 from random import shuffle
-from poker_env.datatypes import Globals
+from poker_env.datatypes import Globals,Action
 
 
 def flatten(l):
@@ -34,14 +34,13 @@ class PlayerIndex(object):
         self.starting_street = street
         self.starting_index = Globals.STARTING_INDEX[n_players][street]
         self.current_index = self.starting_index
-        self.offset = 1
         assert isinstance(street,int)
         assert isinstance(self.current_index,int)
         assert isinstance(self.n_players,int)
         assert isinstance(self.starting_index,int)
 
     def increment(self):
-        self.current_index = max((self.current_index + 1) % (self.n_players + self.offset),1)
+        self.current_index = max((self.current_index + 1) % (self.n_players + Action.OFFSET),1)
 
     def reset(self):
         self.current_index = self.starting_index
