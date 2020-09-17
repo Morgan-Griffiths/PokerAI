@@ -79,6 +79,7 @@ class Action:
     BET = 4
     RAISE = 5
     UNOPENED = 6
+    OFFSET = 1
 
 class AgentTypes:
     SPLIT = 'split'
