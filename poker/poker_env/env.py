@@ -104,7 +104,7 @@ class Poker(object):
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
-        action = inputs['action_category'] + 1
+        action = inputs['action_category'] + pdt.Action.OFFSET
         betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
         if self.round_over():
@@ -280,7 +280,7 @@ class Poker(object):
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
         if action == pdt.Action.FOLD or action == pdt.Action.CHECK or action == pdt.Action.CALL: # fold check call
-            category[action-1] = 1
+            category[action-pdt.Action.OFFSET] = 1
             bet_category[0] = 1
         elif action == pdt.Action.RAISE:
             if self.global_states.last_aggressive_action == pdt.Action.RAISE:

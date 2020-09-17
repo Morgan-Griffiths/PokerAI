@@ -268,6 +268,64 @@ class OmahaQCritic(nn.Module):
             }
         return outputs
 
+class PredictionNet(nn.Module):
+    def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        self.combined_output = nA - 2 + nB
+        self.process_input = PreProcessLayer(params)
+        self.maxlen = params['maxlen']
+        self.mapping = params['state_mapping']
+        # self.emb = params['embedding_size']
+        # self.lstm = nn.LSTM(1280, 128)
+        emb = 2048
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(128,1)
+        self.advantage_output = nn.Linear(128,self.combined_output)
+
+    def forward(self,state):
+        x = torch.tensor(state,dtype=torch.float32)
+        out = self.process_input(x)
+        
+        # Actor
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
+        if n_padding < 0:
+            h = out[:,-self.maxlen:,:]
+        else:
+            padding = torch.zeros(B,n_padding,out.size(-1))
+            h = torch.cat((out,padding),dim=1)
+        lstm_out,_ = self.lstm(h)
+        t_logits = self.fc3(lstm_out.view(-1))
+        category_logits = self.noise(t_logits)
+        
+        action_soft = F.softmax(category_logits,dim=-1)
+        action_probs = norm_frequencies(action_soft,mask)
+        m = Categorical(action_probs)
+        action = m.sample()
+
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+        outputs = {
+            'action':action.item(),
+            'action_category':action_category.item(),
+            'action_prob':m.log_prob(action),
+            'action_probs':action_probs,
+            'betsize':betsize_category.item()
+            }
+        # Critic
+        q_input = self.transformer(out)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(-1,keepdim=True).expand_as(a)
+        outputs['value'] = q.squeeze(0)
+        return outputs
+
 """
 Dueling QNetwork for function aproximation. Splits the network prior to the end into two streams V and Q. 
 V is the estimate of the value of the state. Q is the advantage of each action given the state.
