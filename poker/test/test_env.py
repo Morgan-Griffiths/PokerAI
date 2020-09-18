@@ -631,29 +631,30 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
-        assert env.convert_to_category(pdt.Action.RAISE,3)[0] == 4
-        assert env.convert_to_category(pdt.Action.RAISE,2)[0] == 3
-        assert env.convert_to_category(pdt.Action.CALL,0.5)[0] == 2
-        assert env.convert_to_category(pdt.Action.CHECK,0)[0] == 0
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,3)[0] == 4
+        print('check',env.convert_to_category(pdt.NetworkActions.RAISE,2)[0])
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,2)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.CALL,0.5)[0] == 2
+        assert env.convert_to_category(pdt.NetworkActions.CHECK,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(pdt.Action.RAISE,9)[0] == 4
-        assert env.convert_to_category(pdt.Action.RAISE,5)[0] == 3
-        assert env.convert_to_category(pdt.Action.CALL,2)[0] == 2
-        assert env.convert_to_category(pdt.Action.CHECK,0)[0] == 0
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,9)[0] == 4
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,5)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.CALL,2)[0] == 2
+        assert env.convert_to_category(pdt.NetworkActions.CHECK,0)[0] == 0
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
-        assert env.convert_to_category(pdt.Action.BET,6)[0] == 4
-        assert env.convert_to_category(pdt.Action.BET,3)[0] == 3
-        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
+        assert env.convert_to_category(pdt.NetworkActions.BET,6)[0] == 4
+        assert env.convert_to_category(pdt.NetworkActions.BET,3)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.FOLD,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
-        assert env.convert_to_category(pdt.Action.RAISE,24)[0] == 4
-        assert env.convert_to_category(pdt.Action.RAISE,12)[0] == 3
-        assert env.convert_to_category(pdt.Action.CALL,6)[0] == 2
-        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,24)[0] == 4
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,12)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.CALL,6)[0] == 2
+        assert env.convert_to_category(pdt.NetworkActions.FOLD,0)[0] == 1
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)
-        assert env.convert_to_category(pdt.Action.RAISE,47)[0] == 4
-        assert env.convert_to_category(pdt.Action.RAISE,42)[0] == 3
-        assert env.convert_to_category(pdt.Action.CALL,18)[0] == 2
-        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,47)[0] == 4
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,42)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.CALL,18)[0] == 2
+        assert env.convert_to_category(pdt.NetworkActions.FOLD,0)[0] == 1
         del env
         params['stacksize'] = 3
         params['n_players'] = 2
@@ -661,10 +662,11 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
-        assert env.convert_to_category(pdt.Action.RAISE,3)[0] == 4
-        assert env.convert_to_category(pdt.Action.RAISE,2)[0] == 3
-        assert env.convert_to_category(pdt.Action.CALL,0)[0] == 2
-        assert env.convert_to_category(pdt.Action.FOLD,0)[0] == 1
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,3)[0] == 4
+        print('check',env.convert_to_category(pdt.NetworkActions.RAISE,2)[0])
+        assert env.convert_to_category(pdt.NetworkActions.RAISE,2)[0] == 3
+        assert env.convert_to_category(pdt.NetworkActions.CALL,0)[0] == 2
+        assert env.convert_to_category(pdt.NetworkActions.FOLD,0)[0] == 1
         
     def testStreetInitialization(self):
         params = copy.deepcopy(self.env_params)
@@ -706,6 +708,7 @@ class TestEnv(unittest.TestCase):
         params['pot'] = 0
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
+        assert np.array_equal(mask,np.array([0,1,1,0,1]))
         state,obs,done,mask,betsize_mask = env.step(ACTION_CALL)
         assert state[:,-1][:,env.state_mapping['player2_stacksize']] == 4
         assert state[:,-1][:,env.state_mapping['player1_stacksize']] == 4

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street
+from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
 from models.model_utils import strip_padding
 
@@ -25,14 +25,17 @@ class NetworkFunctions(object):
         return torch.argmax(actions, dim=0).unsqueeze(0)
 
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
-        """Unwraps flat action into action_category and betsize_category"""
-        # print(action,previous_action)
+        """
+        Unwraps flat action into action_category and betsize_category
+        Action is from network outputs - 0-5
+        previous_action is from env. 1-6
+        """
         actions = torch.zeros(self.nA)
         betsizes = torch.zeros(self.nB)
         # actions[action[action < 3]] = 1
-        if action < 3:
+        if action < NetworkActions.BET:
             actions[action] = 1
-        elif previous_action == 5 or previous_action == 0: # Unopened
+        elif previous_action == Action.UNOPENED or previous_action == Action.CHECK: # Unopened
             actions[3] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1

@@ -79,6 +79,16 @@ class Action:
     BET = 4
     RAISE = 5
     UNOPENED = 6
+    OFFSET = 1
+
+class NetworkActions:
+    CHECK = 0
+    FOLD = 1
+    CALL = 2
+    BET = 3
+    RAISE = 4
+    UNOPENED = 5
+
 
 class AgentTypes:
     SPLIT = 'split'
@@ -285,6 +295,7 @@ class Globals:
     ACTION_DICT = ACTION_DICT
     ACTION_ORDER = ACTION_ORDER
     REVERSE_ACTION_ORDER = REVERSE_ACTION_ORDER
+    SERVER_ACTION_DICT = {'check':0,'fold':1,'call':2,'bet':3,'raise':4}
     ACTION_MASKS = ACTION_MASKS
     POKER_RANK_DICT = {v:v for v in range(2,11)}
     BROADWAY = {11:'J',12:'Q',13:'K',14:'A'}

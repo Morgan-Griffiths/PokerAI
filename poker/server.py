@@ -183,10 +183,12 @@ class API(object):
             'blind'                     :state[:,-1][:,self.env.state_mapping['blind']][0]
         }
         outcome_object = {
-            'player1_reward':hero.stack - self.env.starting_stack,
-            'player1_hand':flatten(hero.hand),
-            'player2_reward':villain.stack - self.env.starting_stack,
-            'player2_hand':flatten(villain.hand),
+            'player1_reward'   :hero.stack - self.env.starting_stack,
+            'player1_hand'     :flatten(hero.hand),
+            'player2_reward'   :villain.stack - self.env.starting_stack,
+            'player2_hand'     :flatten(villain.hand),
+            'player1_handrank' :hero.handrank,
+            'player2_handrank' :villain.handrank
         }
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
@@ -232,7 +234,7 @@ class API(object):
         assert isinstance(self.player['position'],str)
         if isinstance(betsize,str):
             betsize = float(betsize)
-        action_type = pdt.REVERSE_ACTION_DICT[action]
+        action_type = pdt.Globals.SERVER_ACTION_DICT[action]
         flat_action_category,betsize_category = self.env.convert_to_category(action_type,betsize)
         assert isinstance(flat_action_category,int)
         player_outputs = {

@@ -104,7 +104,7 @@ class Poker(object):
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
-        action = inputs['action_category'] + 1
+        action = inputs['action_category'] + pdt.Action.OFFSET
         betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
         if self.round_over():
@@ -243,11 +243,13 @@ class Poker(object):
             for hand in hands:
                 en_hand = [encode(c) for c in hand]
                 en_hands.append(en_hand)
-            en_board = [encode(self.board[i*2:(i+1)*2]) for i in range(0,len(self.board)//2)]
+            en_board = [encode(self.board[i*2:(i*2)+2]) for i in range(0,len(self.board)//2)]
             hand_ranks = [hand_rank(hand,en_board) for hand in en_hands]
             best_hand = np.min(hand_ranks)
             winner_mask = np.where(best_hand == hand_ranks)[0]
             winner_positions = np.array(positions)[winner_mask]
+            for i,position in enumerate(positions):
+                self.players[position].handrank = hand_ranks[i]
             for winner in winner_positions:
                 self.players[winner].stack += self.pot / len(winner_mask)
         else:
@@ -273,16 +275,17 @@ class Poker(object):
 
     def convert_to_category(self,action,betsize):
         """
-        action is categorical. betsize: float. Maps to flat action space.
+        action is categorical and offset by 1 for zero padding. betsize: float. Maps to flat action space.
         betsize includes player totals.
         returns categorical betsize, and flat action category
         """
+        actionOffset = action + pdt.Action.OFFSET
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
-        if action == pdt.Action.FOLD or action == pdt.Action.CHECK or action == pdt.Action.CALL: # fold check call
-            category[action-1] = 1
+        if actionOffset == pdt.Action.FOLD or actionOffset == pdt.Action.CHECK or actionOffset == pdt.Action.CALL: # fold check call
+            category[action] = 1
             bet_category[0] = 1
-        elif action == pdt.Action.RAISE:
+        elif actionOffset == pdt.Action.RAISE:
             if self.global_states.last_aggressive_action == pdt.Action.RAISE:
                 min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
             else:

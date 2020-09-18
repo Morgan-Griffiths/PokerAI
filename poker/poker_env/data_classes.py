@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from collections import deque
 from random import shuffle
-from poker_env.datatypes import Globals
+from poker_env.datatypes import Globals,Action,SUITS,RANKS
 
 
 def flatten(l):
@@ -34,14 +34,13 @@ class PlayerIndex(object):
         self.starting_street = street
         self.starting_index = Globals.STARTING_INDEX[n_players][street]
         self.current_index = self.starting_index
-        self.offset = 1
         assert isinstance(street,int)
         assert isinstance(self.current_index,int)
         assert isinstance(self.n_players,int)
         assert isinstance(self.starting_index,int)
 
     def increment(self):
-        self.current_index = max((self.current_index + 1) % (self.n_players + self.offset),1)
+        self.current_index = max((self.current_index + 1) % (self.n_players + Action.OFFSET),1)
 
     def reset(self):
         self.current_index = self.starting_index
@@ -87,6 +86,7 @@ class Player(object):
         self.street_total = street_total
         self.status = Status.ACTIVE
         self.hand = hand
+        self.handrank = None
     
     def update_hand(self,hand):
         self.hand = hand
@@ -194,8 +194,8 @@ class LastAggression(PlayerIndex):
         self.aggressive_betsize = betsize
 
     def next_street(self,street):
-        self.current_index = self.n_players
-        self.aggressive_action = 5
+        self.current_index = Globals.STARTING_INDEX[self.n_players][street]
+        self.aggressive_action = Action.UNOPENED
         self.aggressive_betsize = 0
 
     def reset(self):
@@ -217,8 +217,8 @@ class Deck(object):
 
     def reset(self):
         self.deck = deque(maxlen=52)
-        for i in range(2,15):
-            for j in range(0,4):
+        for i in range(RANKS.LOW,RANKS.HIGH):
+            for j in range(SUITS.LOW,SUITS.HIGH):
                 self.deck.append([i,j])
 
     def deal(self,N):
