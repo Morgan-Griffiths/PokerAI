@@ -190,7 +190,7 @@ class OmahaActor(nn.Module):
         depth = 8
         # self.transformer = CTransformer(self.emb,n_heads,depth,self.maxlen,self.nA)
         self.lstm = nn.LSTM(self.emb,128)
-        self.action_out = nn.Linear(256,self.nA)
+        self.action_out = nn.Linear(128,self.nA)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -217,9 +217,9 @@ class OmahaActor(nn.Module):
             # print('post',h)
         # t_logits = self.transformer(out.permute(1,0,2))
         lstm_out,_ = self.lstm(h.permute(1,0,2))
-        # lstm_out = lstm_out.permute(1,0,2)
-        # print(lstm_out.size())
-        t_logits = self.action_out(out.contiguous().permute(1,0,2).view(B,-1))
+        lstm_out = lstm_out.permute(1,0,2)
+        # print('lstm',lstm_out.size())
+        t_logits = self.action_out(lstm_out.contiguous().view(B,-1))
         category_logits = self.noise(t_logits)
         # print(category_logits.size())
         
