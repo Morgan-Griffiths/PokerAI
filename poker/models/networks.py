@@ -200,10 +200,8 @@ class OmahaActor(nn.Module):
         
     def forward(self,state,action_mask,betsize_mask):
         x = torch.tensor(state,dtype=torch.float32)
-        if isinstance(action_mask,(np.generic,np.ndarray)):
-            action_mask = torch.tensor(action_mask,dtype=torch.float)
-        if isinstance(betsize_mask,(np.generic,np.ndarray)):
-            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
+        action_mask = torch.tensor(action_mask,dtype=torch.float)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
         mask = combined_masks(action_mask,betsize_mask)
 
         out = self.process_input(x)
@@ -245,7 +243,7 @@ class OmahaQCritic(nn.Module):
         self.mapping = params['state_mapping']
         # self.emb = params['embedding_size']
         # self.lstm = nn.LSTM(1280, 128)
-        emb = 2048
+        emb = 1280
         n_heads = 8
         depth = 2
         self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
