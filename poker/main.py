@@ -34,6 +34,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("Number of processors: ", mp.cpu_count())
+    print(f'Number of GPUs: {torch.cuda.device_count()}')
     tic = time.time()
 
     config = Config()
@@ -64,6 +65,9 @@ if __name__ == "__main__":
     nA = env.action_space
     nB = env.betsize_space
     seed = 1235
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    gpu1 = 'cuda:0'
+    gpu2 = 'cuda:1'
 
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
@@ -71,11 +75,13 @@ if __name__ == "__main__":
         'state_mapping':config.state_mapping,
         'embedding_size':128,
         'transformer_in':1280,
-        'transformer_out':128
+        'transformer_out':128,
+        'device':device,
+        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression')
     }
     training_params = {
-        'training_epochs':1,
-        'epochs':1,
+        'training_epochs':10,
+        'epochs':50,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -83,7 +89,10 @@ if __name__ == "__main__":
     learning_params = {
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'path': os.path.join(os.getcwd(),'checkpoints'),
-        'learning_rounds':1
+        'learning_rounds':1,
+        'device':device,
+        'gpu1':gpu1,
+        'gpu2':gpu2,
     }
     path = learning_params['path']
     directory = os.path.dirname(path)
