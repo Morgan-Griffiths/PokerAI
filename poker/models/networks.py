@@ -269,28 +269,35 @@ class OmahaQCritic(nn.Module):
             }
         return outputs
 
-class PredictionNet(nn.Module):
+class CombinedNet(nn.Module):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
         self.nO = nO
         self.nA = nA
+        self.nB = nB
         self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
         # self.emb = params['embedding_size']
-        # self.lstm = nn.LSTM(1280, 128)
-        emb = 2048
+        self.lstm = nn.LSTM(1280, 128)
+        self.policy_out = nn.Linear(1280,self.combined_output)
+        self.noise = GaussianNoise()
+        emb = params['transformer_in']
         n_heads = 8
         depth = 2
-        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,params['transformer_out'])
         self.dropout = nn.Dropout(0.5)
-        self.value_output = nn.Linear(128,1)
-        self.advantage_output = nn.Linear(128,self.combined_output)
+        self.value_output = nn.Linear(params['transformer_out'],1)
+        self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
-    def forward(self,state):
+    def forward(self,state,action_mask,betsize_mask):
         x = torch.tensor(state,dtype=torch.float32)
+        action_mask = torch.tensor(action_mask,dtype=torch.float)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
+        mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         
         # Actor
@@ -302,7 +309,7 @@ class PredictionNet(nn.Module):
             padding = torch.zeros(B,n_padding,out.size(-1))
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
-        t_logits = self.fc3(lstm_out.view(-1))
+        t_logits = self.policy_out(lstm_out.view(-1))
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
@@ -310,7 +317,7 @@ class PredictionNet(nn.Module):
         m = Categorical(action_probs)
         action = m.sample()
 
-        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.mapping['last_action']])
         outputs = {
             'action':action.item(),
             'action_category':action_category.item(),
