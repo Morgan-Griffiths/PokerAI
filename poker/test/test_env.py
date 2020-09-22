@@ -580,7 +580,7 @@ class TestEnv(unittest.TestCase):
         nS = env.state_space
         seed = 152
         params['maxlen'] = 10
-        params['embedding_size'] = 512
+        params['embedding_size'] = 128
         critic = OmahaQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = critic(state)
