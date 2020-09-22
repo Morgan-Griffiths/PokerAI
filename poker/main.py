@@ -4,19 +4,34 @@ import torch.multiprocessing as mp
 import torch
 import os
 
-from train import train,generate_trajectories,learning_update
+from train import train,train_dual,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
-from models.networks import OmahaActor,OmahaQCritic
+from models.networks import OmahaActor,OmahaQCritic,CombinedNet
 from utils.utils import unpack_shared_dict
 
 from torch import optim
 
 if __name__ == "__main__":
     import argparse
+
+    parser = argparse.ArgumentParser(
+        description=
+        """
+        Train RL algorithms in a poker environment
+        """)
+
+    parser.add_argument('--network','-n',
+                        dest='network_type',
+                        default='combined',
+                        metavar="['combined','dual']",
+                        type=str,
+                        help='whether to split the actor critic into two separate networks or not')
+
+    args = parser.parse_args()
 
     print("Number of processors: ", mp.cpu_count())
     tic = time.time()
@@ -59,48 +74,67 @@ if __name__ == "__main__":
         'transformer_out':128
     }
     training_params = {
-        'training_epochs':5,
-        'epochs':25,
+        'training_epochs':1,
+        'epochs':1,
         'training_round':0,
         'game':'Omaha',
         'id':0
     }
-
-    actor = OmahaActor(seed,nS,nA,nB,network_params)
-    critic = OmahaQCritic(seed,nS,nA,nB,network_params)
-    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
-
     learning_params = {
         'gradient_clip':config.agent_params['CLIP_NORM'],
-        'actor_optimizer':actor_optimizer,
-        'critic_optimizer':critic_optimizer,
         'path': os.path.join(os.getcwd(),'checkpoints'),
         'learning_rounds':1
     }
-    # generate trajectories and desposit in mongoDB
-    mongo = MongoDB()
-    mongo.clean_db()
-    mongo.close()
-    # training loop
-    actor.share_memory()#.to(device)
-    critic.share_memory()#.to(device)
-    processes = []
-    num_processes = mp.cpu_count()
-    # for debugging
-    # generate_trajectories(env,actor,training_params,id=0)
-    # actor,critic,learning_params = learning_update(actor,critic,learning_params)
-    train(env,actor,critic,training_params,learning_params,id=0)
-    for id in range(num_processes): # No. of processes
-        p = mp.Process(target=train, args=(env,actor,critic,training_params,learning_params,id))
-        p.start()
-        processes.append(p)
-    for p in processes: 
-        p.join()
-    # save weights
     path = learning_params['path']
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
-    torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
-    torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
+    # Clean mongo
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
+    if args.network_type == 'combined':
+        alphaPoker = CombinedNet(seed,nS,nA,nB,network_params)
+        alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
+        learning_params['model_optimizer'] = alphaPoker_optimizer
+        alphaPoker.share_memory()#.to(device)
+        processes = []
+        num_processes = mp.cpu_count()
+        # for debugging
+        # generate_trajectories(env,actor,training_params,id=0)
+        # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
+        # train(env,alphaPoker,training_params,learning_params,id=0)
+        for id in range(num_processes): # No. of processes
+            p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
+            p.start()
+            processes.append(p)
+        for p in processes: 
+            p.join()
+        # save weights
+        torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
+    else:
+        actor = OmahaActor(seed,nS,nA,nB,network_params)
+        critic = OmahaQCritic(seed,nS,nA,nB,network_params)
+        actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+        critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+        learning_params['actor_optimizer'] = actor_optimizer
+        learning_params['critic_optimizer'] = critic_optimizer
+        # training loop
+        actor.share_memory()#.to(device)
+        critic.share_memory()#.to(device)
+
+        processes = []
+        num_processes = mp.cpu_count()
+        # for debugging
+        # generate_trajectories(env,actor,training_params,id=0)
+        # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
+        # train_dual(env,actor,critic,training_params,learning_params,id=0)
+        for id in range(num_processes): # No. of processes
+            p = mp.Process(target=train_dual, args=(env,actor,critic,training_params,learning_params,id))
+            p.start()
+            processes.append(p)
+        for p in processes: 
+            p.join()
+        # save weights
+        torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
+        torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
