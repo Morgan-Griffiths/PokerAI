@@ -38,6 +38,11 @@ if __name__ == "__main__":
         'obs_mapping':config.obs_mapping,
         'shuffle':True
     }
+    print(f'Environment Parameters: Starting street: {env_params["starting_street"]},\
+        Stacksize: {env_params["stacksize"]},\
+        Pot: {env_params["pot"]},\
+        Bettype: {env_params["bet_type"]},\
+        Betsizes: {env_params["betsizes"]}')
     env = Poker(env_params)
 
     nS = env.state_space
@@ -95,5 +100,5 @@ if __name__ == "__main__":
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
-    torch.save(actor.state_dict(), path + '_actor')
-    torch.save(critic.state_dict(), path + '_critic')
+    torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
+    torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
