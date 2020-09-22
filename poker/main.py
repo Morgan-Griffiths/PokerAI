@@ -80,8 +80,8 @@ if __name__ == "__main__":
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression')
     }
     training_params = {
-        'training_epochs':1,
-        'epochs':1,
+        'training_epochs':10,
+        'epochs':50,
         'training_round':0,
         'game':'Omaha',
         'id':0
