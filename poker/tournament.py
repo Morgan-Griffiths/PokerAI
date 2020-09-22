@@ -70,11 +70,17 @@ if __name__ == "__main__":
                         default=pdt.GameTypes.OMAHAHI,
                         metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
+    parser.add_argument('--network','-n',
+                        dest='network_type',
+                        default='combined',
+                        metavar=f"['combined','dual]",
+                        help='Selects model type')
 
     args = parser.parse_args()
+
+    print(f'Args {args}')
     config = Config()
     game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
-
 
     env_params = {
         'game':pdt.GameTypes.OMAHAHI,
@@ -106,6 +112,7 @@ if __name__ == "__main__":
         'embedding_size':128
     }
 
+    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
     nS = env.state_space
     nO = env.observation_space
     nA = env.action_space
