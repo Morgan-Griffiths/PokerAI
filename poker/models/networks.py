@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 from torch.distributions import Categorical
 from poker_env.datatypes import Action
 
@@ -199,8 +200,10 @@ class OmahaActor(nn.Module):
         
     def forward(self,state,action_mask,betsize_mask):
         x = torch.tensor(state,dtype=torch.float32)
-        action_mask = torch.tensor(action_mask,dtype=torch.long)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.long)
+        if isinstance(action_mask,(np.generic,np.ndarray)):
+            action_mask = torch.tensor(action_mask,dtype=torch.float)
+        if isinstance(betsize_mask,(np.generic,np.ndarray)):
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
         mask = combined_masks(action_mask,betsize_mask)
 
         out = self.process_input(x)
