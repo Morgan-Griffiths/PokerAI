@@ -632,7 +632,6 @@ class TestEnv(unittest.TestCase):
         env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         assert env.convert_to_category(pdt.NetworkActions.RAISE,3)[0] == 4
-        print('check',env.convert_to_category(pdt.NetworkActions.RAISE,2)[0])
         assert env.convert_to_category(pdt.NetworkActions.RAISE,2)[0] == 3
         assert env.convert_to_category(pdt.NetworkActions.CALL,0.5)[0] == 2
         assert env.convert_to_category(pdt.NetworkActions.CHECK,0)[0] == 0
