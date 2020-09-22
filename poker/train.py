@@ -103,7 +103,51 @@ def scale_rewards(self,rewards,factor=1):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
 
-def learning_update(actor,critic,params):
+def combined_learning_update(model,params):
+    optimizer = params['model_optimizer']
+    mongo = MongoDB()
+    query = {'training_round':0}
+    projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    data = list(mongo.get_data(query,projection))
+    # loss_dict = defaultdict(lambda:None)
+    for i in range(params['learning_rounds']):
+        losses = []
+        for poker_round in data:
+            state = poker_round['state']
+            action = poker_round['action']
+            reward = poker_round['reward']
+            betsize_mask = poker_round['betsize_mask']
+            action_mask = poker_round['action_mask']
+            ## Critic update ##
+            local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
+            value_mask = return_value_mask(action)
+            TD_error = local_values[value_mask] - reward
+            critic_loss = (TD_error**2*0.5).mean()
+            # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+            optimizer.zero_grad()
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
+            optimizer.step()
+            losses.append(critic_loss.item())
+            # print('local_values',local_values[value_mask],reward)
+            # Agent.soft_update(local_critic,target_critic,tau)
+            # Actor update #
+            target_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
+            actor_out = model(np.array(state),np.array(action_mask),np.array(betsize_mask))
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
+            advantages = (target_values[value_mask] - expected_value).view(-1)
+            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+            optimizer.zero_grad()
+            policy_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
+            optimizer.step()
+            # Agent.soft_update(self.actor,self.target_actor,self.tau)
+            # loss_dict[i] = sum(losses)
+        print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {policy_loss.item()}')
+    del data
+    return model,params
+
+def dual_learning_update(actor,critic,params):
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
     mongo = MongoDB()
@@ -148,7 +192,18 @@ def learning_update(actor,critic,params):
     del data
     return actor,critic,params
 
-def train(env,actor,critic,training_params,learning_params,id):
+def train(env,model,training_params,learning_params,id):
+    for e in range(training_params['training_epochs']):
+        sys.stdout.write('\r')
+        generate_trajectories(env,model,training_params,id)
+        # train on trajectories
+        model,learning_params = combined_learning_update(model,learning_params)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
+        sys.stdout.flush()
+        sys.stdout.write(", epoch %d"% (e+1))
+        sys.stdout.flush()
+
+def train_dual(env,actor,critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_trajectories(env,actor,training_params,id)
