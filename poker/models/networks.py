@@ -243,13 +243,13 @@ class OmahaQCritic(nn.Module):
         self.mapping = params['state_mapping']
         # self.emb = params['embedding_size']
         # self.lstm = nn.LSTM(1280, 128)
-        emb = 1280
+        emb = params['transformer_in']
         n_heads = 8
         depth = 2
-        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,128)
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,params['transformer_out'])
         self.dropout = nn.Dropout(0.5)
-        self.value_output = nn.Linear(128,1)
-        self.advantage_output = nn.Linear(128,self.combined_output)
+        self.value_output = nn.Linear(params['transformer_out'],1)
+        self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,state):
         x = torch.tensor(state,dtype=torch.float32)

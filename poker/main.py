@@ -54,11 +54,13 @@ if __name__ == "__main__":
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
-        'embedding_size':128
+        'embedding_size':128,
+        'transformer_in':1280,
+        'transformer_out':128
     }
     training_params = {
-        'training_epochs':1,
-        'epochs':1,
+        'training_epochs':5,
+        'epochs':25,
         'training_round':0,
         'game':'Omaha',
         'id':0
