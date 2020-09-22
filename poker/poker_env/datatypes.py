@@ -98,8 +98,8 @@ class AgentTypes:
 
 
 BLIND_DICT = {
-    PositionStrs.BB : T([1]),
-    PositionStrs.SB : T([0.5])
+    PositionStrs.BB : np.array([1]),
+    PositionStrs.SB : np.array([0.5])
 }
 
 ACTION_DICT = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise',Action.UNOPENED:'unopened'}
@@ -107,12 +107,12 @@ REVERSE_ACTION_DICT = {v:k for k,v in ACTION_DICT.items()}
 ACTION_ORDER = {Action.CHECK:'check',Action.FOLD:'fold',Action.CALL:'call',Action.BET:'bet',Action.RAISE:'raise'}
 REVERSE_ACTION_ORDER = {v:k for k,v in ACTION_ORDER.items()}
 ACTION_MASKS = {
-        Action.CHECK:T([1,0,0,1,0]),
-        Action.FOLD:T([0,0,0,0,0]),
-        Action.CALL:T([1,0,0,0,1]),
-        Action.BET:T([0,1,1,0,1]),
-        Action.RAISE:T([0,1,1,0,1]),
-        Action.UNOPENED:T([1,0,0,1,0])
+        Action.CHECK:np.array([1,0,0,1,0]),
+        Action.FOLD:np.array([0,0,0,0,0]),
+        Action.CALL:np.array([1,0,0,0,1]),
+        Action.BET:np.array([0,1,1,0,1]),
+        Action.RAISE:np.array([0,1,1,0,1]),
+        Action.UNOPENED:np.array([1,0,0,1,0])
         }
 
 class BaseHoldem(object):

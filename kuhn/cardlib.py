@@ -53,43 +53,19 @@ def rank(hand):
     return lib.rank(*hand)
 
 # example usage:
-
-def test():
-    # Omaha
-    hand = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's'],[5,'c']]
-    hand_en = [encode(c) for c in hand]
-    h3 = [[7, 's'], [5, 'c'], [14, 'h'], [10, 'h']]
-    h4 = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's']]
-    board2 = [[10, 'c'], [2, 'h'], [4, 'c'], [13, 'c'], [4, 'h']]
-    en_h3 = [encode(c) for c in h3]
-    en_h4 = [encode(c) for c in h4]
-    en_board2 = [encode(c) for c in board2]
-    print(en_h3,en_h4,en_board2)
-    print(winner(en_h3,en_h4,en_board2))
-    print('Omaha hand+board ranks',hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
-    print('Omaha hand rank',rank(hand_en))
-    # h3 = [[11, 's'], [10, 'c'], [3, 'h'], [3, 'h']]
-    # h4 = [[11, 'c'], [10, 's'], [4, 'd'], [5, 's']]
-    # board2 = [[14, 'c'], [13, 'h'], [12, 'c'], [2, 'h'], [4, 's']]
-    board2 = [[14,0],[13,1],[12,2],[2,2],[2,3]]
-    h3 = [[11,3],[10,3],[3,2],[3,3]]
-    h4 = [[11,2],[10,2],[4,0],[4,3]]
-    en_h3 = [encode(c) for c in h3]
-    en_h4 = [encode(c) for c in h4]
-    en_board2 = [encode(c) for c in board2]
-    print(en_h3,en_h4,en_board2)
-    print(winner(en_h3,en_h4,en_board2))
-    print('2 Omaha hand+board ranks',hand_rank(en_h3, en_board2), hand_rank(en_h4, en_board2))
-    print('2 Omaha hand rank',rank(hand_en))
-    # Holdem
-    holdem_hand = [[14, 'c'], [2, 's']]
-    holdem_hand2 = [[13, 'c'], [5, 's']]
-    holdem_board = [[10, 'c'], [2, 'c'], [4, 'c'], [13, 'c'], [4, 'h']]
-    en_hh = [encode(c) for c in holdem_hand]
-    en_hh2 = [encode(c) for c in holdem_hand2]
-    en_board = [encode(c) for c in holdem_board]
-    print(holdem_winner(en_hh,en_hh2,en_board))
-    print(holdem_hand_rank(en_hh,en_board))
-
-if __name__ == "__main__":
-    test()
+"""
+SUITS: Accepts strings [s,c,h,d], or numbers 0-3.
+RANKS: Accepts numbers 2-14 inclusive.
+>>> hand = [[7, 's'], [5, 'c'], [14, 'h'], [10, 'h']]
+>>> hand_en = [encode(c) for c in hand]
+>>> hand2 = [[14, 'c'], [2, 's'], [2, 'd'], [11, 's']]
+>>> hand2_en = [encode(c) for c in hand]
+>>> board = [[10, 'c'], [2, 'h'], [4, 'c'], [13, 'c'], [4, 'h']]
+>>> en_board = [encode(c) for c in board]
+>>> winner(hand_en,hand2_en,en_board)
+>>> rank(hand_en)
+>>> hand_rank(hand_en,en_board)
+>>> holdem_hand = [[14, 'c'], [2, 's']]
+>>> holdem_hand_en = [encode(c) for c in holdem_hand]
+>>> holdem_hand_rank(holdem_hand_en,en_board)
+"""

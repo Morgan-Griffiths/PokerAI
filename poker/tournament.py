@@ -1,34 +1,58 @@
 import os
-import poker.datatypes as pdt
-from poker.config import Config
-import models.network_config as ng
-from agents.agent import BetAgent,FullAgent
-from models.network_config import NetworkConfig
-from poker.multistreet_env import MSPoker
 import copy
 import torch
 import sys
+import numpy as np
 
-def tournament(env,agent1,agent2,training_params):
+import models.network_config as ng
+from models.networks import OmahaActor
+from models.network_config import NetworkConfig
+import poker_env.datatypes as pdt
+from poker_env.config import Config
+from poker_env.env import Poker
+
+class BetAgent(object):
+    def __init__(self):
+        pass
+
+    def name(self):
+        return 'baseline_evaluation'
+
+    def __call__(self,state,action_mask,betsize_mask):
+        if betsize_mask.sum() > 0:
+            action = np.argmax(betsize_mask,axis=-1) + 3
+        else:
+            action = np.argmax(action_mask,axis=-1)
+        actor_outputs = {
+            'action':action,
+            'action_category':int(np.where(action_mask > 0)[-1][-1]),
+            'action_probs':torch.zeros(5).fill_(2.),
+            'action_prob':torch.tensor([1.]),
+            'betsize' : int(np.argmax(betsize_mask,axis=-1))
+        }
+        return actor_outputs
+
+def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
-        'agent1': {'SB':0,'BB':0},
-        'agent2': {'SB':0,'BB':0}
+        model_names[0]: {'SB':0,'BB':0},
+        model_names[1]: {'SB':0,'BB':0}
     }
     for e in range(training_params['epochs']):
         sys.stdout.write('\r')
         if e % 2 == 0:
             agent_positions = {'SB':agent1,'BB':agent2}
-            agent_loc = {'SB':'agent1','BB':'agent2'}
+            agent_loc = {'SB':model_names[0],'BB':model_names[1]}
         else:
             agent_positions = {'SB':agent2,'BB':agent1}
-            agent_loc = {'SB':'agent2','BB':'agent1'}
-        state,obs,done,mask,betsize_mask = env.reset()
+            agent_loc = {'SB':model_names[1],'BB':model_names[0]}
+        state,obs,done,action_mask,betsize_mask = env.reset()
         while not done:
-            actor_outputs = agent_positions[env.current_player](state,mask,betsize_mask)
-            state,obs,done,mask,betsize_mask = env.step(actor_outputs)
-        ml_inputs = env.ml_inputs()
-        agent_performance[agent_loc['SB']]['SB'] += ml_inputs['SB']['rewards'][-1][-1]
-        agent_performance[agent_loc['BB']]['BB'] += ml_inputs['BB']['rewards'][-1][-1]
+            actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
+            state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+
+        rewards = env.player_rewards()
+        agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
+        agent_performance[agent_loc['BB']]['BB'] += rewards['BB']
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
@@ -46,49 +70,63 @@ if __name__ == "__main__":
                         default=pdt.GameTypes.OMAHAHI,
                         metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
+    parser.add_argument('--network','-n',
+                        dest='network_type',
+                        default='combined',
+                        metavar=f"['combined','dual]",
+                        help='Selects model type')
 
     args = parser.parse_args()
+
+    print(f'Args {args}')
     config = Config()
-    game_object = pdt.Globals.GameTypeDict[args.game]
+    game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
+
+    env_params = {
+        'game':pdt.GameTypes.OMAHAHI,
+        'betsizes': game_object.rule_params['betsizes'],
+        'bet_type': game_object.rule_params['bettype'],
+        'n_players': 2,
+        'pot':1,
+        'stacksize': game_object.state_params['stacksize'],
+        'cards_per_player': game_object.state_params['cards_per_player'],
+        'starting_street': game_object.starting_street,
+        'global_mapping':config.global_mapping,
+        'state_mapping':config.state_mapping,
+        'obs_mapping':config.obs_mapping,
+        'shuffle':True
+    }
+    print(f'Environment Parameters: Starting street: {env_params["starting_street"]},\
+        Stacksize: {env_params["stacksize"]},\
+        Pot: {env_params["pot"]},\
+        Bettype: {env_params["bet_type"]},\
+        Betsizes: {env_params["betsizes"]}')
+    env = Poker(env_params)
     
-    params = {'game':args.game}
-    params['state_params'] = game_object.state_params
-    params['maxlen'] = config.maxlen
-    params['rule_params'] = game_object.rule_params
     training_params = config.training_params
-    agent_params = config.agent_params
-    env_networks = NetworkConfig.EnvModels[args.game]
-    agent_params['network'] = env_networks['actor']
-    agent_params['actor_network'] = env_networks['actor']
-    agent_params['critic_network'] = env_networks['critic']['q']
-    agent_params['mapping'] = params['rule_params']['mapping']
-    agent_params['max_reward'] = params['state_params']['stacksize'] + params['state_params']['pot']
-    agent_params['min_reward'] = params['state_params']['stacksize']
-    agent_params['epochs'] = 0
-    params['rule_params']['network_output'] = 'flat'
-    params['rule_params']['betsizes'] = pdt.Globals.BETSIZE_DICT[2]
-    agent_params['network_output'] = 'flat'
-    agent_params['embedding_size'] = 32
-    agent_params['maxlen'] = config.maxlen
-    agent_params['game'] = args.game
-    params['starting_street'] = game_object.starting_street
     training_params['epochs'] = 500
+    network_params = {
+        'game':pdt.GameTypes.OMAHAHI,
+        'maxlen':config.maxlen,
+        'state_mapping':config.state_mapping,
+        'embedding_size':128
+    }
 
-    env = MSPoker(params)
-
+    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
     nS = env.state_space
     nO = env.observation_space
     nA = env.action_space
-    nB = env.rules.num_betsizes
-    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}')
+    nB = env.betsize_space
+    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
     seed = 154
 
-    agent1 = FullAgent(nS,nO,nA,nB,seed,agent_params)
-    agent1.load_weights(os.path.join(training_params['save_dir'],'Holdem'))
+    trained_model = OmahaActor(seed,nS,nA,nB,network_params)
+    trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],'RL_actor')))
+    baseline_evaluation = BetAgent()
 
-    agent2 = BetAgent()
+    model_names = ['baseline_evaluation','trained_model']
 
-    results = tournament(env,agent1,agent2,training_params)
+    results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
     print(results)
-    print(f"Agent1: {results['agent1']['SB'] + results['agent1']['BB']}")
-    print(f"Agent2: {results['agent2']['SB'] + results['agent2']['BB']}")
+    print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
+    print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")

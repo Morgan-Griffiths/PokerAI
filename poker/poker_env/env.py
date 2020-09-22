@@ -86,6 +86,8 @@ class Poker(object):
         # Generate state and masks
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
+        assert isinstance(action_mask,(np.generic,np.ndarray))
+        assert isinstance(betsize_mask,(np.generic,np.ndarray))
         return state,obs,self.game_over(),action_mask,betsize_mask
         
     def instantiate_blinds(self):
@@ -114,6 +116,8 @@ class Poker(object):
             self.resolve_outcome()
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
+        assert isinstance(action_mask,(np.generic,np.ndarray))
+        assert isinstance(betsize_mask,(np.generic,np.ndarray))
         return state,obs,done,action_mask,betsize_mask
 
     def return_player_order(self):
