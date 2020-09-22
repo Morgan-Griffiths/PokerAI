@@ -77,7 +77,7 @@ if __name__ == "__main__":
         'transformer_in':1280,
         'transformer_out':128,
         'device':device,
-        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression')
+        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
     }
     training_params = {
         'training_epochs':10,
