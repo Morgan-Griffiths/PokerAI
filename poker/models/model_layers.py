@@ -138,7 +138,6 @@ class ProcessHandBoard(nn.Module):
 
     def forward(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
-        x = x.to(self.device)
         B,M,C = x.size()
         # print(B,M,C)
         ranks = x[:,:,::2]
@@ -218,9 +217,9 @@ class PreProcessPokerInputs(nn.Module):
         self.mapping = params['mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length)
-        self.continuous = ProcessContinuous(params)
-        self.ordinal = ProcessOrdinal(params)
+        self.hand_board = ProcessHandBoard(params,hand_length).to(self.device)
+        self.continuous = ProcessContinuous(params).to(self.device)
+        self.ordinal = ProcessOrdinal(params).to(self.device)
         self.initialize(critic)
 
     def initialize(self,critic):
