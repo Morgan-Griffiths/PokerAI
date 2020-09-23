@@ -107,7 +107,6 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     env = Poker(env_params)
-    
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
@@ -117,9 +116,9 @@ if __name__ == "__main__":
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
         'embedding_size':128,
-        'device':device,
         'transformer_in':1280,
         'transformer_out':128,
+        'device':device,
     }
 
     model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
@@ -130,7 +129,7 @@ if __name__ == "__main__":
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
     seed = 154
 
-    trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
     trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],'RL_actor')))
     baseline_evaluation = BetAgent()
 
