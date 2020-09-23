@@ -88,6 +88,7 @@ if __name__ == "__main__":
         'id':0
     }
     learning_params = {
+        'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'path': os.path.join(os.getcwd(),'checkpoints'),
         'learning_rounds':1,
