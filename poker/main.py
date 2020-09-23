@@ -109,6 +109,7 @@ if __name__ == "__main__":
     # Set processes
     mp.set_start_method('spawn')
     num_processes = min(mp.cpu_count(),6)
+    print(f'Number of used processes {num_processes}')
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])

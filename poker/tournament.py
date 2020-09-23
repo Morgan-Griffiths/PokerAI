@@ -130,7 +130,7 @@ if __name__ == "__main__":
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
     seed = 154
 
-    trained_model = OmahaActor(seed,nS,nA,nB,network_params)
+    trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],'RL_actor')))
     baseline_evaluation = BetAgent()
 
