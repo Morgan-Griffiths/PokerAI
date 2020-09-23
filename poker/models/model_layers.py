@@ -95,6 +95,7 @@ class ProcessHandBoard(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.maxlen = params['maxlen']
+        self.device = params['device']
         # self.initialize(critic)
 
     def initialize(self,critic):
@@ -143,8 +144,8 @@ class ProcessHandBoard(nn.Module):
         suits = x[:,:,1::2]
         # print(suits)
         # print(ranks.size(),suits.size())
-        hot_ranks = self.one_hot_ranks[ranks]
-        hot_suits = self.one_hot_suits[suits]
+        hot_ranks = self.one_hot_ranks[ranks].to(self.device)
+        hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
         for i in range(M):
             s = self.suit_conv(hot_suits[:,i,:,:].float())
