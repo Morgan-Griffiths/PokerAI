@@ -282,7 +282,7 @@ class CombinedNet(nn.Module):
         self.device = params['device']
         # self.emb = params['embedding_size']
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
-        self.process_input = PreProcessLayer(params).to(self.device)
+        self.process_input = PreProcessLayer(params)
         self.lstm = nn.LSTM(1280, 128)
         self.policy_out = nn.Linear(1280,self.combined_output)
         self.noise = GaussianNoise(self.device)

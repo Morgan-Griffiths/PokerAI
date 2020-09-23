@@ -258,7 +258,7 @@ class PreProcessLayer(nn.Module):
         self.state_mapping = params['state_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length).to(self.device)
+        self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)

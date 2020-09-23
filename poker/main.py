@@ -110,7 +110,7 @@ if __name__ == "__main__":
     mp.set_start_method('spawn')
     num_processes = min(mp.cpu_count(),2)
     if args.network_type == 'combined':
-        alphaPoker = CombinedNet(seed,nS,nA,nB,network_params)
+        alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['model_optimizer'] = alphaPoker_optimizer
         alphaPoker.share_memory()#.to(device)
