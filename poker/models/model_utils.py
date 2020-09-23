@@ -1,6 +1,24 @@
 import torch, os
 import numpy as np
 
+def scale_rewards(reward,min_reward,max_reward,factor=1):
+    """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
+    span = (max_reward - min_reward) / 2
+    sub = (max_reward+min_reward) / 2
+    return ((reward-sub) / span) * factor
+
+def update_weights(networks,path):
+    layer_weights = torch.load(path)
+    for network in networks:
+        for name, param in network.process_input.hand_board.named_parameters():
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+    return networks
+
+def soft_update(local,target,tau=1e-1):
+    for local_param,target_param in zip(local.parameters(),target.parameters()):
+        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
+
 def strip_padding(x,maxlen):
     assert(x.ndim == 3)
     mask = np.where(x.sum(-1).numpy() == 0)
