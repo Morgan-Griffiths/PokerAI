@@ -110,16 +110,16 @@ if __name__ == "__main__":
         processes = []
         num_processes = mp.cpu_count()
         # for debugging
-        generate_trajectories(env,alphaPoker,training_params,id=0)
-        alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
-        train(env,alphaPoker,training_params,learning_params,id=0)
-        # for id in range(num_processes): # No. of processes
-        #     p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
-        #     p.start()
-        #     processes.append(p)
-        # for p in processes: 
-        #     p.join()
-        # # save weights
+        # generate_trajectories(env,alphaPoker,training_params,id=0)
+        # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
+        # train(env,alphaPoker,training_params,learning_params,id=0)
+        for id in range(num_processes): # No. of processes
+            p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
+            p.start()
+            processes.append(p)
+        for p in processes: 
+            p.join()
+        # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params)
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         critic.share_memory()#.to(device)
 
         processes = []
-        num_processes = mp.cpu_count()
+        num_processes = min(mp.cpu_count(),2)
         # for debugging
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
