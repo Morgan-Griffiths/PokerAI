@@ -148,8 +148,8 @@ class ProcessHandBoard(nn.Module):
         hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
         for i in range(M):
-            s = self.suit_conv(hot_suits[:,i,:,:].float())
-            r = self.rank_conv(hot_ranks[:,i,:,:].float())
+            s = self.suit_conv(hot_suits[:,i,:,:])
+            r = self.rank_conv(hot_ranks[:,i,:,:])
             activations.append(torch.cat((r,s),dim=-1))
         return torch.stack(activations).view(B,M,-1)
 
