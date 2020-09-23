@@ -197,7 +197,7 @@ def dual_learning_update(actor,critic,params):
             actor_optimizer.step()
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
-        print(f'Training Round {i}, loss {sum(losses)}')
+        print(f'Learning Round {i}, loss {sum(losses)}')
     del data
     return actor,critic,params
 
@@ -209,8 +209,10 @@ def train(env,model,training_params,learning_params,id):
         model,learning_params = combined_learning_update(model,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
-        sys.stdout.write(", epoch %d"% (e+1))
+        sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}")
         sys.stdout.flush()
+        training_params['training_round'] += 1
+        learning_params['training_round'] += 1
 
 def train_dual(env,actor,critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
