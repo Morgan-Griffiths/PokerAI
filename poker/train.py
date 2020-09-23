@@ -123,13 +123,14 @@ def combined_learning_update(model,params):
             reward = poker_round['reward']
             betsize_mask = poker_round['betsize_mask']
             action_mask = poker_round['action_mask']
-            # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+            scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
             ## Critic update ##
             local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             value_mask = return_value_mask(action)
-            TD_error = local_values[value_mask] - reward
-            critic_loss = (TD_error**2*0.5).mean()
-            # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+            TD_error = local_values[value_mask] - scaled_rewards
+            # print('TD_error',TD_error)
+            critic_loss = (TD_error**2*0.5).sum()
+            # critic_loss = F.smooth_l1_loss(torch.tensor(scaled_rewards).unsqueeze(-1),TD_error,reduction='sum')
             optimizer.zero_grad()
             critic_loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
@@ -140,6 +141,7 @@ def combined_learning_update(model,params):
             # Actor update #
             target_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             actor_out = model(np.array(state),np.array(action_mask),np.array(betsize_mask))
+            # print(actor_out['action_probs'])
             expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
             advantages = (target_values[value_mask] - expected_value).view(-1)
             policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()

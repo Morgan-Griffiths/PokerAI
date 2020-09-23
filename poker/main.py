@@ -108,7 +108,7 @@ if __name__ == "__main__":
     mongo.close()
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),2)
+    num_processes = min(mp.cpu_count(),6)
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
@@ -128,8 +128,12 @@ if __name__ == "__main__":
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
     else:
-        actor = OmahaActor(seed,nS,nA,nB,network_params)
-        critic = OmahaQCritic(seed,nS,nA,nB,network_params)
+        actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+        # local_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+        # target_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+        # hard_update(target_actor,local_actor)
+        # hard_update(target_critic,local_critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['actor_optimizer'] = actor_optimizer
