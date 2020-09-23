@@ -562,6 +562,8 @@ class TestEnv(unittest.TestCase):
         nB = env.betsize_space
         nS = env.state_space
         seed = 152
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        params['device'] = device
         params['maxlen'] = 10
         params['embedding_size'] = 128
         actor = OmahaActor(seed,nS,nA,nB,params)
@@ -578,11 +580,14 @@ class TestEnv(unittest.TestCase):
         nA = env.action_space
         nB = env.betsize_space
         nS = env.state_space
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         seed = 152
         params['maxlen'] = 10
         params['embedding_size'] = 128
         params['transformer_in'] = 1280
         params['transformer_out'] = 128
+        params['transformer_out'] = 128
+        params['device'] = device
         critic = OmahaQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = critic(state)
@@ -595,6 +600,8 @@ class TestEnv(unittest.TestCase):
         nB = env.betsize_space
         nS = env.state_space
         seed = 152
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        params['device'] = device
         params['maxlen'] = 10
         params['embedding_size'] = 128
         params['transformer_in'] = 1280
