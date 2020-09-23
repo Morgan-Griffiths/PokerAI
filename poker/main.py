@@ -11,6 +11,7 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,CombinedNet
+from models.model_utils import update_weights,hard_update
 from utils.utils import unpack_shared_dict
 
 from torch import optim
@@ -93,6 +94,8 @@ if __name__ == "__main__":
         'device':device,
         'gpu1':gpu1,
         'gpu2':gpu2,
+        'min_reward':-env_params['stacksize'],
+        'max_reward':env_params['pot']+env_params['stacksize']
     }
     path = learning_params['path']
     directory = os.path.dirname(path)
@@ -102,13 +105,15 @@ if __name__ == "__main__":
     mongo = MongoDB()
     mongo.clean_db()
     mongo.close()
+    # Set processes
+    mp.set_start_method('spawn')
+    num_processes = min(mp.cpu_count(),2)
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params)
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['model_optimizer'] = alphaPoker_optimizer
         alphaPoker.share_memory()#.to(device)
         processes = []
-        num_processes = mp.cpu_count()
         # for debugging
         # generate_trajectories(env,alphaPoker,training_params,id=0)
         # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
@@ -133,7 +138,6 @@ if __name__ == "__main__":
         critic.share_memory()#.to(device)
 
         processes = []
-        num_processes = min(mp.cpu_count(),2)
         # for debugging
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
