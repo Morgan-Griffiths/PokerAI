@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset,DataLoader
+from torch.nn.utils.rnn import pad_sequence
 
 class trajectoryLoader(Dataset):
     def __init__(self, data):
@@ -19,7 +20,7 @@ class trajectoryLoader(Dataset):
         self.action_masks = torch.stack(action_masks)
         self.betsize_masks = torch.stack(betsize_masks)
         self.rewards = torch.stack(rewards)#.unsqueeze(-1)
-        # print(f'states:{self.states.size()},actions:{self.actions.size()},action_masks:{self.action_masks.size()},betsize_masks:{self.betsize_masks.size()},rewards:{self.rewards.size()}')
+        print(f'states:{self.states.size()},actions:{self.actions.size()},action_masks:{self.action_masks.size()},betsize_masks:{self.betsize_masks.size()},rewards:{self.rewards.size()}')
 
     def __len__(self):
         return self.states.size()[0]
