@@ -140,16 +140,16 @@ class ProcessHandBoard(nn.Module):
         """x: concatenated hand and board. alternating rank and suit."""
         B,M,C = x.size()
         # print(B,M,C)
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
+        ranks = x[:,:,::2].to(self.device)
+        suits = x[:,:,1::2].to(self.device)
         # print(suits)
         # print(ranks.size(),suits.size())
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
         for i in range(M):
-            s = self.suit_conv(hot_suits[:,i,:,:])
-            r = self.rank_conv(hot_ranks[:,i,:,:])
+            s = self.suit_conv(hot_suits[:,i,:,:].float())
+            r = self.rank_conv(hot_ranks[:,i,:,:].float())
             activations.append(torch.cat((r,s),dim=-1))
         return torch.stack(activations).view(B,M,-1)
 

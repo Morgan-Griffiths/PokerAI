@@ -118,11 +118,11 @@ def combined_learning_update(model,params):
         losses = []
         policy_losses = []
         for poker_round in data:
-            state = poker_round['state'].to(device)
-            action = poker_round['action'].to(device)
-            reward = poker_round['reward'].to(device)
-            betsize_mask = poker_round['betsize_mask'].to(device)
-            action_mask = poker_round['action_mask'].to(device)
+            state = poker_round['state']
+            action = poker_round['action']
+            reward = poker_round['reward']
+            betsize_mask = poker_round['betsize_mask']
+            action_mask = poker_round['action_mask']
             # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
             ## Critic update ##
             local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
