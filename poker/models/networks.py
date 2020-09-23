@@ -281,10 +281,11 @@ class CombinedNet(nn.Module):
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
+        self.device = params['device']
         # self.emb = params['embedding_size']
         self.lstm = nn.LSTM(1280, 128)
         self.policy_out = nn.Linear(1280,self.combined_output)
-        self.noise = GaussianNoise()
+        self.noise = GaussianNoise(self.device)
         emb = params['transformer_in']
         n_heads = 8
         depth = 2
@@ -294,9 +295,9 @@ class CombinedNet(nn.Module):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,state,action_mask,betsize_mask):
-        x = torch.tensor(state,dtype=torch.float32)
-        action_mask = torch.tensor(action_mask,dtype=torch.float)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
+        x = torch.tensor(state,dtype=torch.float32).to(self.device)
+        action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         
@@ -306,7 +307,7 @@ class CombinedNet(nn.Module):
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1))
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
         t_logits = self.policy_out(lstm_out.view(-1))
