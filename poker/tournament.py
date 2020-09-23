@@ -130,7 +130,7 @@ if __name__ == "__main__":
     seed = 154
 
     trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-    trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],'RL_actor')))
+    trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
     baseline_evaluation = BetAgent()
 
     model_names = ['baseline_evaluation','trained_model']
