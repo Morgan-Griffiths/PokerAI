@@ -5,7 +5,7 @@ import sys
 import numpy as np
 
 import models.network_config as ng
-from models.networks import OmahaActor
+from models.networks import OmahaActor,CombinedNet
 from models.network_config import NetworkConfig
 import poker_env.datatypes as pdt
 from poker_env.config import Config
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         """
         Run tournaments between bots.\n
         """)
-    parser.add_argument('--game',
+    parser.add_argument('--game','-g',
                         default=pdt.GameTypes.OMAHAHI,
                         metavar=f"[{pdt.GameTypes.OMAHAHI},{pdt.GameTypes.HOLDEM}]",
                         help='Picks which type of poker env to play')
@@ -74,6 +74,11 @@ if __name__ == "__main__":
                         dest='network_type',
                         default='combined',
                         metavar=f"['combined','dual]",
+                        help='Selects network type')
+    parser.add_argument('--model','-m',
+                        dest='network',
+                        default='CombinedNet',
+                        metavar=f"['CombinedNet','OmahaActor']",
                         help='Selects model type')
 
     args = parser.parse_args()
@@ -103,13 +108,18 @@ if __name__ == "__main__":
         Betsizes: {env_params["betsizes"]}')
     env = Poker(env_params)
     
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
     training_params['epochs'] = 500
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
-        'embedding_size':128
+        'embedding_size':128,
+        'device':device,
+        'transformer_in':1280,
+        'transformer_out':128,
     }
 
     model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
