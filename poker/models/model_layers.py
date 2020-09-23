@@ -138,10 +138,11 @@ class ProcessHandBoard(nn.Module):
 
     def forward(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
+        x = x.to(self.device)
         B,M,C = x.size()
         # print(B,M,C)
-        ranks = x[:,:,::2].to(self.device)
-        suits = x[:,:,1::2].to(self.device)
+        ranks = x[:,:,::2]
+        suits = x[:,:,1::2]
         # print(suits)
         # print(ranks.size(),suits.size())
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
