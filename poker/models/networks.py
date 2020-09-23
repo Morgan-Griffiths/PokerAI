@@ -300,7 +300,6 @@ class CombinedNet(nn.Module):
         betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
-        
         # Actor
         B,M,c = out.size()
         n_padding = self.maxlen - M
