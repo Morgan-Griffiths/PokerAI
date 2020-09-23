@@ -12,6 +12,8 @@ import copy
 import time
 import logging
 
+from utils.data_loaders import return_trajectoryloader
+from models.model_utils import scale_rewards
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -102,25 +104,26 @@ def return_value_mask(actions):
     value_mask = value_mask.bool()
     return value_mask.squeeze(0)
 
-def scale_rewards(self,rewards,factor=1):
-    """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
-    return (2 * ((rewards + self.min_reward) / (self.max_reward + self.min_reward)) - 1) * factor
-
 def combined_learning_update(model,params):
-    optimizer = params['model_optimizer']
-    mongo = MongoDB()
-    query = {'training_round':0}
+    optimizer = params['model_optimizer']  
+    device = params['device']
+    query = {'training_round':params['training_round']}
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = list(mongo.get_data(query,projection))
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = list(db['game_data'].find(query,projection))
+    # trainloader = return_trajectoryloader(data)
     # loss_dict = defaultdict(lambda:None)
     for i in range(params['learning_rounds']):
         losses = []
+        policy_losses = []
         for poker_round in data:
             state = poker_round['state']
             action = poker_round['action']
             reward = poker_round['reward']
             betsize_mask = poker_round['betsize_mask']
             action_mask = poker_round['action_mask']
+            scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
             ## Critic update ##
             local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             value_mask = return_value_mask(action)
@@ -144,9 +147,10 @@ def combined_learning_update(model,params):
             policy_loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
             optimizer.step()
+            policy_losses.append(policy_loss)
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
-        print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {policy_loss.item()}')
+        print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return model,params
 
