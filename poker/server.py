@@ -52,9 +52,13 @@ class API(object):
         self.trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
 
     def instantiate_network_params(self):
+        device = 'cpu'
         network_params = copy.deepcopy(self.env_params)
         network_params['maxlen'] = 10
         network_params['embedding_size'] = 128
+        network_params['transformer_in'] = 1280
+        network_params['transformer_out'] = 128
+        network_params['device'] = device
         return network_params
 
     def load_model(self,path):

@@ -123,7 +123,7 @@ def combined_learning_update(model,params):
             reward = poker_round['reward']
             betsize_mask = poker_round['betsize_mask']
             action_mask = poker_round['action_mask']
-            scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+            # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
             ## Critic update ##
             local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             value_mask = return_value_mask(action)
