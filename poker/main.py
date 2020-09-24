@@ -10,7 +10,7 @@ import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
-from models.networks import OmahaActor,OmahaQCritic,CombinedNet
+from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import update_weights,hard_update
 from utils.utils import unpack_shared_dict
 
@@ -82,8 +82,8 @@ if __name__ == "__main__":
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
     }
     training_params = {
-        'training_epochs':50,
-        'epochs':10,
+        'training_epochs':1,
+        'epochs':1,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -131,11 +131,11 @@ if __name__ == "__main__":
         torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
-        # local_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
-        # target_critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
-        # hard_update(target_actor,local_actor)
-        # hard_update(target_critic,local_critic)
+        critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        hard_update(target_actor,actor)
+        hard_update(target_critic,critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['actor_optimizer'] = actor_optimizer
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
         # train_dual(env,actor,critic,training_params,learning_params,id=0)
         for id in range(num_processes): # No. of processes
-            p = mp.Process(target=train_dual, args=(env,actor,critic,training_params,learning_params,id))
+            p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
             p.start()
             processes.append(p)
         for p in processes: 
