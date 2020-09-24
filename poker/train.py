@@ -27,7 +27,7 @@ def pad_state(state,maxlen):
 def generate_trajectories(env,actor,training_params,id):
     """We want to store """
     trajectories = defaultdict(lambda:[])
-    for e in range(training_params['generate']):
+    for e in range(training_params['generate_epochs']):
         trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
         state,obs,done,action_mask,betsize_mask = env.reset()
         cur_player = env.current_player
