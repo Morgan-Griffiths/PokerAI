@@ -179,6 +179,7 @@ class OmahaActor(nn.Module):
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
+        self.device = params['device']
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
@@ -186,7 +187,7 @@ class OmahaActor(nn.Module):
         self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(Action.UNOPENED,64)
         self.betsize_emb = Embedder(self.nB,64)
-        self.noise = GaussianNoise()
+        self.noise = GaussianNoise(self.device)
         self.emb = 1248
         n_heads = 8
         depth = 2
@@ -199,9 +200,9 @@ class OmahaActor(nn.Module):
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
-        x = torch.tensor(state,dtype=torch.float32)
-        action_mask = torch.tensor(action_mask,dtype=torch.float)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)
+        x = torch.tensor(state,dtype=torch.float32).to(self.device)
+        action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
+        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
 
         out = self.process_input(x)
@@ -210,7 +211,7 @@ class OmahaActor(nn.Module):
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1))
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
         t_logits = self.fc3(lstm_out.view(-1))
@@ -241,6 +242,7 @@ class OmahaQCritic(nn.Module):
         self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
+        self.device = params['device']
         # self.emb = params['embedding_size']
         # self.lstm = nn.LSTM(1280, 128)
         emb = params['transformer_in']
@@ -252,7 +254,46 @@ class OmahaQCritic(nn.Module):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,state):
-        x = torch.tensor(state,dtype=torch.float32)
+        x = torch.tensor(state,dtype=torch.float32).to(self.device)
+        out = self.process_input(x)
+        # B,M,c = out.size()
+        # n_padding = max(self.maxlen - M,0)
+        # padding = torch.zeros(B,n_padding,out.size(-1))
+        # h = torch.cat((out,padding),dim=1)
+
+        q_input = self.transformer(out)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(-1,keepdim=True).expand_as(a)
+        outputs = {
+            'value':q.squeeze(0)
+            }
+        return outputs
+
+class OmahaObsQCritic(nn.Module):
+    def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        self.combined_output = nA - 2 + nB
+        self.process_input = PreProcessLayer(params,critic=True)
+        self.maxlen = params['maxlen']
+        self.mapping = params['state_mapping']
+        self.device = params['device']
+        # self.emb = params['embedding_size']
+        # self.lstm = nn.LSTM(1280, 128)
+        emb = params['transformer_in']
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,params['transformer_out'])
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(params['transformer_out'],1)
+        self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
+
+    def forward(self,obs):
+        x = torch.tensor(obs,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
         # B,M,c = out.size()
         # n_padding = max(self.maxlen - M,0)
