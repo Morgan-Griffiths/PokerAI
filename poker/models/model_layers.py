@@ -260,6 +260,8 @@ class PreProcessLayer(nn.Module):
         self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
+        if critic:
+            hand_length *= 2
         self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
@@ -269,7 +271,7 @@ class PreProcessLayer(nn.Module):
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
-            h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
+            h = self.hand_board(x[:,:,self.obs_mapping['hands_and_board']].long())
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
