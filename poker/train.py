@@ -165,6 +165,7 @@ def dual_learning_update(actor,critic,params):
     data = list(mongo.get_data(query,projection))
     # loss_dict = defaultdict(lambda:None)
     for i in range(params['learning_rounds']):
+        policy_losses = []
         losses = []
         for poker_round in data:
             state = poker_round['state']
@@ -199,7 +200,7 @@ def dual_learning_update(actor,critic,params):
             policy_losses.append(policy_loss)
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
-        print(f'Learning Round {i}, loss {sum(losses)}')
+        print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return actor,critic,params
 
