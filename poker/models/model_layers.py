@@ -252,10 +252,12 @@ class PreProcessPokerInputs(nn.Module):
 
     
 class PreProcessLayer(nn.Module):
-    def __init__(self,params):
+    def __init__(self,params,critic=False):
         super().__init__()
+        self.critic = critic
         self.maxlen = params['maxlen']
         self.state_mapping = params['state_mapping']
+        self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
         self.hand_board = ProcessHandBoard(params,hand_length)
@@ -266,7 +268,10 @@ class PreProcessLayer(nn.Module):
 
     def forward(self,x):
         B,M,C = x.size()
-        h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
+        if self.critic:
+            h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
+        else:
+            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long()
         bets = []
