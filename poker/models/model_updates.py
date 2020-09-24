@@ -59,10 +59,11 @@ def update_combined(poker_round,model,params):
 def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params):
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
+    device = params['device']
     state = poker_round['state']
     obs = poker_round['obs']
     action = poker_round['action']
-    reward = torch.tensor(poker_round['reward']).unsqueeze(-1)
+    reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(device)
     betsize_mask = poker_round['betsize_mask']
     action_mask = poker_round['action_mask']
     ## Critic update ##
