@@ -12,8 +12,9 @@ import copy
 import time
 import logging
 
+from models.model_updates import update_actor_critic,update_combined
 from utils.data_loaders import return_trajectoryloader
-from models.model_utils import scale_rewards
+from models.model_utils import scale_rewards,soft_update
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -31,6 +32,7 @@ def generate_trajectories(env,actor,training_params,id):
         state,obs,done,action_mask,betsize_mask = env.reset()
         cur_player = env.current_player
         trajectory[cur_player]['states'].append(copy.copy(state))
+        trajectory[cur_player]['obs'].append(copy.copy(obs))
         trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
@@ -44,6 +46,7 @@ def generate_trajectories(env,actor,training_params,id):
             cur_player = env.current_player
             if not done:
                 trajectory[cur_player]['states'].append(state)
+                trajectory[cur_player]['obs'].append(copy.copy(obs))
                 trajectory[cur_player]['action_masks'].append(action_mask)
                 trajectory[cur_player]['betsize_masks'].append(betsize_mask)
         assert len(trajectory[cur_player]['betsize']) == len(trajectory[cur_player]['betsize_masks'])
@@ -85,6 +88,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
                     'training_round':training_round,
                     'poker_round':i + (id * epochs),
                     'state':state.tolist(),
+                    'obs':observations[step].tolist(),
                     'action_probs':action_probs[step].tolist(),
                     'action_prob':action_prob[step].tolist(),
                     'action':actions[step],
@@ -97,16 +101,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
                 db['game_data'].insert_one(state_json)
     client.close()
 
-def return_value_mask(actions):
-    M = 1#actions.shape[0]
-    value_mask = torch.zeros(M,5)
-    value_mask[torch.arange(M),actions] = 1
-    value_mask = value_mask.bool()
-    return value_mask.squeeze(0)
-
 def combined_learning_update(model,params):
-    optimizer = params['model_optimizer']  
-    device = params['device']
     query = {'training_round':params['training_round']}
     projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
@@ -118,88 +113,26 @@ def combined_learning_update(model,params):
         losses = []
         policy_losses = []
         for poker_round in data:
-            state = poker_round['state']
-            action = poker_round['action']
-            reward = poker_round['reward']
-            betsize_mask = poker_round['betsize_mask']
-            action_mask = poker_round['action_mask']
-            scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
-            ## Critic update ##
-            local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
-            value_mask = return_value_mask(action)
-            TD_error = local_values[value_mask] - scaled_rewards
-            # print('TD_error',TD_error)
-            critic_loss = (TD_error**2*0.5).sum()
-            # critic_loss = F.smooth_l1_loss(torch.tensor(scaled_rewards).unsqueeze(-1),TD_error,reduction='sum')
-            optimizer.zero_grad()
-            critic_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
-            optimizer.step()
-            losses.append(critic_loss.item())
-            # print('local_values',local_values[value_mask],reward)
-            # Agent.soft_update(local_critic,target_critic,tau)
-            # Actor update #
-            actor_out = model(np.array(state),np.array(action_mask),np.array(betsize_mask))
-            target_values = actor_out['value']
-            actor_value_mask = return_value_mask(actor_out['action'])
-            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-            advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-            optimizer.zero_grad()
-            policy_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
-            optimizer.step()
+            critic_loss,policy_loss = update_combined(poker_round,model,params)
+            losses.append(critic_loss)
             policy_losses.append(policy_loss)
-            # Agent.soft_update(self.actor,self.target_actor,self.tau)
-            # loss_dict[i] = sum(losses)
         print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return model,params
 
-def dual_learning_update(actor,critic,params):
-    critic_optimizer = params['critic_optimizer']
-    actor_optimizer = params['actor_optimizer']
+def dual_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
     query = {'training_round':0}
-    projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = list(mongo.get_data(query,projection))
     # loss_dict = defaultdict(lambda:None)
     for i in range(params['learning_rounds']):
         policy_losses = []
         losses = []
         for poker_round in data:
-            state = poker_round['state']
-            action = poker_round['action']
-            reward = poker_round['reward']
-            betsize_mask = poker_round['betsize_mask']
-            action_mask = poker_round['action_mask']
-            ## Critic update ##
-            local_values = critic(state)['value']
-            value_mask = return_value_mask(action)
-            TD_error = local_values[value_mask] - reward
-            critic_loss = (TD_error**2*0.5).mean()
-            # critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
-            critic_optimizer.zero_grad()
-            critic_loss.backward()
-            torch.nn.utils.clip_grad_norm_(critic.parameters(), params['gradient_clip'])
-            critic_optimizer.step()
-            losses.append(critic_loss.item())
-            # print('local_values',local_values[value_mask],reward)
-            # Agent.soft_update(local_critic,target_critic,tau)
-            # Actor update #
-            target_values = critic(state)['value']
-            actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
-            actor_value_mask = return_value_mask(actor_out['action'])
-            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-            advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-            policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-            actor_optimizer.zero_grad()
-            policy_loss.backward()
-            torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-            actor_optimizer.step()
+            critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+            losses.append(critic_loss)
             policy_losses.append(policy_loss)
-            # Agent.soft_update(self.actor,self.target_actor,self.tau)
-            # loss_dict[i] = sum(losses)
         print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return actor,critic,params
@@ -217,12 +150,12 @@ def train(env,model,training_params,learning_params,id):
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
 
-def train_dual(env,actor,critic,training_params,learning_params,id):
+def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_trajectories(env,actor,training_params,id)
+        generate_trajectories(env,target_actor,training_params,id)
         # train on trajectories
-        actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
+        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
