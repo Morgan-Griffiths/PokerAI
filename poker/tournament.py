@@ -115,18 +115,20 @@ if __name__ == "__main__":
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
+        'obs_mapping':config.obs_mapping,
         'embedding_size':128,
         'transformer_in':1280,
         'transformer_out':128,
         'device':device,
     }
 
-    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
     nS = env.state_space
     nO = env.observation_space
     nA = env.action_space
     nB = env.betsize_space
+    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
+    print(f'Evaluating {model_name}')
     seed = 154
 
     trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
