@@ -72,7 +72,7 @@ if __name__ == "__main__":
                         help='Picks which type of poker env to play')
     parser.add_argument('--network','-n',
                         dest='network_type',
-                        default='combined',
+                        default='dual',
                         metavar=f"['combined','dual]",
                         help='Selects network type')
     parser.add_argument('--model','-m',
