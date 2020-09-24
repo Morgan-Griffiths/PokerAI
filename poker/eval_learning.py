@@ -141,7 +141,7 @@ if __name__ == "__main__":
     }
     training_params = {
         'training_epochs':50,
-        'epochs':10,
+        'generate_epochs':10,
         'training_round':0,
         'game':'Omaha',
         'id':0
