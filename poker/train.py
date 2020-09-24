@@ -139,11 +139,11 @@ def combined_learning_update(model,params):
             # print('local_values',local_values[value_mask],reward)
             # Agent.soft_update(local_critic,target_critic,tau)
             # Actor update #
-            target_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             actor_out = model(np.array(state),np.array(action_mask),np.array(betsize_mask))
-            # print(actor_out['action_probs'])
-            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-            advantages = (target_values[value_mask] - expected_value).view(-1)
+            target_values = actor_out['value']
+            actor_value_mask = return_value_mask(actor_out['action'])
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+            advantages = (target_values[actor_value_mask] - expected_value).view(-1)
             policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
             optimizer.zero_grad()
             policy_loss.backward()
@@ -188,13 +188,15 @@ def dual_learning_update(actor,critic,params):
             # Actor update #
             target_values = critic(state)['value']
             actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
-            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-            advantages = (target_values[value_mask] - expected_value).view(-1)
+            actor_value_mask = return_value_mask(actor_out['action'])
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+            advantages = (target_values[actor_value_mask] - expected_value).view(-1)
             policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
             actor_optimizer.zero_grad()
             policy_loss.backward()
             torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
             actor_optimizer.step()
+            policy_losses.append(policy_loss)
             # Agent.soft_update(self.actor,self.target_actor,self.tau)
             # loss_dict[i] = sum(losses)
         print(f'Learning Round {i}, loss {sum(losses)}')
