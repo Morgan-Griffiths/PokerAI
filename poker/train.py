@@ -221,7 +221,7 @@ def train_dual(env,actor,critic,training_params,learning_params,id):
         sys.stdout.write('\r')
         generate_trajectories(env,actor,training_params,id)
         # train on trajectories
-        actor,critic,learning_params = learning_update(actor,critic,learning_params)
+        actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
