@@ -147,30 +147,28 @@ def eval_combined_updates(model,params):
             betsize_mask = poker_round['betsize_mask']
             action_mask = poker_round['action_mask']
             ## Critic update ##
-            local_values = critic(state)['value']
+            local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
             value_mask = return_value_mask(action)
-            # print('local_values',local_values)
-            # print('value_mask,action',value_mask,action)
-            # print('local_values[value_mask],reward',local_values[value_mask],reward)
             TD_error = local_values[value_mask] - reward
             # critic_loss = (TD_error**2*0.5).mean()
             critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
             # print('critic_loss',critic_loss)
-            critic_optimizer.zero_grad()
+            optimizer.zero_grad()
             critic_loss.backward()
-            critic_optimizer.step()
+            optimizer.step()
             losses.append(critic_loss.item())   
             # Agent.soft_update(local_critic,target_critic,tau)
             # Actor update #
-            target_values = critic(state)['value']
-            actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
-            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(value_mask.size()).detach().sum(-1)
-            advantages = (target_values[value_mask] - expected_value).view(-1)
+            actor_out = model(np.array(state),np.array(action_mask),np.array(betsize_mask))
+            target_values = actor_out['value']
+            actor_value_mask = return_value_mask(actor_out['action'])
+            expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+            advantages = (target_values[actor_value_mask] - expected_value).view(-1)
             policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-            actor_optimizer.zero_grad()
+            optimizer.zero_grad()
             policy_loss.backward()
-            torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-            actor_optimizer.step()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
+            optimizer.step()
             policy_losses.append(policy_loss)
             sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
             sys.stdout.flush()
@@ -248,15 +246,15 @@ if __name__ == "__main__":
 
 
     # Instantiate network
-    # alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-    # alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
-    # learning_params['model_optimizer'] = alphaPoker_optimizer
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-    critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
-    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-    critic_optimizer = optim.Adam(critic.parameters(), lr=3e-5)
-    learning_params['actor_optimizer'] = actor_optimizer
-    learning_params['critic_optimizer'] = critic_optimizer
+    alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
+    alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
+    learning_params['model_optimizer'] = alphaPoker_optimizer
+    # actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    # critic = OmahaQCritic(seed,nS,nA,nB,network_params).to(device)
+    # actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    # critic_optimizer = optim.Adam(critic.parameters(), lr=3e-5)
+    # learning_params['actor_optimizer'] = actor_optimizer
+    # learning_params['critic_optimizer'] = critic_optimizer
 
     # Clean mongo
     # mongo = MongoDB()
@@ -266,5 +264,6 @@ if __name__ == "__main__":
     # generate_trajectories(env,actor,training_params,id=0)
 
     # Eval learning models
-    eval_network_updates(actor,critic,learning_params)
+    # eval_network_updates(actor,critic,learning_params)
     # eval_critic(critic,learning_params)
+    eval_combined_updates(alphaPoker,learning_params)
