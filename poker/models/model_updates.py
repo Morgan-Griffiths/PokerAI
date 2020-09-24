@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from models.model_utils import scale_rewards,soft_update,return_value_mask
 
 def update_critic(poker_round,critic,params):
-    critic_optimizer = params['critic_optimizer']  
+    critic_optimizer = params['critic_optimizer'] 
+    device = params['device'] 
     state = poker_round['state']
     obs = poker_round['obs']
     action = poker_round['action']
@@ -27,6 +28,7 @@ def update_critic(poker_round,critic,params):
 
 def update_combined(poker_round,model,params):
     optimizer = params['model_optimizer']  
+    device = params['device']  
     state = poker_round['state']
     action = poker_round['action']
     reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(device)
