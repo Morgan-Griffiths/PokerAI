@@ -55,7 +55,7 @@ def generate_trajectories(env,actor,training_params,id):
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
-    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['epochs'])
+    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
     """
