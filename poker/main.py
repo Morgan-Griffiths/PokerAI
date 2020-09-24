@@ -139,7 +139,7 @@ if __name__ == "__main__":
             p.join()
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
-        print(f'Saved model weights to {os.path.join(path,'RL_combined')}')
+        print(f'Saved model weights to {os.path.join(path,"RL_combined")}')
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
@@ -169,6 +169,6 @@ if __name__ == "__main__":
         # save weights
         torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
         torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
-        print(f'Saved model weights to {os.path.join(path,'RL_actor')} and {os.path.join(path,'RL_critic')}')
+        print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
