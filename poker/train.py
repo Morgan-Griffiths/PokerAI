@@ -27,7 +27,7 @@ def pad_state(state,maxlen):
 def generate_trajectories(env,actor,training_params,id):
     """We want to store """
     trajectories = defaultdict(lambda:[])
-    for e in range(training_params['epochs']):
+    for e in range(training_params['generate']):
         trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
         state,obs,done,action_mask,betsize_mask = env.reset()
         cur_player = env.current_player
@@ -156,9 +156,9 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         generate_trajectories(env,target_actor,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        training_params['training_round'] += 1
-        learning_params['training_round'] += 1
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (e+1))
         sys.stdout.flush()
+        training_params['training_round'] += 1
+        learning_params['training_round'] += 1
