@@ -1,6 +1,13 @@
 import torch, os
 import numpy as np
 
+def return_value_mask(actions):
+    M = 1#actions.shape[0]
+    value_mask = torch.zeros(M,5)
+    value_mask[torch.arange(M),actions] = 1
+    value_mask = value_mask.bool()
+    return value_mask.squeeze(0)
+
 def scale_rewards(reward,min_reward,max_reward,factor=1):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     span = (max_reward - min_reward) / 2
