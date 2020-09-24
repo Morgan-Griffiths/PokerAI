@@ -40,7 +40,7 @@ def update_combined(poker_round,model,params):
     value_mask = return_value_mask(action)
     TD_error = local_values[value_mask] - scaled_rewards
     # critic_loss = (TD_error**2*0.5).sum()
-    critic_loss = F.smooth_l1_loss(torch.tensor(scaled_rewards).unsqueeze(-1),TD_error,reduction='sum')
+    critic_loss = F.smooth_l1_loss(scaled_rewards,TD_error,reduction='sum')
     optimizer.zero_grad()
     critic_loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
