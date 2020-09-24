@@ -31,6 +31,16 @@ if __name__ == "__main__":
                         metavar="['combined','dual']",
                         type=str,
                         help='whether to split the actor critic into two separate networks or not')
+    parser.add_argument('--epochs','-e',
+                        dest='epochs',
+                        default=10,
+                        type=int,
+                        help='Number of training rounds')
+    parser.add_argument('--generate','-g',
+                        dest='generate',
+                        default=5,
+                        type=int,
+                        help='Number of generated hands per epoch per thread')
 
     args = parser.parse_args()
 
@@ -82,8 +92,8 @@ if __name__ == "__main__":
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
     }
     training_params = {
-        'training_epochs':75,
-        'epochs':10,
+        'training_epochs':args.epochs,
+        'generate_epochs':args.generate,
         'training_round':0,
         'game':'Omaha',
         'id':0
@@ -115,7 +125,7 @@ if __name__ == "__main__":
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['model_optimizer'] = alphaPoker_optimizer
-        alphaPoker.share_memory()#.to(device)
+        alphaPoker.share_memory()
         processes = []
         # for debugging
         # generate_trajectories(env,alphaPoker,training_params,id=0)
@@ -129,6 +139,7 @@ if __name__ == "__main__":
             p.join()
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
+        print(f'Saved model weights to {os.path.join(path,'RL_combined')}')
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
@@ -141,8 +152,8 @@ if __name__ == "__main__":
         learning_params['actor_optimizer'] = actor_optimizer
         learning_params['critic_optimizer'] = critic_optimizer
         # training loop
-        actor.share_memory()#.to(device)
-        critic.share_memory()#.to(device)
+        actor.share_memory()
+        critic.share_memory()
 
         processes = []
         # for debugging
@@ -158,3 +169,6 @@ if __name__ == "__main__":
         # save weights
         torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
         torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
+        print(f'Saved model weights to {os.path.join(path,'RL_actor')} and {os.path.join(path,'RL_critic')}')
+    toc = time.time()
+    print(f'Training completed in {(toc-tic)/60} minutes')
