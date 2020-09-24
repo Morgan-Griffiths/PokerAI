@@ -74,6 +74,7 @@ if __name__ == "__main__":
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
         'state_mapping':config.state_mapping,
+        'obs_mapping':config.obs_mapping,
         'embedding_size':128,
         'transformer_in':1280,
         'transformer_out':128,
