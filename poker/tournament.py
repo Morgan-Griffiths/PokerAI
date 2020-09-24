@@ -131,7 +131,10 @@ if __name__ == "__main__":
     print(f'Evaluating {model_name}')
     seed = 154
 
-    trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
+    if args.network_type == 'dual':
+        trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    else:
+        trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
     trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
     baseline_evaluation = BetAgent()
 
