@@ -143,7 +143,7 @@ def eval_combined_updates(model,params):
             sys.stdout.write('\r')
             state = poker_round['state']
             action = poker_round['action']
-            reward = torch.tensor(poker_round['reward']).unsqueeze(-1)
+            reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(params['device'])
             betsize_mask = poker_round['betsize_mask']
             action_mask = poker_round['action_mask']
             ## Critic update ##
@@ -243,7 +243,7 @@ if __name__ == "__main__":
         Pot: {env_params["pot"]},\
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
-
+    print(f'Evaluating CombinedNet')
 
     # Instantiate network
     alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
