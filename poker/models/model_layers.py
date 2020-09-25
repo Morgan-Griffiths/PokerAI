@@ -5,6 +5,19 @@ from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
 from models.model_utils import strip_padding
 
+class IdentityBlock(nn.Module):
+    def __init__(self,hidden_dims,activation):
+        """hidden_dims must contain 3 values"""
+        super().__init__()
+        assert len(hidden_dims) == 3
+        self.activation = activation
+        self.fc1 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc2 = nn.Linear(hidden_dims[1],hidden_dims[2])
+
+    def forward(self,x):
+        out = self.activation(self.fc1(x)) + x
+        out2 = self.activation(self.fc2(out))
+        return out2
 
 class NetworkFunctions(object):
     def __init__(self,nA,nB):
@@ -73,10 +86,11 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(15,32,32)):
+    def __init__(self,params,hand_length,critic=False,hidden_dims=(15,32,32)):
         super().__init__()
+        self.critic = critic
         self.hand_length = hand_length
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,5))
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
@@ -96,7 +110,7 @@ class ProcessHandBoard(nn.Module):
             self.bn_layers.append(nn.BatchNorm1d(64))
         self.maxlen = params['maxlen']
         self.device = params['device']
-        # self.initialize(critic)
+        self.initialize(critic)
 
     def initialize(self,critic):
         if critic:
@@ -109,22 +123,22 @@ class ProcessHandBoard(nn.Module):
         B,M,C = x.size()
         ranks = x[:,:,::2]
         suits = x[:,:,1::2]
-        hero_ranks = ranks[:,:,:2]
-        # villain_ranks = ranks[:,:,2:4]
-        board_ranks = ranks[:,:,2:]
-        hero_suits = suits[:,:,:2]
-        # villain_suits = suits[:,:,2:4]
-        board_suits = suits[:,:,4:]
+        hero_ranks = ranks[:,:,:self.hand_length]
+        villain_ranks = ranks[:,:,self.hand_length:self.hand_length*2]
+        board_ranks = ranks[:,:,self.hand_length*2:]
+        hero_suits = suits[:,:,:self.hand_length]
+        villain_suits = suits[:,:,self.hand_length:self.hand_length*2]
+        board_suits = suits[:,:,self.hand_length*2:]
         hero_hand_ranks = torch.cat((hero_ranks,board_ranks),dim=-1)
         hero_hand_suits = torch.cat((hero_suits,board_suits),dim=-1)
-        # villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
-        # villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
+        villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
+        villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
         hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks]
         hero_hot_suits = self.one_hot_suits[hero_hand_suits]
-        # villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks]
-        # villain_hot_suits = self.one_hot_suits[villain_hand_suits]
+        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks]
+        villain_hot_suits = self.one_hot_suits[villain_hand_suits]
         hero_activations = []
-        # villain_activations = []
+        villain_activations = []
         for i in range(M):
             hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
             hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
@@ -136,14 +150,11 @@ class ProcessHandBoard(nn.Module):
         villain = torch.stack(villain_activations).view(B,M,-1)
         return hero - villain
 
-    def forward(self,x):
+    def forward_actor(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
         B,M,C = x.size()
-        # print(B,M,C)
         ranks = x[:,:,::2]
         suits = x[:,:,1::2]
-        # print(suits)
-        # print(ranks.size(),suits.size())
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
@@ -260,9 +271,7 @@ class PreProcessLayer(nn.Module):
         self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        if critic:
-            hand_length *= 2
-        self.hand_board = ProcessHandBoard(params,hand_length)
+        self.hand_board = ProcessHandBoard(params,hand_length,critic)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
