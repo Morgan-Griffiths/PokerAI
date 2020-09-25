@@ -81,6 +81,7 @@ if __name__ == "__main__":
                         metavar=f"['CombinedNet','OmahaActor']",
                         help='Selects model type')
     parser.add_argument('--epochs','-e',
+                        dest='epochs',
                         default=500,
                         help='How many hands to evaluate on')
 
@@ -113,7 +114,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
-    training_params['epochs'] = 500
+    training_params['epochs'] = args.epochs
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
