@@ -5,17 +5,24 @@ import numpy as np
 from torch.distributions import Categorical
 from poker_env.datatypes import Action
 
-from models.model_utils import padding_index
+from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions
+from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
 ################################################
 #               Holdem Networks                #
 ################################################
 
-class HoldemBaseline(nn.Module):
+class Network(nn.Module):
+    def __init__(self):
+        super().__init__()
+    @property
+    def summary(self):
+        count_parameters(self)
+
+class HoldemBaseline(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -73,7 +80,7 @@ class HoldemBaseline(nn.Module):
             }
         return outputs
 
-class HoldemBaselineCritic(nn.Module):
+class HoldemBaselineCritic(Network):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -131,7 +138,7 @@ class HoldemBaselineCritic(nn.Module):
             }
         return outputs
 
-class HoldemQCritic(nn.Module):
+class HoldemQCritic(Network):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -169,7 +176,7 @@ class HoldemQCritic(nn.Module):
 #                Omaha Networks                #
 ################################################
 
-class OmahaActor(nn.Module):
+class OmahaActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -191,12 +198,12 @@ class OmahaActor(nn.Module):
         self.emb = 1248
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(1280, 128)
-        # self.transformer = CTransformer(emb,n_heads,depth,self.max_length,self.nA)
-
-        self.fc1 = nn.Linear(528,hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
-        self.fc3 = nn.Linear(1280,self.combined_output)
+        self.lstm = nn.LSTM(1280, 128,bidirectional=True)
+        # self.blocks = nn.Sequential(
+        #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
+        #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
+        # )
+        self.fc_final = nn.Linear(2560,self.combined_output)
         self.dropout = nn.Dropout(0.5)
         
     def forward(self,state,action_mask,betsize_mask):
@@ -214,7 +221,8 @@ class OmahaActor(nn.Module):
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
-        t_logits = self.fc3(lstm_out.view(-1))
+        # blocks_out = self.blocks(lstm_out.view(-1))
+        t_logits = self.fc_final(lstm_out.view(-1))
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
@@ -232,7 +240,7 @@ class OmahaActor(nn.Module):
             }
         return outputs
     
-class OmahaQCritic(nn.Module):
+class OmahaQCritic(Network):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -271,7 +279,7 @@ class OmahaQCritic(nn.Module):
             }
         return outputs
 
-class OmahaObsQCritic(nn.Module):
+class OmahaObsQCritic(Network):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -295,11 +303,6 @@ class OmahaObsQCritic(nn.Module):
     def forward(self,obs):
         x = torch.tensor(obs,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
-        # B,M,c = out.size()
-        # n_padding = max(self.maxlen - M,0)
-        # padding = torch.zeros(B,n_padding,out.size(-1))
-        # h = torch.cat((out,padding),dim=1)
-
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
@@ -310,7 +313,7 @@ class OmahaObsQCritic(nn.Module):
             }
         return outputs
 
-class CombinedNet(nn.Module):
+class CombinedNet(Network):
     def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -374,44 +377,3 @@ class CombinedNet(nn.Module):
         q = v + a - a.mean(-1,keepdim=True).expand_as(a)
         outputs['value'] = q.squeeze(0)
         return outputs
-
-"""
-Dueling QNetwork for function aproximation. Splits the network prior to the end into two streams V and Q. 
-V is the estimate of the value of the state. Q is the advantage of each action given the state.
-Two formulations for subtracting Q from V:
-V - max(Q)
-This verision makes more sense theoretically as the value of V* should equal the max(Q*(s,A)). 
-But in practice mean allows for better performance.
-V - mean(Q)
-Same as max except now they are separated by a constant. 
-And not as susceptable to over optimism due to randomness of Q values.
-"""
-
-    
-class Dueling_QNetwork(nn.Module):
-    def __init__(self,seed,state_space,action_space,hidden_dims=(32,32),activation_fc=F.relu):
-        super(Dueling_QNetwork,self).__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.activation_fc = activation_fc
-        self.seed = torch.manual_seed(seed)
-        self.input_layer = nn.Linear(state_space,hidden_dims[0])
-        self.hidden_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            hidden_layer = nn.Linear(hidden_dims[i],hidden_dims[i+1])
-            self.hidden_layers.append(hidden_layer)
-        self.value_output = nn.Linear(hidden_dims[-1],1)
-        self.advantage_output = nn.Linear(hidden_dims[-1],action_space)
-        
-    def forward(self,state):
-        x = state
-        if not isinstance(state,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32,device = self.device,)
-            x = x.unsqueeze(0)
-        x = self.activation_fc(self.input_layer(x))
-        for hidden_layer in self.hidden_layers:
-            x = self.activation_fc(hidden_layer(x))
-        a = self.advantage_output(x)
-        v = self.value_output(x)
-        v = v.expand_as(a)
-        q = v + a - a.mean(1,keepdim=True).expand_as(a)
-        return q
