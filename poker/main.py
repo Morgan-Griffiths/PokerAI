@@ -165,18 +165,18 @@ if __name__ == "__main__":
         critic.share_memory()
         processes = []
         # for debugging
-        generate_trajectories(env,actor,training_params,id=0)
-        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # train_dual(env,actor,critic,training_params,learning_params,id=0)
-        # for id in range(num_processes): # No. of processes
-        #     p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
-        #     p.start()
-        #     processes.append(p)
-        # for p in processes: 
-        #     p.join()
-        # # save weights
-        # torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
-        # torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
-        # print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
+        # generate_trajectories(env,actor,training_params,id=0)
+        # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        train_dual(env,actor,critic,training_params,learning_params,id=0)
+        for id in range(num_processes): # No. of processes
+            p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
+            p.start()
+            processes.append(p)
+        for p in processes: 
+            p.join()
+        # save weights
+        torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
+        torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
+        print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
