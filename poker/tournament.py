@@ -3,6 +3,7 @@ import copy
 import torch
 import sys
 import numpy as np
+import time
 
 import models.network_config as ng
 from models.networks import OmahaActor,CombinedNet
@@ -87,6 +88,7 @@ if __name__ == "__main__":
                         help='How many hands to evaluate on')
 
     args = parser.parse_args()
+    tic = time.time()
 
     print(f'Args {args}')
     config = Config()
@@ -149,3 +151,5 @@ if __name__ == "__main__":
     print(results)
     print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
     print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
+    toc = time.time()
+    print(f'Tournament completed in {(toc-tic)/60} minutes')

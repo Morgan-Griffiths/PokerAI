@@ -133,7 +133,7 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
             critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             losses.append(critic_loss)
             policy_losses.append(policy_loss)
-        print(f'Training Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
+        # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return actor,critic,params
 
