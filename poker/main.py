@@ -41,6 +41,11 @@ if __name__ == "__main__":
                         default=5,
                         type=int,
                         help='Number of generated hands per epoch per thread')
+    parser.add_argument('--learning','-l',
+                        dest='learning',
+                        default=1,
+                        type=int,
+                        help='Number of learning passes on the data')
 
     args = parser.parse_args()
 
@@ -102,7 +107,7 @@ if __name__ == "__main__":
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'path': os.path.join(os.getcwd(),'checkpoints'),
-        'learning_rounds':1,
+        'learning_rounds':args.learning,
         'device':device,
         'gpu1':gpu1,
         'gpu2':gpu2,
