@@ -129,6 +129,7 @@ if __name__ == "__main__":
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
+        alphaPoker.summary
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['model_optimizer'] = alphaPoker_optimizer
         alphaPoker.share_memory()
@@ -149,6 +150,8 @@ if __name__ == "__main__":
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        actor.summary
+        critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,actor)
@@ -160,21 +163,20 @@ if __name__ == "__main__":
         # training loop
         actor.share_memory()
         critic.share_memory()
-
         processes = []
         # for debugging
-        # generate_trajectories(env,actor,training_params,id=0)
-        # actor,critic,learning_params = dual_learning_update(actor,critic,learning_params)
+        generate_trajectories(env,actor,training_params,id=0)
+        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         # train_dual(env,actor,critic,training_params,learning_params,id=0)
-        for id in range(num_processes): # No. of processes
-            p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
-            p.start()
-            processes.append(p)
-        for p in processes: 
-            p.join()
-        # save weights
-        torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
-        torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
-        print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
+        # for id in range(num_processes): # No. of processes
+        #     p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
+        #     p.start()
+        #     processes.append(p)
+        # for p in processes: 
+        #     p.join()
+        # # save weights
+        # torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
+        # torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
+        # print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
