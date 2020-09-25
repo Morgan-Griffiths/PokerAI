@@ -6,7 +6,7 @@ import numpy as np
 import os
 import copy
 
-from models.networks import OmahaActor,OmahaQCritic,CombinedNet
+from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from poker_env.env import Poker,Status
 from poker_env.config import Config
 import poker_env.datatypes as pdt
@@ -588,9 +588,9 @@ class TestEnv(unittest.TestCase):
         params['transformer_out'] = 128
         params['transformer_out'] = 128
         params['device'] = device
-        critic = OmahaQCritic(seed,nS,nA,nB,params)
+        critic = OmahaObsQCritic(seed,nS,nA,nB,params)
         state,obs,done,mask,betsize_mask = env.reset()
-        output = critic(state)
+        output = critic(obs)
         assert isinstance(output['value'],torch.Tensor)
 
     def testCombined(self):
