@@ -83,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs','-e',
                         dest='epochs',
                         default=500,
+                        type=int,
                         help='How many hands to evaluate on')
 
     args = parser.parse_args()
