@@ -80,6 +80,9 @@ if __name__ == "__main__":
                         default='CombinedNet',
                         metavar=f"['CombinedNet','OmahaActor']",
                         help='Selects model type')
+    parser.add_argument('--epochs','-e',
+                        default=500,
+                        help='How many hands to evaluate on')
 
     args = parser.parse_args()
 
