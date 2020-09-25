@@ -133,10 +133,10 @@ class ProcessHandBoard(nn.Module):
         hero_hand_suits = torch.cat((hero_suits,board_suits),dim=-1)
         villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
         villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
-        hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks]
-        hero_hot_suits = self.one_hot_suits[hero_hand_suits]
-        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks]
-        villain_hot_suits = self.one_hot_suits[villain_hand_suits]
+        hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks].to(self.device)
+        hero_hot_suits = self.one_hot_suits[hero_hand_suits].to(self.device)
+        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks].to(self.device)
+        villain_hot_suits = self.one_hot_suits[villain_hand_suits].to(self.device)
         hero_activations = []
         villain_activations = []
         for i in range(M):
