@@ -21,9 +21,7 @@ def update_critic(poker_round,critic,params):
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
-    # print('local_values',local_values)
-    # print('value_mask,action',value_mask,action)
-    # print('local_values[value_mask],reward',local_values[value_mask],reward)
+    print('local_values[value_mask],reward',local_values[value_mask],reward)
     return critic_loss.item()
 
 def update_combined(poker_round,model,params):
