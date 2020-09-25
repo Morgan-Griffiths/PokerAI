@@ -25,10 +25,10 @@ def eval_critic(critic,params):
     print(f'Number of data points {len(data)}')
     for i in range(params['learning_rounds']):
         losses = []
-        policy_losses = []
         for j,poker_round in enumerate(data,1):
             sys.stdout.write('\r')
-            update_critic(poker_round,critic,params)
+            critic_loss = update_critic(poker_round,critic,params)
+            losses.append(critic_loss)
             sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
             sys.stdout.flush()
             sys.stdout.write(f", round {(j):.2f}")
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         hard_update(target_actor,local_actor)
         hard_update(target_critic,local_critic)
         actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-        critic_optimizer = optim.Adam(local_critic.parameters(), lr=3e-5)
+        critic_optimizer = optim.Adam(local_critic.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['actor_optimizer'] = actor_optimizer
         learning_params['critic_optimizer'] = critic_optimizer
 
