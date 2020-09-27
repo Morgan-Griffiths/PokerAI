@@ -12,7 +12,7 @@ from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import update_weights,hard_update
-from utils.utils import unpack_shared_dict
+from utils.utils import unpack_shared_dict,clean_folder
 
 from torch import optim
 
@@ -119,6 +119,8 @@ if __name__ == "__main__":
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
+    # Clean training_run folder
+    # clean_folder(learning_params['path'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
