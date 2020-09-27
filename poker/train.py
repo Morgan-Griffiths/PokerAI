@@ -33,22 +33,26 @@ def generate_vs_frozen(env,actor,villain,training_params,id):
         cur_player = env.current_player
         if e % 2 == 0:
             agent_positions = {'SB':actor,'BB':villain}
+            agent_loc = {'SB':1,'BB':0}
         else:
             agent_positions = {'SB':villain,'BB':actor}
-        trajectory[cur_player]['states'].append(copy.copy(state))
-        trajectory[cur_player]['obs'].append(copy.copy(obs))
-        trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
-        trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
+            agent_loc = {'SB':0,'BB':1}
+        if agent_loc[cur_player]:
+            trajectory[cur_player]['states'].append(copy.copy(state))
+            trajectory[cur_player]['obs'].append(copy.copy(obs))
+            trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
+            trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
             actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-            trajectory[cur_player]['actions'].append(actor_outputs['action'])
-            trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
-            trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
-            trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
-            trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
+            if agent_loc[cur_player]:
+                trajectory[cur_player]['actions'].append(actor_outputs['action'])
+                trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
+                trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
+                trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
+                trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
             state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
             cur_player = env.current_player
-            if not done:
+            if not done and agent_loc[cur_player]:
                 trajectory[cur_player]['states'].append(state)
                 trajectory[cur_player]['obs'].append(copy.copy(obs))
                 trajectory[cur_player]['action_masks'].append(action_mask)
