@@ -103,11 +103,11 @@ if __name__ == "__main__":
         'game':'Omaha',
         'id':0,
         'save_every':5,
+        'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
     }
     learning_params = {
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
-        'path': os.path.join(os.getcwd(),'checkpoints/training_run'),
         'learning_rounds':args.learning,
         'device':device,
         'gpu1':gpu1,
@@ -115,12 +115,12 @@ if __name__ == "__main__":
         'min_reward':-env_params['stacksize'],
         'max_reward':env_params['pot']+env_params['stacksize']
     }
-    path = learning_params['path']
+    path = training_params['save_dir']
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
     # Clean training_run folder
-    # clean_folder(learning_params['path'])
+    # clean_folder(training_params['save_dir'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
@@ -148,8 +148,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombined'))
-        print(f'Saved model weights to {os.path.join(path,"OmahaCombined")}')
+        torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
@@ -178,8 +178,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(actor.state_dict(), os.path.join(path,'OmahaActor'))
-        torch.save(critic.state_dict(), os.path.join(path,'OmahaCritic'))
-        print(f'Saved model weights to {os.path.join(path,"OmahaActor")} and {os.path.join(path,"OmahaCritic")}')
+        torch.save(actor.state_dict(), os.path.join(path,'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(path,'OmahaCriticFinal'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')

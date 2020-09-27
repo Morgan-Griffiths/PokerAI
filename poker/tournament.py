@@ -106,6 +106,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
     training_params['epochs'] = args.epochs
+    training_params['save_dir']:os.path.join(os.getcwd(),'checkpoints/training_run')
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
@@ -115,7 +116,6 @@ if __name__ == "__main__":
         'transformer_in':1280,
         'transformer_out':128,
         'device':device,
-        'path':os.path.join(os.getcwd(),'checkpoints/training_run')
     }
 
     nS = env.state_space
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     elif args.tourney == 'roundrobin':
         # load all file paths
-        weight_paths = load_paths(network_params['path'])
+        weight_paths = load_paths(training_params['save_dir'])
         # all combinations
         model_names = weight_paths.keys()
         matchups = combinations(model_names,2)

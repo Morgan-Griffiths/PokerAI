@@ -9,7 +9,7 @@ class Config(object):
         self.training_params = {
                 'epochs':2500,
                 'training_round':0,
-                'save_dir':os.path.join(os.getcwd(),'checkpoints')
+                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run')
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
