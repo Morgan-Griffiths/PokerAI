@@ -9,7 +9,9 @@ class Config(object):
         self.training_params = {
                 'epochs':2500,
                 'training_round':0,
-                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run')
+                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+                'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+                'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
@@ -36,8 +38,8 @@ class Config(object):
             'critic_lr':4e-7,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/PartialHandRegression'),
             'frozen_layer' : False,
-            'actor_path':os.path.join(os.getcwd(),'checkpoints/OmahaActorFinal'),
-            'critic_path':os.path.join(os.getcwd(),'checkpoints/OmahaCriticFinal'),
+            'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+            'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
         }
         self.global_mapping = {
             'board':np.array([0,1,2,3,4,5,6,7,8,9]),
