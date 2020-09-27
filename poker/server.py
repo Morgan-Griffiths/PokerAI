@@ -43,7 +43,7 @@ class API(object):
         self.env = Poker(self.env_params)
         self.network_params = self.instantiate_network_params()
         self.model = OmahaActor(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
-        self.load_model(self.config.agent_params['actor_path'])
+        self.load_model(self.config.production_actor)
         self.player = {'name':None,'position':'BB'}
         self.reset_trajectories()
         

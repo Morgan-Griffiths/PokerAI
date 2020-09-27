@@ -6,6 +6,7 @@ class Config(object):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
         self.maxlen = 10
+        self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.training_params = {
                 'epochs':2500,
                 'training_round':0,

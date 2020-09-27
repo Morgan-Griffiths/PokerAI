@@ -104,6 +104,8 @@ if __name__ == "__main__":
         'id':0,
         'save_every':5,
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+        'actor_path':config.agent_params['actor_path'],
+        'critic_path':config.agent_params['critic_path'],
     }
     learning_params = {
         'training_round':0,
@@ -178,8 +180,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(actor.state_dict(), os.path.join(path,'OmahaActorFinal'))
-        torch.save(critic.state_dict(), os.path.join(path,'OmahaCriticFinal'))
+        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
