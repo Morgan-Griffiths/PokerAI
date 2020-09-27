@@ -133,15 +133,35 @@ if __name__ == "__main__":
         trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
 
     if args.tourney == 'latest':
-        """Takes the latest network weights and evals vs all the previous ones"""
-        pass
+        """Takes the latest network weights and evals vs all the previous ones or the last N"""
+        # load all file paths
+        weight_paths = load_paths(training_params['save_dir'])
+        model_names = weight_paths.keys()
+        latest_actor = model_names[-1]
+        latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
+        matchups = [(latest_actor,model) for model in model_names[:-1]]
+        # create array to store results
+        result_array = np.zeros(len(matchups))
+        data_row_dict = {model:i for i,model in enumerate(model_names[:-1])}
+        for match in matchups:
+            net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net2_path = weight_paths[match[1]]
+            net2.load_state_dict(torch.load(net2_path))
+            results = tournament(env,net1,net2,match,training_params)
+            result_array[data_row_dict[match[0]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+        # Create Results Table
+        table = PrettyTable(["Model Name", *model_names[:-1]])
+        table.add_row([latest_actor,*result_array])
+        print(table)
 
     elif args.tourney == 'roundrobin':
+        """Runs all saved weights (in training_run folder) against each other in a round robin"""
         # load all file paths
         weight_paths = load_paths(training_params['save_dir'])
         # all combinations
         model_names = weight_paths.keys()
-        matchups = combinations(model_names,2)
+        matchups = list(combinations(model_names,2))
         # create array to store results
         result_array = np.zeros((len(matchups),len(matchups)))
         data_row_dict = {model:i for i,model in enumerate(model_names)}
