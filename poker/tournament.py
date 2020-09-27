@@ -124,7 +124,6 @@ if __name__ == "__main__":
     nB = env.betsize_space
     model_name = 'OmahaActorFinal' if args.network_type == 'dual' else 'OmahaCombinedFinal'
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
-    print(f'Evaluating {model_name}')
     seed = 154
 
     if args.network_type == 'dual':
@@ -163,9 +162,10 @@ if __name__ == "__main__":
         model_names = weight_paths.keys()
         matchups = list(combinations(model_names,2))
         # create array to store results
-        result_array = np.zeros((len(matchups),len(matchups)))
+        result_array = np.zeros((len(model_names),len(model_names)))
         data_row_dict = {model:i for i,model in enumerate(model_names)}
         for match in matchups:
+            print(f'Current Match {match}')
             net1 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net1_path = weight_paths[match[0]]
@@ -183,6 +183,7 @@ if __name__ == "__main__":
             table.add_row([model,*row])
         print(table)
     else:
+        print(f'Evaluating {model_name}')
         trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
         baseline_evaluation = BetAgent()
         model_names = ['baseline_evaluation','trained_model']
