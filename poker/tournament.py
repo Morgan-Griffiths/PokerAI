@@ -176,8 +176,8 @@ if __name__ == "__main__":
             net2.load_state_dict(torch.load(net2_path))
             results = tournament(env,net1,net2,match,training_params)
             print(f'Results {results}')
-            result_array[data_row_dict[match[0]]] = results[match[0]]['SB'] + results[match[0]]['BB']
-            result_array[data_row_dict[match[1]]] = results[match[1]]['SB'] + results[match[1]]['BB']
+            result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+            result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
         # Create Results Table
         table = PrettyTable(["Model Name", *model_names])
         for i,model in enumerate(model_names):
