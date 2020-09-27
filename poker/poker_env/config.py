@@ -37,6 +37,7 @@ class Config(object):
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/PartialHandRegression'),
             'frozen_layer' : False,
             'actor_path':os.path.join(os.getcwd(),'checkpoints/OmahaActorFinal'),
+            'critic_path':os.path.join(os.getcwd(),'checkpoints/OmahaCriticFinal'),
         }
         self.global_mapping = {
             'board':np.array([0,1,2,3,4,5,6,7,8,9]),

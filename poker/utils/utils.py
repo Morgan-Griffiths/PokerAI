@@ -6,7 +6,7 @@ import re
 
 def grep(pat, txt): 
     r = re.search(pat, txt)
-    return r.group(0) if r else '&'
+    return r.group(0) if r else -1
 
 def load_paths(folder):
     weight_paths = {}
