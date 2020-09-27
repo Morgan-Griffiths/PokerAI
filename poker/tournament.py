@@ -4,6 +4,8 @@ import torch
 import sys
 import numpy as np
 import time
+from itertools import combinations
+from prettytable import PrettyTable
 
 import models.network_config as ng
 from models.networks import OmahaActor,CombinedNet,BetAgent
@@ -11,6 +13,7 @@ from models.network_config import NetworkConfig
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
+from utils.utils import load_paths
 
 def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
@@ -65,6 +68,12 @@ if __name__ == "__main__":
                         default=500,
                         type=int,
                         help='How many hands to evaluate on')
+    parser.add_argument('--tourney','-t',
+                        dest='tourney',
+                        default='baseline',
+                        type=str,
+                        metavar=f'[roundrobin,latest,baseline]'
+                        help='What kind of tournament to run')
 
     args = parser.parse_args()
     tic = time.time()
@@ -106,6 +115,7 @@ if __name__ == "__main__":
         'transformer_in':1280,
         'transformer_out':128,
         'device':device,
+        'path':os.path.join(os.getcwd(),'checkpoints/training_run')
     }
 
     nS = env.state_space
@@ -121,14 +131,45 @@ if __name__ == "__main__":
         trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     else:
         trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-    trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
-    baseline_evaluation = BetAgent()
 
-    model_names = ['baseline_evaluation','trained_model']
+    if args.tourney == 'latest':
+        """Takes the latest network weights and evals vs all the previous ones"""
+        pass
 
-    results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
-    print(results)
-    print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
-    print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
-    toc = time.time()
-    print(f'Tournament completed in {(toc-tic)/60} minutes')
+    elif args.tourney == 'roundrobin':
+        # load all file paths
+        weight_paths = load_paths(network_params['path'])
+        # all combinations
+        model_names = weight_paths.keys()
+        matchups = combinations(model_names,2)
+        # create array to store results
+        result_array = np.zeros((len(matchups),len(matchups)))
+        data_row_dict = {model:i for i,model in enumerate(model_names)}
+        for match in matchups:
+            net1 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net1_path = weight_paths[match[0]]
+            net2_path = weight_paths[match[1]]
+            net1.load_state_dict(torch.load(net1_path))
+            net2.load_state_dict(torch.load(net2_path))
+            results = tournament(env,net1,net2,match,training_params)
+            result_array[data_row_dict[match[0]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+            result_array[data_row_dict[match[1]]] = results[match[1]]['SB'] + results[match[1]]['BB']
+        # Create Results Table
+        table = PrettyTable(["Model Name", *model_names])
+        for i,model in enumerate(model_names):
+            row = list(result_array[i])
+            row[i] = 'x'
+            table.add_row([model,*row])
+        print(table)
+    else:
+        trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
+        baseline_evaluation = BetAgent()
+        model_names = ['baseline_evaluation','trained_model']
+        results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
+        print(results)
+
+        print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
+        print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
+        toc = time.time()
+        print(f'Tournament completed in {(toc-tic)/60} minutes')
