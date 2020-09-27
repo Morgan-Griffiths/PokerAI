@@ -144,11 +144,13 @@ if __name__ == "__main__":
         result_array = np.zeros(len(matchups))
         data_row_dict = {model:i for i,model in enumerate(model_names[:-1])}
         for match in matchups:
+            print(f'Current Match {match}')
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2_path = weight_paths[match[1]]
             net2.load_state_dict(torch.load(net2_path))
             results = tournament(env,net1,net2,match,training_params)
             result_array[data_row_dict[match[0]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+            print(f'Results {results}')
         # Create Results Table
         table = PrettyTable(["Model Name", *model_names[:-1]])
         table.add_row([latest_actor,*result_array])
@@ -173,6 +175,7 @@ if __name__ == "__main__":
             net1.load_state_dict(torch.load(net1_path))
             net2.load_state_dict(torch.load(net2_path))
             results = tournament(env,net1,net2,match,training_params)
+            print(f'Results {results}')
             result_array[data_row_dict[match[0]]] = results[match[0]]['SB'] + results[match[0]]['BB']
             result_array[data_row_dict[match[1]]] = results[match[1]]['SB'] + results[match[1]]['BB']
         # Create Results Table
