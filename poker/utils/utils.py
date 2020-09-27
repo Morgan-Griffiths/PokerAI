@@ -2,6 +2,11 @@ import numpy as np
 import os
 import pickle
 from torch import where,zeros_like
+import re
+
+def grep(pat, txt): 
+    r = re.search(pat, txt)
+    return r.group(0) if r else '&'
 
 def load_paths(folder):
     weight_paths = {}

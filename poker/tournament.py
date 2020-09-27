@@ -13,7 +13,7 @@ from models.network_config import NetworkConfig
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
-from utils.utils import load_paths
+from utils.utils import load_paths,grep
 
 def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
@@ -136,6 +136,7 @@ if __name__ == "__main__":
         # load all file paths
         weight_paths = load_paths(training_params['save_dir'])
         model_names = list(weight_paths.keys())
+        model_names.sort(key=lambda l: grep("_d+", l))
         latest_actor = model_names[-1]
         latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
@@ -144,13 +145,11 @@ if __name__ == "__main__":
         result_array = np.zeros(len(matchups))
         data_row_dict = {model:i for i,model in enumerate(model_names[:-1])}
         for match in matchups:
-            print(f'Current Match {match}')
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2_path = weight_paths[match[1]]
             net2.load_state_dict(torch.load(net2_path))
             results = tournament(env,latest_net,net2,match,training_params)
             result_array[data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
-            print(f'Results {results}')
         # Create Results Table
         table = PrettyTable(["Model Name", *model_names[:-1]])
         table.add_row([latest_actor,*result_array])
@@ -167,7 +166,6 @@ if __name__ == "__main__":
         result_array = np.zeros((len(model_names),len(model_names)))
         data_row_dict = {model:i for i,model in enumerate(model_names)}
         for match in matchups:
-            print(f'Current Match {match}')
             net1 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net1_path = weight_paths[match[0]]
@@ -175,7 +173,6 @@ if __name__ == "__main__":
             net1.load_state_dict(torch.load(net1_path))
             net2.load_state_dict(torch.load(net2_path))
             results = tournament(env,net1,net2,match,training_params)
-            print(f'Results {results}')
             result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
             result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
         # Create Results Table
