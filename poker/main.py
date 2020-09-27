@@ -101,12 +101,13 @@ if __name__ == "__main__":
         'generate_epochs':args.generate,
         'training_round':0,
         'game':'Omaha',
-        'id':0
+        'id':0,
+        'save_every':5,
     }
     learning_params = {
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
-        'path': os.path.join(os.getcwd(),'checkpoints'),
+        'path': os.path.join(os.getcwd(),'checkpoints/training_run'),
         'learning_rounds':args.learning,
         'device':device,
         'gpu1':gpu1,
@@ -145,8 +146,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
-        print(f'Saved model weights to {os.path.join(path,"RL_combined")}')
+        torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombined'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaCombined")}')
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
@@ -175,8 +176,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
-        torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
-        print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
+        torch.save(actor.state_dict(), os.path.join(path,'OmahaActor'))
+        torch.save(critic.state_dict(), os.path.join(path,'OmahaCritic'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaActor")} and {os.path.join(path,"OmahaCritic")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
