@@ -72,7 +72,7 @@ if __name__ == "__main__":
                         dest='tourney',
                         default='baseline',
                         type=str,
-                        metavar=f'[roundrobin,latest,baseline]'
+                        metavar=f'[roundrobin,latest,baseline]',
                         help='What kind of tournament to run')
 
     args = parser.parse_args()
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     nO = env.observation_space
     nA = env.action_space
     nB = env.betsize_space
-    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
+    model_name = 'OmahaActorFinal' if args.network_type == 'dual' else 'OmahaCombinedFinal'
     print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
     print(f'Evaluating {model_name}')
     seed = 154
