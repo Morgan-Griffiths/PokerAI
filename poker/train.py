@@ -212,5 +212,5 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if e % training_params['save_every'] == 0:
-            torch.save(actor.state_dict(), os.path.join(training_params['save_dir'],f'OmahaActor_{e}'))
-            # torch.save(critic.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCritic_{e}'))
+            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
