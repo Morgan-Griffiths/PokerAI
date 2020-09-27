@@ -123,7 +123,7 @@ if __name__ == "__main__":
     nA = env.action_space
     nB = env.betsize_space
     model_name = 'OmahaActorFinal' if args.network_type == 'dual' else 'OmahaCombinedFinal'
-    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
+    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}\n')
     seed = 154
 
     if args.network_type == 'dual':
@@ -140,7 +140,9 @@ if __name__ == "__main__":
         latest_actor = model_names[-1]
         latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
-        matchups = [(latest_actor,model) for model in model_names[:-1]]
+        # Build matchups
+        last_n_models = min(len(model_names),5)
+        matchups = [(latest_actor,model) for model in model_names[-last_n_models:-1]]
         # create array to store results
         result_array = np.zeros(len(matchups))
         data_row_dict = {model:i for i,model in enumerate(model_names[:-1])}
