@@ -12,6 +12,7 @@ import copy
 import time
 import logging
 
+from models.networks import BetAgent
 from models.model_updates import update_actor_critic,update_combined
 from utils.data_loaders import return_trajectoryloader
 from models.model_utils import scale_rewards,soft_update
@@ -194,11 +195,14 @@ def train(env,model,training_params,learning_params,id):
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        if e % training_params['save_every'] == 0:
+            torch.save(model.state_dict(), os.path.join(path,f'OmahaCombined_{e}'))
 
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_trajectories(env,target_actor,training_params,id)
+        generate_vs_frozen(env,target_actor,BetAgent,training_params,id)
+        # generate_trajectories(env,target_actor,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
@@ -207,3 +211,6 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        if e % training_params['save_every'] == 0:
+            torch.save(actor.state_dict(), os.path.join(path,f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(path,f'OmahaCritic_{e}'))
