@@ -130,22 +130,21 @@ if __name__ == "__main__":
         trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     else:
         trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-
     if args.tourney == 'latest':
         """Takes the latest network weights and evals vs all the previous ones or the last N"""
         # load all file paths
-        weight_paths = load_paths(training_params['save_dir'])
+        weight_paths = load_paths(training_params['actor_path'])
         model_names = list(weight_paths.keys())
         model_names.sort(key=lambda l: int(grep("\d+", l)))
-        latest_actor = model_names[0]
+        latest_actor = model_names[-1]
         latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
         # Build matchups
-        last_n_models = min(len(model_names)-1,5)
-        matchups = [(latest_actor,model) for model in model_names[-last_n_models:]]
+        last_n_models = min(len(model_names),5)
+        matchups = [(latest_actor,model) for model in model_names[-last_n_models:-1]]
         # create array to store results
         result_array = np.zeros(len(matchups))
-        data_row_dict = {model:i for i,model in enumerate(model_names[-last_n_models:])}
+        data_row_dict = {model:i for i,model in enumerate(model_names[-last_n_models:-1])}
         for match in matchups:
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2_path = weight_paths[match[1]]
@@ -153,16 +152,16 @@ if __name__ == "__main__":
             results = tournament(env,latest_net,net2,match,training_params)
             result_array[data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
         # Create Results Table
-        table = PrettyTable(["Model Name", *model_names[1:]])
+        table = PrettyTable(["Model Name", *model_names[:-1]])
         table.add_row([latest_actor,*result_array])
         print(table)
-
     elif args.tourney == 'roundrobin':
         """Runs all saved weights (in training_run folder) against each other in a round robin"""
         # load all file paths
-        weight_paths = load_paths(training_params['save_dir'])
+        weight_paths = load_paths(training_params['actor_path'])
         # all combinations
-        model_names = weight_paths.keys()
+        model_names = list(weight_paths.keys())
+        model_names.sort(key=lambda l: int(grep("\d+", l)))
         matchups = list(combinations(model_names,2))
         # create array to store results
         result_array = np.zeros((len(model_names),len(model_names)))
