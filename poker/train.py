@@ -196,12 +196,12 @@ def train(env,model,training_params,learning_params,id):
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if e % training_params['save_every'] == 0:
-            torch.save(model.state_dict(), os.path.join(path,f'OmahaCombined_{e}'))
+            torch.save(model.state_dict(), os.path.join(learning_params['path'],f'OmahaCombined_{e}'))
 
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,target_actor,BetAgent,training_params,id)
+        generate_vs_frozen(env,target_actor,BetAgent(),training_params,id)
         # generate_trajectories(env,target_actor,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
@@ -212,5 +212,5 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if e % training_params['save_every'] == 0:
-            torch.save(actor.state_dict(), os.path.join(path,f'OmahaActor_{e}'))
-            torch.save(critic.state_dict(), os.path.join(path,f'OmahaCritic_{e}'))
+            torch.save(actor.state_dict(), os.path.join(learning_params['path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(learning_params['path'],f'OmahaCritic_{e}'))
