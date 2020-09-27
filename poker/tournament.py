@@ -6,32 +6,11 @@ import numpy as np
 import time
 
 import models.network_config as ng
-from models.networks import OmahaActor,CombinedNet
+from models.networks import OmahaActor,CombinedNet,BetAgent
 from models.network_config import NetworkConfig
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
-
-class BetAgent(object):
-    def __init__(self):
-        pass
-
-    def name(self):
-        return 'baseline_evaluation'
-
-    def __call__(self,state,action_mask,betsize_mask):
-        if betsize_mask.sum() > 0:
-            action = np.argmax(betsize_mask,axis=-1) + 3
-        else:
-            action = np.argmax(action_mask,axis=-1)
-        actor_outputs = {
-            'action':action,
-            'action_category':int(np.where(action_mask > 0)[-1][-1]),
-            'action_probs':torch.zeros(5).fill_(2.),
-            'action_prob':torch.tensor([1.]),
-            'betsize' : int(np.argmax(betsize_mask,axis=-1))
-        }
-        return actor_outputs
 
 def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
