@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from models.model_utils import scale_rewards,soft_update,return_value_mask
 import logging
+from prettytable import PrettyTable
 
 def update_critic_batch(poker_round,critic,params):
     log = logging.getLogger(__name__)
@@ -40,9 +41,45 @@ def update_critic_batch(poker_round,critic,params):
         log.debug('local_values',local_values[value_mask],scaled_rewards)
     return critic
 
-def update_actor(actor,target_actor,target_critic):
+def update_actor(poker_round,actor,target_actor,target_critic,params):
     """With critic batch updates"""
-    pass
+    actor_optimizer = params['actor_optimizer']
+    device = params['device']
+    state = poker_round['state']
+    obs = poker_round['obs']
+    action = poker_round['action']
+    reward = poker_round['reward']
+    betsize_mask = poker_round['betsize_mask']
+    action_mask = poker_round['action_mask']
+    # Actor update #
+    target_values = target_critic(obs)['value']
+    actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+    target_out = target_actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+    actor_value_mask = return_value_mask(actor_out['action'])
+    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    actor_optimizer.zero_grad()
+    policy_loss.backward()
+    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    actor_optimizer.step()
+    soft_update(actor,target_actor)
+    post_actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+    post_target_out = target_actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+    # Assert probabilities aren't changing more than x
+    actor_diff = actor_out['action_probs'].detach().numpy() - post_actor_out['action_probs'].detach().numpy()
+    target_diff = target_out['action_probs'].detach().numpy() - post_target_out['action_probs'].detach().numpy()
+    actor_diff_max = np.max(np.abs(actor_diff))
+    target_diff_max = np.max(np.abs(target_diff))
+    table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
+    table.add_row([target_values.detach(),action,reward,policy_loss.item()])
+    print(table)
+    table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
+    table.add_row([actor_out['action_probs'].detach(),post_actor_out['action_probs'].detach(),actor_diff_max])
+    print(table)
+    table = PrettyTable(["Target Actor Probs","Updated Target Probs","Max Target diff"])
+    table.add_row([target_out['action_probs'].detach(),post_target_out['action_probs'].detach(),target_diff_max])
+    print(table)
 
 def update_critic(poker_round,critic,params):
     critic_optimizer = params['critic_optimizer'] 

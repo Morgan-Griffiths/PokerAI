@@ -13,7 +13,7 @@ import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from train import generate_trajectories,dual_learning_update,combined_learning_update
 from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic
-from models.model_updates import update_combined,update_actor_critic,update_critic
+from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask
 
 def eval_critic(critic,params):
@@ -34,6 +34,25 @@ def eval_critic(critic,params):
             sys.stdout.write(f", round {(j):.2f}")
             sys.stdout.flush()
         print(f'Training Round {i}, critic loss {sum(losses)}')
+    del data
+
+def eval_actor(actor,target_actor,target_critic,params):
+    query = {'training_round':0}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = list(db['game_data'].find(query,projection))
+    print(f'Number of data points {len(data)}')
+    for i in range(params['learning_rounds']):
+        for j,poker_round in enumerate(data,1):
+            # sys.stdout.write('\r')
+            update_actor(poker_round,actor,target_actor,target_critic,params)
+            # sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+            # sys.stdout.flush()
+            # sys.stdout.write(f", round {(j):.2f}")
+            # sys.stdout.flush()
+            print(f'Training Round {j}')
+            break
     del data
 
 def eval_network_updates(actor,critic,target_actor,target_critic,params):
@@ -97,7 +116,13 @@ if __name__ == "__main__":
                         default='dual',
                         metavar="['combined','dual']",
                         type=str,
-                        help='whether to split the actor critic into two separate networks or not')
+                        help='eval actor/critic or combined networks')
+    parser.add_argument('--eval','-e',
+                        dest='eval',
+                        default='actor_critic',
+                        metavar="['actor_critic','actor','critic]",
+                        type=str,
+                        help='In dual networks, whether to eval both or one at a time')
 
     args = parser.parse_args()
 
@@ -192,6 +217,11 @@ if __name__ == "__main__":
 
         # Gen trajectories
         generate_trajectories(env,local_actor,training_params,id=0)
+
         # Eval learning models
-        eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
-        # eval_critic(local_critic,learning_params)
+        if args.eval == 'actor':
+            eval_actor(local_actor,target_actor,target_critic,learning_params)
+        elif args.eval == 'critic':
+            eval_critic(local_critic,learning_params)
+        else:
+            eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
