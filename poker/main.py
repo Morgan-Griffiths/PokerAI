@@ -47,6 +47,11 @@ if __name__ == "__main__":
                         default=1,
                         type=int,
                         help='Number of learning passes on the data')
+    parser.add_argument('--steps','-s',
+                        dest='steps',
+                        default=3,
+                        type=int,
+                        help='Number of learning rate decays')
 
     args = parser.parse_args()
 
@@ -98,7 +103,7 @@ if __name__ == "__main__":
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
     }
     training_params = {
-        'lr_steps':3,
+        'lr_steps':args.steps,
         'training_epochs':args.epochs,
         'generate_epochs':args.generate,
         'training_round':0,
@@ -154,6 +159,9 @@ if __name__ == "__main__":
                 processes.append(p)
             for p in processes: 
                 p.join()
+            mongo.connect()
+            mongo.clean_db()
+            mongo.close()
             learning_params['lrscheduler'].step()
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
@@ -183,13 +191,16 @@ if __name__ == "__main__":
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
-        for _ in range(training_params['lr_steps']):
+        for e in range(training_params['lr_steps']):
             for id in range(num_processes): # No. of processes
                 p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
                 p.start()
                 processes.append(p)
             for p in processes: 
                 p.join()
+            mongo.connect()
+            mongo.clean_db()
+            mongo.close()
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
         # save weights
