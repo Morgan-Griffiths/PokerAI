@@ -220,6 +220,7 @@ class OmahaActor(Network):
         n_heads = 8
         depth = 2
         self.lstm = nn.LSTM(1280, 128,bidirectional=True)
+        self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
@@ -242,8 +243,9 @@ class OmahaActor(Network):
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
+        norm = self.batchnorm(lstm_out)
         # blocks_out = self.blocks(lstm_out.view(-1))
-        t_logits = self.fc_final(lstm_out.view(-1))
+        t_logits = self.fc_final(norm.view(-1))
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
