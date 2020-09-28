@@ -11,6 +11,27 @@ from models.buffers import PriorityReplayBuffer,PriorityTree
 from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
+class BetAgent(object):
+    def __init__(self):
+        pass
+
+    def name(self):
+        return 'baseline_evaluation'
+
+    def __call__(self,state,action_mask,betsize_mask):
+        if betsize_mask.sum() > 0:
+            action = np.argmax(betsize_mask,axis=-1) + 3
+        else:
+            action = np.argmax(action_mask,axis=-1)
+        actor_outputs = {
+            'action':action,
+            'action_category':int(np.where(action_mask > 0)[-1][-1]),
+            'action_probs':torch.zeros(5).fill_(2.),
+            'action_prob':torch.tensor([1.]),
+            'betsize' : int(np.argmax(betsize_mask,axis=-1))
+        }
+        return actor_outputs
+
 ################################################
 #               Holdem Networks                #
 ################################################

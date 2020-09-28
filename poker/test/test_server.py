@@ -3,6 +3,7 @@ import os
 from flask import Flask,current_app, Response as BaseResponse, json
 from flask_testing import TestCase
 from server import app
+from poker_env.config import Config
 
 class BaseConfiguration(object):
     DEBUG = False
@@ -61,8 +62,9 @@ class BaseTestCase(TestCase):
         print(response.data)
 
     def test_model_load(self):
+        config = Config()
         c = self.app.test_client()
-        response = c.post('/api/model/load',data=json.dumps(dict(path=os.path.join(os.getcwd(),'checkpoints/RL_actor'))),follow_redirects=True)
+        response = c.post('/api/model/load',data=json.dumps(dict(path=config.production_actor)),follow_redirects=True)
         print(response.data)
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import update_weights,hard_update
-from utils.utils import unpack_shared_dict
+from utils.utils import unpack_shared_dict,clean_folder
 
 from torch import optim
 
@@ -101,12 +101,15 @@ if __name__ == "__main__":
         'generate_epochs':args.generate,
         'training_round':0,
         'game':'Omaha',
-        'id':0
+        'id':0,
+        'save_every':5,
+        'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+        'actor_path':config.agent_params['actor_path'],
+        'critic_path':config.agent_params['critic_path'],
     }
     learning_params = {
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
-        'path': os.path.join(os.getcwd(),'checkpoints'),
         'learning_rounds':args.learning,
         'device':device,
         'gpu1':gpu1,
@@ -114,10 +117,12 @@ if __name__ == "__main__":
         'min_reward':-env_params['stacksize'],
         'max_reward':env_params['pot']+env_params['stacksize']
     }
-    path = learning_params['path']
+    path = training_params['save_dir']
     directory = os.path.dirname(path)
     if not os.path.exists(directory):
         os.mkdir(directory)
+    # Clean training_run folder
+    # clean_folder(training_params['save_dir'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
@@ -145,8 +150,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(alphaPoker.state_dict(), os.path.join(path,'RL_combined'))
-        print(f'Saved model weights to {os.path.join(path,"RL_combined")}')
+        torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
@@ -175,8 +180,8 @@ if __name__ == "__main__":
         for p in processes: 
             p.join()
         # save weights
-        torch.save(actor.state_dict(), os.path.join(path,'RL_actor'))
-        torch.save(critic.state_dict(), os.path.join(path,'RL_critic'))
-        print(f'Saved model weights to {os.path.join(path,"RL_actor")} and {os.path.join(path,"RL_critic")}')
+        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+        print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')

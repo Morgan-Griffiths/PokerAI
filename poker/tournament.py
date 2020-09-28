@@ -4,34 +4,16 @@ import torch
 import sys
 import numpy as np
 import time
+from itertools import combinations
+from prettytable import PrettyTable
 
 import models.network_config as ng
-from models.networks import OmahaActor,CombinedNet
+from models.networks import OmahaActor,CombinedNet,BetAgent
 from models.network_config import NetworkConfig
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
-
-class BetAgent(object):
-    def __init__(self):
-        pass
-
-    def name(self):
-        return 'baseline_evaluation'
-
-    def __call__(self,state,action_mask,betsize_mask):
-        if betsize_mask.sum() > 0:
-            action = np.argmax(betsize_mask,axis=-1) + 3
-        else:
-            action = np.argmax(action_mask,axis=-1)
-        actor_outputs = {
-            'action':action,
-            'action_category':int(np.where(action_mask > 0)[-1][-1]),
-            'action_probs':torch.zeros(5).fill_(2.),
-            'action_prob':torch.tensor([1.]),
-            'betsize' : int(np.argmax(betsize_mask,axis=-1))
-        }
-        return actor_outputs
+from utils.utils import load_paths,grep
 
 def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
@@ -86,6 +68,12 @@ if __name__ == "__main__":
                         default=500,
                         type=int,
                         help='How many hands to evaluate on')
+    parser.add_argument('--tourney','-t',
+                        dest='tourney',
+                        default='baseline',
+                        type=str,
+                        metavar=f'[roundrobin,latest,baseline]',
+                        help='What kind of tournament to run')
 
     args = parser.parse_args()
     tic = time.time()
@@ -118,6 +106,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
     training_params['epochs'] = args.epochs
+    training_params['save_dir']:os.path.join(os.getcwd(),'checkpoints/training_run')
     network_params = {
         'game':pdt.GameTypes.OMAHAHI,
         'maxlen':config.maxlen,
@@ -133,23 +122,76 @@ if __name__ == "__main__":
     nO = env.observation_space
     nA = env.action_space
     nB = env.betsize_space
-    model_name = 'RL_actor' if args.network_type == 'dual' else 'RL_combined'
-    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}')
-    print(f'Evaluating {model_name}')
+    model_name = 'OmahaActorFinal' if args.network_type == 'dual' else 'OmahaCombinedFinal'
+    print(f'Environment: State Space {nS}, Obs Space {nO}, Action Space {nA}, Betsize Space {nB}\n')
     seed = 154
 
     if args.network_type == 'dual':
         trained_model = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     else:
         trained_model = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-    trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
-    baseline_evaluation = BetAgent()
+    if args.tourney == 'latest':
+        """Takes the latest network weights and evals vs all the previous ones or the last N"""
+        # load all file paths
+        weight_paths = load_paths(training_params['actor_path'])
+        model_names = list(weight_paths.keys())
+        model_names.sort(key=lambda l: int(grep("\d+", l)))
+        latest_actor = model_names[-1]
+        latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
+        # Build matchups
+        last_n_models = min(len(model_names),5)
+        matchups = [(latest_actor,model) for model in model_names[-last_n_models:-1]]
+        # create array to store results
+        result_array = np.zeros(len(matchups))
+        data_row_dict = {model:i for i,model in enumerate(model_names[-last_n_models:-1])}
+        for match in matchups:
+            net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net2_path = weight_paths[match[1]]
+            net2.load_state_dict(torch.load(net2_path))
+            results = tournament(env,latest_net,net2,match,training_params)
+            result_array[data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+        # Create Results Table
+        table = PrettyTable(["Model Name", *model_names[:-1]])
+        table.add_row([latest_actor,*result_array])
+        print(table)
+    elif args.tourney == 'roundrobin':
+        """Runs all saved weights (in training_run folder) against each other in a round robin"""
+        # load all file paths
+        weight_paths = load_paths(training_params['actor_path'])
+        # all combinations
+        model_names = list(weight_paths.keys())
+        model_names.sort(key=lambda l: int(grep("\d+", l)))
+        matchups = list(combinations(model_names,2))
+        # create array to store results
+        result_array = np.zeros((len(model_names),len(model_names)))
+        data_row_dict = {model:i for i,model in enumerate(model_names)}
+        for match in matchups:
+            net1 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            net1_path = weight_paths[match[0]]
+            net2_path = weight_paths[match[1]]
+            net1.load_state_dict(torch.load(net1_path))
+            net2.load_state_dict(torch.load(net2_path))
+            results = tournament(env,net1,net2,match,training_params)
+            result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
+            result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
+        # Create Results Table
+        table = PrettyTable(["Model Name", *model_names])
+        for i,model in enumerate(model_names):
+            row = list(result_array[i])
+            row[i] = 'x'
+            table.add_row([model,*row])
+        print(table)
+    else:
+        print(f'Evaluating {model_name}')
+        trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
+        baseline_evaluation = BetAgent()
+        model_names = ['baseline_evaluation','trained_model']
+        results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
+        print(results)
 
-    model_names = ['baseline_evaluation','trained_model']
-
-    results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
-    print(results)
-    print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
-    print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
-    toc = time.time()
-    print(f'Tournament completed in {(toc-tic)/60} minutes')
+        print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
+        print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
+        toc = time.time()
+        print(f'Tournament completed in {(toc-tic)/60} minutes')

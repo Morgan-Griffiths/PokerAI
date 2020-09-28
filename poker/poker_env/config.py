@@ -6,10 +6,13 @@ class Config(object):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
         self.maxlen = 10
+        self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.training_params = {
                 'epochs':2500,
                 'training_round':0,
-                'save_dir':os.path.join(os.getcwd(),'checkpoints')
+                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+                'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+                'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
@@ -32,11 +35,12 @@ class Config(object):
             'actor_network':None,
             'critic_type':'q',
             'embedding_size': 32,
-            'actor_lr':1e-3,
+            'actor_lr':3e-4,
             'critic_lr':4e-7,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/PartialHandRegression'),
             'frozen_layer' : False,
-            'actor_path':os.path.join(os.getcwd(),'checkpoints/RL_actor'),
+            'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+            'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
         }
         self.global_mapping = {
             'board':np.array([0,1,2,3,4,5,6,7,8,9]),

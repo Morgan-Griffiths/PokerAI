@@ -1,6 +1,28 @@
 import numpy as np
+import os
 import pickle
 from torch import where,zeros_like
+import re
+
+def grep(pat, txt): 
+    r = re.search(pat, txt)
+    return r.group(0) if r else 1e+10
+
+def load_paths(folder):
+    print(folder,'folder')
+    weight_paths = {}
+    for weight_file in os.listdir(folder):
+        if weight_file != '.DS_Store' and not os.path.isdir(os.path.join(folder,weight_file)):
+            weight_paths[weight_file] = os.path.join(folder,weight_file)
+    return weight_paths
+
+def clean_folder(folder):
+    try:
+        for weight_file in os.listdir(folder):
+            if weight_file != '.DS_Store':
+                os.remove(os.path.join(folder,weight_file))
+    except:
+        pass
 
 def return_uniques(values):
     uniques, count = np.unique(values, return_counts=True)
