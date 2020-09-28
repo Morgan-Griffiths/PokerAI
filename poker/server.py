@@ -62,7 +62,6 @@ class API(object):
         return network_params
 
     def load_model(self,path):
-        print('load_model',path,os.path.isfile(path))
         if os.path.isfile(path):
             self.model.load_state_dict(load(path))
             self.model.eval()
