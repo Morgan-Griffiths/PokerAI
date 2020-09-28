@@ -152,17 +152,15 @@ if __name__ == "__main__":
         # generate_trajectories(env,alphaPoker,training_params,id=0)
         # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
         # train(env,alphaPoker,training_params,learning_params,id=0)
-        for _ in range(training_params['lr_steps']):
+        for e in range(training_params['lr_steps']):
             for id in range(num_processes): # No. of processes
                 p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
                 p.start()
                 processes.append(p)
             for p in processes: 
                 p.join()
-            mongo.connect()
-            mongo.clean_db()
-            mongo.close()
             learning_params['lrscheduler'].step()
+            training_params['training_round'] = (e+1) * training_params['training_round']
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
@@ -198,11 +196,9 @@ if __name__ == "__main__":
                 processes.append(p)
             for p in processes: 
                 p.join()
-            mongo.connect()
-            mongo.clean_db()
-            mongo.close()
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
+            training_params['training_round'] = (e+1) * training_params['training_round']
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
