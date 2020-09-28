@@ -16,7 +16,11 @@ def count_parameters(model):
     return total_params
 
 def return_value_mask(actions):
-    M = 1#actions.shape[0]
+    """supports both batch and single int actions"""
+    if hasattr(actions,'shape')
+        M = actions.shape[0]
+    else:
+        M = 1
     value_mask = torch.zeros(M,5)
     value_mask[torch.arange(M),actions] = 1
     value_mask = value_mask.bool()
