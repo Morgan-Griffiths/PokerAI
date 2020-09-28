@@ -17,7 +17,7 @@ def count_parameters(model):
 
 def return_value_mask(actions):
     """supports both batch and single int actions"""
-    if hasattr(actions,'shape')
+    if hasattr(actions,'shape'):
         M = actions.shape[0]
     else:
         M = 1
