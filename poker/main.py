@@ -3,6 +3,7 @@ import time
 import torch.multiprocessing as mp
 import torch
 import os
+from torch.optim.lr_scheduler import MultiStepLR,StepLR
 
 from train import train,train_dual,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
@@ -97,6 +98,7 @@ if __name__ == "__main__":
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
     }
     training_params = {
+        'lr_steps':3,
         'training_epochs':args.epochs,
         'generate_epochs':args.generate,
         'training_round':0,
@@ -136,19 +138,23 @@ if __name__ == "__main__":
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         alphaPoker.summary
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
+        lrscheduler = StepLR(alphaPoker_optimizer, step_size=1, gamma=0.1)
         learning_params['model_optimizer'] = alphaPoker_optimizer
+        learning_params['lrscheduler'] = lrscheduler
         alphaPoker.share_memory()
         processes = []
         # for debugging
         # generate_trajectories(env,alphaPoker,training_params,id=0)
         # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
         # train(env,alphaPoker,training_params,learning_params,id=0)
-        for id in range(num_processes): # No. of processes
-            p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
-            p.start()
-            processes.append(p)
-        for p in processes: 
-            p.join()
+        for _ in range(training_params['lr_steps']):
+            for id in range(num_processes): # No. of processes
+                p = mp.Process(target=train, args=(env,alphaPoker,training_params,learning_params,id))
+                p.start()
+                processes.append(p)
+            for p in processes: 
+                p.join()
+            learning_params['lrscheduler'].step()
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
@@ -163,8 +169,12 @@ if __name__ == "__main__":
         hard_update(target_critic,critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+        actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
+        critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
         learning_params['actor_optimizer'] = actor_optimizer
         learning_params['critic_optimizer'] = critic_optimizer
+        learning_params['actor_lrscheduler'] = actor_lrscheduler
+        learning_params['critic_lrscheduler'] = critic_lrscheduler
         # training loop
         actor.share_memory()
         critic.share_memory()
@@ -173,12 +183,15 @@ if __name__ == "__main__":
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
-        for id in range(num_processes): # No. of processes
-            p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
-            p.start()
-            processes.append(p)
-        for p in processes: 
-            p.join()
+        for _ in range(training_params['lr_steps']):
+            for id in range(num_processes): # No. of processes
+                p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
+                p.start()
+                processes.append(p)
+            for p in processes: 
+                p.join()
+            learning_params['actor_lrscheduler'].step()
+            learning_params['critic_lrscheduler'].step()
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
