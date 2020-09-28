@@ -155,6 +155,7 @@ if __name__ == "__main__":
             for p in processes: 
                 p.join()
             learning_params['lrscheduler'].step()
+            torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
@@ -192,9 +193,11 @@ if __name__ == "__main__":
                 p.join()
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
+            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
         # save weights
-        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
-        print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
+        # torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        # torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+        # print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
