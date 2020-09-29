@@ -55,11 +55,11 @@ def train_network(data_dict,agent_params,training_params):
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     net = training_params['network'](agent_params['network_params']).to(device)
     if torch.cuda.device_count() > 1:
-        rank = 1
-        world_size = 1
-        setup(rank=rank, world_size=world_size)
+        # rank = 1
+        # world_size = 1
+        # setup(rank=rank, world_size=world_size)
         # net = net.to(rank)
-        net = DDP(net,device_ids=[1])
+        net = DataParallel(net,device_ids=[0,1])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
