@@ -276,6 +276,8 @@ if __name__ == "__main__":
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
+        'gpu1': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
     training_params = {
         'epochs':args.epochs,
