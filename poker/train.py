@@ -25,18 +25,21 @@ def pad_state(state,maxlen):
     padding = np.zeros(N)
     return padded_state
 
-def generate_vs_frozen(env,actor,villain,training_params,id):
+def generate_vs_frozen(env,actor,critic,villain,training_params,id):
     actor.eval()
+    critic.eval()
     trajectories = defaultdict(lambda:[])
     for e in range(training_params['generate_epochs']):
-        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
+        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
         state,obs,done,action_mask,betsize_mask = env.reset()
         cur_player = env.current_player
         if e % 2 == 0:
-            agent_positions = {'SB':actor,'BB':villain}
+            actor_positions = {'SB':actor,'BB':villain}
+            critic_positions = {'SB':critic,'BB':villain}
             agent_loc = {'SB':1,'BB':0}
         else:
             agent_positions = {'SB':villain,'BB':actor}
+            critic_positions = {'SB':villain,'BB':critic}
             agent_loc = {'SB':0,'BB':1}
         if agent_loc[cur_player]:
             trajectory[cur_player]['states'].append(copy.copy(state))
@@ -46,6 +49,8 @@ def generate_vs_frozen(env,actor,villain,training_params,id):
         while not done:
             actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
             if agent_loc[cur_player]:
+                critic_outputs = agent_positions[env.current_player](obs)
+                trajectory[cur_player]['values'].append(critic_outputs['value'])
                 trajectory[cur_player]['actions'].append(actor_outputs['action'])
                 trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
                 trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
@@ -67,12 +72,13 @@ def generate_vs_frozen(env,actor,villain,training_params,id):
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
 
-def generate_trajectories(env,actor,training_params,id):
+def generate_trajectories(env,actor,critic,training_params,id):
     """We want to store """
     actor.eval()
+    critic.eval()
     trajectories = defaultdict(lambda:[])
     for e in range(training_params['generate_epochs']):
-        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
+        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
         state,obs,done,action_mask,betsize_mask = env.reset()
         cur_player = env.current_player
         trajectory[cur_player]['states'].append(copy.copy(state))
@@ -81,6 +87,8 @@ def generate_trajectories(env,actor,training_params,id):
         trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
             actor_outputs = actor(state,action_mask,betsize_mask)
+            critic_outputs = critic(obs)
+            trajectory[cur_player]['values'].append(critic_outputs['value'])
             trajectory[cur_player]['actions'].append(actor_outputs['action'])
             trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
             trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
@@ -201,8 +209,8 @@ def train(env,model,training_params,learning_params,id):
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,target_actor,BetAgent(),training_params,id)
-        # generate_trajectories(env,target_actor,training_params,id)
+        generate_vs_frozen(env,actor,target_critic,BetAgent(),training_params,id)
+        # generate_trajectories(env,actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
