@@ -54,7 +54,7 @@ def unspool(X):
 
 def train_network(data_dict,agent_params,training_params):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net = training_params['network'](agent_params['network_params'])
+    net = training_params['network'](agent_params['network_params']).to(device)
     if torch.cuda.device_count() > 1:
         # rank = 1
         # world_size = 1
