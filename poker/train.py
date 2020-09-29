@@ -38,7 +38,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
             critic_positions = {'SB':critic,'BB':villain}
             agent_loc = {'SB':1,'BB':0}
         else:
-            agent_positions = {'SB':villain,'BB':actor}
+            actor_positions = {'SB':villain,'BB':actor}
             critic_positions = {'SB':villain,'BB':critic}
             agent_loc = {'SB':0,'BB':1}
         if agent_loc[cur_player]:
@@ -47,9 +47,9 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
             trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
             trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
-            actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
+            actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
             if agent_loc[cur_player]:
-                critic_outputs = agent_positions[env.current_player](obs)
+                critic_outputs = critic_positions[env.current_player](obs)
                 trajectory[cur_player]['values'].append(critic_outputs['value'])
                 trajectory[cur_player]['actions'].append(actor_outputs['action'])
                 trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
@@ -129,6 +129,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             action_masks = poker_round['action_masks']
             rewards = poker_round['rewards']
             betsizes = poker_round['betsize']
+            values = poker_round['values']
             assert(isinstance(rewards,list))
             assert(isinstance(actions,list))
             assert(isinstance(action_prob,list))
@@ -148,7 +149,8 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
                     'betsize_mask':betsize_masks[step].tolist(),
                     'action_mask':action_masks[step].tolist(),
                     'betsize':betsizes[step],
-                    'reward':rewards[step]
+                    'reward':rewards[step],
+                    'values':values[step].tolist()
                 }
                 db['game_data'].insert_one(state_json)
     client.close()
@@ -207,9 +209,10 @@ def train(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
+    villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,actor,target_critic,BetAgent(),training_params,id)
+        generate_vs_frozen(env,actor,target_critic,villain,training_params,id)
         # generate_trajectories(env,actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)

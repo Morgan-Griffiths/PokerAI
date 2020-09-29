@@ -115,30 +115,34 @@ def plot_action_frequencies(actiontype,handtype,training_round=0):
 
 def plot_critic_values(training_round=0):
     query = {
-        'position':args.position,
-        'training_round':args.run
+        # 'position':args.position,
+        # 'training_round':args.run
     }
-    projection ={'hand':1,'value':1,'reward':1,'_id':0}
+    projection ={'values':1,'reward':1,'action':1,'_id':0}
     mongo = MongoDB()
-    # gametype = mongo.get_gametype(training_round)
-
-    for position in [pdt.PositionStrs.SB,pdt.PositionStrs.BB]:
-        query['position'] = position
-        data = mongo.get_data(query,projection)
-        rewards = []
-        values = []
-        hands = []
-        for point in data:
-            rewards.append(point['reward'])
-            values.append(point['value'])
-            hands.append(point['hand'])
-        # plot value loss over time
-        interval = 25
-        critic_loss = np.array(values) - (np.array(rewards) / 2)
-        critic_loss_rolling_mean = []
-        for i in range(len(critic_loss)-interval):
-            critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
-        plot_data(f'Critic loss for {query["position"]}',[critic_loss_rolling_mean],['Values'])
+    # for position in [pdt.PositionStrs.SB,pdt.PositionStrs.BB]:
+    # query['position'] = position
+    data = mongo.get_data(query,projection)
+    rewards = []
+    actions = []
+    values = []
+    for point in data:
+        rewards.append(point['reward'])
+        values.append(point['values'])
+        actions.append(point['action'])
+    M = len(values)
+    # plot value loss over time
+    interval = 1
+    values = np.vstack(values)
+    rewards = np.vstack(rewards)
+    actions = np.array(actions)
+    mask = np.zeros((actions.size, pdt.Action.RAISE),dtype=bool)
+    mask[np.arange(actions.size),actions] = 1
+    critic_loss = values[mask].reshape(M,1) - rewards
+    critic_loss_rolling_mean = []
+    for i in range(len(critic_loss)-interval):
+        critic_loss_rolling_mean.append(np.mean(critic_loss[i:interval+i]))
+    plot_data(f'Critic loss ',[critic_loss_rolling_mean],['Values'])
 
 
 if __name__ == "__main__":
