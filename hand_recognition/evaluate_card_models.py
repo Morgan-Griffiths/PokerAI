@@ -55,9 +55,9 @@ def train_network(data_dict,agent_params,training_params):
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     net = training_params['network'](agent_params['network_params']).to(device)
     if torch.cuda.device_count() > 1:
-        # rank = 1
-        # world_size = 1
-        # setup(rank=rank, world_size=world_size)
+        rank = 1
+        world_size = 1
+        setup(rank=rank, world_size=world_size)
         # net = net.to(rank)
         net = DDP(net,device_ids=[1])
     criterion = training_params['criterion']()
@@ -71,8 +71,8 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            inputs = inputs.to(rank)
-            targets = targets.to(rank)
+            inputs = inputs.to(device)
+            targets = targets.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
