@@ -11,10 +11,27 @@ from db import MongoDB
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
+from utils.data_loaders import return_trajectoryloader
 from train import generate_trajectories,dual_learning_update,combined_learning_update
-from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic
-from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor
+from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
+from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask
+
+def eval_batch_critic(critic,target_critic,params):
+    device = params['device']
+    critic_optimizer = params['critic_optimizer']
+    actor_optimizer = params['actor_optimizer']
+    query = {'training_round':params['training_round']}
+    projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
+    trainloader = return_trajectoryloader(data)
+    losses = []
+    for i,data in enumerate(trainloader,1):
+        loss = update_critic_batch(critic,target_critic,data,params)
+        losses.append(loss)
+    print(losses)
 
 def eval_critic(critic,params):
     query = {'training_round':0}
@@ -206,8 +223,8 @@ if __name__ == "__main__":
     else:
         local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        local_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        local_critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        target_critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,local_actor)
         hard_update(target_critic,local_critic)
         actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
@@ -222,6 +239,7 @@ if __name__ == "__main__":
         if args.eval == 'actor':
             eval_actor(local_actor,target_actor,target_critic,learning_params)
         elif args.eval == 'critic':
-            eval_critic(local_critic,learning_params)
+            # eval_critic(local_critic,learning_params)
+            eval_batch_critic(local_critic,target_critic,learning_params)
         else:
             eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)

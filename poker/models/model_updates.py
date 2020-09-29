@@ -5,41 +5,28 @@ from models.model_utils import scale_rewards,soft_update,return_value_mask
 import logging
 from prettytable import PrettyTable
 
-def update_critic_batch(poker_round,critic,params):
-    log = logging.getLogger(__name__)
+def update_critic_batch(local_critic,target_critic,data,params):
+    # get the inputs; data is a list of [inputs, targets]
     device = params['device']
-    critic_optimizer = params['critic_optimizer']
-    actor_optimizer = params['actor_optimizer']
-    query = {'training_round':params['training_round']}
-    projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    client = MongoClient('localhost', 27017,maxPoolSize=10000)
-    db = client['poker']
-    data = db['game_data'].find(query,projection)
-    trainloader = return_trajectoryloader(data)
-    losses = []
-    for i,data in enumerate(trainloader,1):
-        # get the inputs; data is a list of [inputs, targets]
-        trajectory, target = data.values()
-        state = trajectory['state'].to(device)
-        action = trajectory['action'].to(device)
-        reward = target['reward'].to(device)
-        betsize_mask = trajectory['betsize_mask'].to(device)
-        action_mask = trajectory['action_mask'].to(device)
-        scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
-        local_values = local_critic(state)['value']
-        # Critic update
-        value_mask = return_value_mask(action)
-        TD_error = local_values[value_mask] - scaled_rewards
-        critic_loss = (TD_error**2*0.5).mean()
-        # critic_loss = F.smooth_l1_loss(scaled_rewards,TD_error,reduction='sum')
-        critic_optimizer.zero_grad()
-        critic_loss.backward()
-        torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
-        critic_optimizer.step()
-        soft_update(local_critic,target_critic,tau=1e-1)
-        losses.append(critic_loss.item())
-        log.debug('local_values',local_values[value_mask],scaled_rewards)
-    return critic
+    trajectory, target = data.values()
+    state = trajectory['state'].to(device)
+    action = trajectory['action'].to(device)
+    reward = target['reward'].to(device)
+    betsize_mask = trajectory['betsize_mask'].to(device)
+    action_mask = trajectory['action_mask'].to(device)
+    # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+    # Critic update
+    local_values = local_critic(state)['value']
+    value_mask = return_value_mask(action)
+    TD_error = local_values[value_mask] - reward
+    critic_loss = (TD_error**2*0.5).mean()
+    # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
+    critic_optimizer.step()
+    soft_update(local_critic,target_critic,tau=1e-1)
+    return critic_loss.item()
 
 def update_actor(poker_round,actor,target_actor,target_critic,params):
     """With critic batch updates"""
@@ -93,9 +80,9 @@ def update_critic(poker_round,critic,params):
     ## Critic update ##
     local_values = critic(obs)['value']
     value_mask = return_value_mask(action)
-    TD_error = local_values[value_mask] - reward
+    # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
@@ -110,13 +97,13 @@ def update_combined(poker_round,model,params):
     reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(device)
     betsize_mask = poker_round['betsize_mask']
     action_mask = poker_round['action_mask']
-    scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+    # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     ## Critic update ##
     local_values = model(np.array(state),np.array(action_mask),np.array(betsize_mask))['value']
     value_mask = return_value_mask(action)
-    TD_error = local_values[value_mask] - scaled_rewards
+    # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).sum()
-    critic_loss = F.smooth_l1_loss(scaled_rewards,TD_error,reduction='sum')
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     optimizer.zero_grad()
     critic_loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
@@ -147,9 +134,9 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     ## Critic update ##
     local_values = critic(obs)['value']
     value_mask = return_value_mask(action)
-    TD_error = local_values[value_mask] - reward
+    # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,TD_error,reduction='sum')
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
