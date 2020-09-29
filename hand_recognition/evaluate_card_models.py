@@ -60,7 +60,7 @@ def train_network(data_dict,agent_params,training_params):
         # world_size = 1
         # setup(rank=rank, world_size=world_size)
         # net = net.to(rank)
-        net = DataParallel(net,device_ids=[0,1])
+        net = DataParallel(net,device_ids=[0])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
