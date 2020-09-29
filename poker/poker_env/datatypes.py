@@ -1,10 +1,27 @@
 from torch import Tensor as T
 import numpy as np
 
+"""For Visualize.py"""
+
+class VisualCategories:
+    BETSIZE='betsize'
+    ACTION='action'
+    REWARD='reward'
+    ALL=[BETSIZE,ACTION,REWARD]
+
+class VisualActionTypes:
+    FREQUENCY='frequency'
+    PROBABILITY='probability'
+    ALL=[FREQUENCY,PROBABILITY]
+
+class VisualHandTypes:
+    HAND='hand'
+    HANDSTRENGTH='handstrength'
+    ALL=[HAND,HANDSTRENGTH]
+
 """
 High is noninclusive
 """
-
 
 class RANKS(object):
     HIGH = 15
