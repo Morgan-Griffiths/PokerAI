@@ -53,7 +53,7 @@ def unspool(X):
     return combined
 
 def train_network(data_dict,agent_params,training_params):
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     net = training_params['network'](agent_params['network_params']).to(device)
     if torch.cuda.device_count() > 1:
         # rank = 1
