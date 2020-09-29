@@ -1,5 +1,8 @@
 import torch.nn.functional as F
 from torch.nn import DataParallel
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+import torch.multiprocessing as mp
 import torch
 import numpy as np
 import os
@@ -23,6 +26,16 @@ Full deck
 Omaha
 """
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
+
 def unspool(X):
     # Size of (M,9,2)
     M = X.size(0)
@@ -41,7 +54,11 @@ def unspool(X):
 def train_network(data_dict,agent_params,training_params):
     net = training_params['network'](agent_params['network_params'])
     if torch.cuda.device_count() > 1:
-        net = DataParallel(net)
+        # rank = 1
+        # world_size = 1
+        # setup(rank=rank, world_size=world_size)
+        # net = net.to(rank)
+        net = DDP(net,device_ids=[1])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
@@ -53,6 +70,8 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
+            inputs = inputs.to(rank)
+            targets = targets.to(rank)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
