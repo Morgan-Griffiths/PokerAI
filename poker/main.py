@@ -160,7 +160,7 @@ if __name__ == "__main__":
             for p in processes: 
                 p.join()
             learning_params['lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_round']
+            training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                 p.join()
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_round']
+            training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
