@@ -58,11 +58,6 @@ if __name__ == "__main__":
                         default='dual',
                         metavar=f"['combined','dual]",
                         help='Selects network type')
-    parser.add_argument('--model','-m',
-                        dest='network',
-                        default='CombinedNet',
-                        metavar=f"['CombinedNet','OmahaActor']",
-                        help='Selects model type')
     parser.add_argument('--epochs','-e',
                         dest='epochs',
                         default=500,
