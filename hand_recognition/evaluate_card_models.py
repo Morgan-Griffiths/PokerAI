@@ -53,6 +53,7 @@ def unspool(X):
     return combined
 
 def train_network(data_dict,agent_params,training_params):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = training_params['network'](agent_params['network_params'])
     if torch.cuda.device_count() > 1:
         # rank = 1
@@ -71,8 +72,8 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            inputs = inputs
-            targets = targets
+            inputs = inputs.to(device)
+            targets = targets.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
