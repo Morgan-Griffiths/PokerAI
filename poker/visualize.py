@@ -3,13 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from db import MongoDB
-import kuhn.datatypes as pdt
-
-label_dict = {5:['Check','Bet'],
-            0:['Check','Bet'],
-            1:['Call','Raise','Fold'],
-            4:['Betting','Checking']}
-
+import poker_env.datatypes as pdt
 
 HAND_LABELS_DICT = {
     'frequency': lambda x: [f'Hand_strength category {i}' for i,hand in enumerate(x)],
@@ -86,8 +80,9 @@ def plot_betsize_probabilities(training_round=0):
         'interval':100   
     }
     mongo = MongoDB()
+    gametype = "Omaha"
     # SB
-    for position in pdt.Positions.ALL:
+    for position in [pdt.PositionStrs.SB,pdt.PositionStrs.BB]:
         query['position'] = position
         data = mongo.get_data(query,projection)
         betsize,unique_hands,unique_betsize = mongo.betsizeByHand(data,params)
@@ -105,8 +100,9 @@ def plot_action_frequencies(actiontype,handtype,training_round=0):
         'interval':100
     }
     mongo = MongoDB()
-    gametype = mongo.get_gametype(training_round)
-    for position in pdt.Positions.ALL:
+    # gametype = mongo.get_gametype(training_round)
+    gametype = "Omaha"
+    for position in [pdt.PositionStrs.SB,pdt.PositionStrs.BB]:
         query['position'] = position
         data = mongo.get_data(query,projection)
         if handtype == pdt.VisualHandTypes.HAND:
@@ -124,9 +120,9 @@ def plot_critic_values(training_round=0):
     }
     projection ={'hand':1,'value':1,'reward':1,'_id':0}
     mongo = MongoDB()
-    gametype = mongo.get_gametype(training_round)
+    # gametype = mongo.get_gametype(training_round)
 
-    for position in pdt.Positions.ALL:
+    for position in [pdt.PositionStrs.SB,pdt.PositionStrs.BB]:
         query['position'] = position
         data = mongo.get_data(query,projection)
         rewards = []
@@ -167,8 +163,8 @@ if __name__ == "__main__":
                         metavar="integer",
                         help='Which step within each round')
     parser.add_argument('--position',
-                        default=pdt.Positions.SB,
-                        metavar=f"[{pdt.Positions.SB},{pdt.Positions.BB}]",
+                        default=pdt.PositionStrs.SB,
+                        metavar=f"[{pdt.PositionStrs.SB},{pdt.PositionStrs.BB}]",
                         help='Which position to look at')
     parser.add_argument('--category',
                         default=f'{pdt.VisualCategories.ACTION}',
