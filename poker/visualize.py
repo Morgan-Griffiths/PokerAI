@@ -132,7 +132,7 @@ def plot_critic_values(training_round=0):
         actions.append(point['action'])
     M = len(values)
     # plot value loss over time
-    interval = 1
+    interval = M // 4
     values = np.vstack(values)
     rewards = np.vstack(rewards)
     actions = np.array(actions)
