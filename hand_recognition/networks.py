@@ -64,7 +64,8 @@ class ThirteenCardV2(nn.Module):
         super().__init__()
         self.params = params
         self.nA = params['nA']
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.gpu1 = params['gpu1']
+        self.gpu2 = params['gpu2']
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
@@ -703,7 +704,6 @@ class HandRankClassification(nn.Module):
         super().__init__()
         self.params = params
         self.nA = params['nA']
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         
@@ -736,12 +736,15 @@ class HandRankClassification(nn.Module):
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
 
-        hot_ranks = self.one_hot_ranks[ranks]
-        hot_suits = self.one_hot_suits[suits]
+        hot_ranks = self.one_hot_ranks[ranks].to(params['gpu2'])
+        hot_suits = self.one_hot_suits[suits].to(params['gpu2'])
 
         s = self.suit_conv(hot_suits.float())
         r = self.rank_conv(hot_ranks.float())
+        s = s.cpu()
+        r = r.cpu()
         x = torch.cat((r,s),dim=-1)
+        x = x.to(params['gpu2'])
         # should be (b,64,88)
 
         for i,hidden_layer in enumerate(self.hidden_layers):
