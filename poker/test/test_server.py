@@ -27,7 +27,7 @@ class BaseTestCase(TestCase):
 
         self.app = self.create_app()
         c = self.app.test_client()
-        c.post('/api/player/name', data=json.dumps(dict(name='Morgan')),follow_redirects=True)
+        c.post('/api/player/name', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
         # db.create_all()
 
     def tearDown(self):
