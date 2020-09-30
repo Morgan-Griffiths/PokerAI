@@ -100,7 +100,9 @@ if __name__ == "__main__":
         'transformer_in':1280,
         'transformer_out':128,
         'device':device,
-        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
+        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression',
+        'actor_hand_recognizer_path':'',
+        'critic_hand_recognizer_path':'',
     }
     training_params = {
         'lr_steps':args.steps,
@@ -141,6 +143,8 @@ if __name__ == "__main__":
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
+        # Load pretrained hand recognizer
+        update_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
         alphaPoker.summary
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         lrscheduler = StepLR(alphaPoker_optimizer, step_size=1, gamma=0.1)
@@ -167,6 +171,9 @@ if __name__ == "__main__":
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        # Load pretrained hand recognizer
+        update_weights(actor,network_params['actor_hand_recognizer_path'])
+        update_weights(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
         critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
