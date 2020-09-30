@@ -11,6 +11,7 @@ class datasetLoader(Dataset):
     """Boolean Logic dataset."""
 
     def __init__(self, X,y,device):
+        self.device = device
         if isinstance(X,(np.generic,np.ndarray)):
             self.X = torch.from_numpy(X)
             self.y = torch.from_numpy(y)
@@ -26,7 +27,7 @@ class datasetLoader(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
             
-        sample = {'item': self.X[idx].to(device), 'label': self.y[idx].to(device)}
+        sample = {'item': self.X[idx].to(self.device), 'label': self.y[idx].to(self.device)}
 
         return sample
 
