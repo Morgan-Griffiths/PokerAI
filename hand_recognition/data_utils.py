@@ -20,7 +20,7 @@ def load_data(dir_path):
         if folder != '.DS_store':
             for f in os.listdir(os.path.join(dir_path,folder)):
                 name = os.path.splitext(f)[0]
-                data[name] = torch.Tensor(np.load(os.path.join(dir_path,folder,f)))
+                data[name] = np.load(os.path.join(dir_path,folder,f),mmap_mode='r')
     return data
 
 def load_handtypes(dir_path):
