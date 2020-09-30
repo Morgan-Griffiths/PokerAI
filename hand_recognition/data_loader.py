@@ -52,7 +52,7 @@ def return_dataloaders(X,y,multigpu=False):
     params = {
         'batch_size':2048,
         'shuffle': True,
-        'num_workers':1
+        'num_workers':2
     }
     trainloader = DataLoader(trainset, **params)
     valloader = DataLoader(valset,**params)

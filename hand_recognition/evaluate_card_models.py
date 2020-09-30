@@ -51,12 +51,11 @@ def unspool(X):
             i += 1
     return combined
 
-def train_network(rank,data_dict,agent_params,training_params,world_size):
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
-    net = training_params['network'](agent_params['network_params']).to(rank)
-    if torch.cuda.device_count() > 1:
-        net = DDP(net,device_ids=[rank])
+def train_network(data_dict,agent_params,training_params):
+    device = agent_params['network_params']['gpu2']
+    net = training_params['network'](agent_params['network_params']).to(device)
+    # if torch.cuda.device_count() > 1:
+    #     net = DDP(net,device_ids=[rank])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
@@ -68,8 +67,8 @@ def train_network(rank,data_dict,agent_params,training_params,world_size):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            inputs = inputs.to(rank)
-            targets = targets.to(rank)
+            inputs = inputs.to(device)
+            targets = targets.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -140,12 +139,19 @@ def train_classification(dataset_params,agent_params,training_params):
         'valY':dataset['valY'],
         'y_handtype_indexes':y_handtype_indexes
     }
-    world_size = 1
-    mp.spawn(train_network,
-             args=(data_dict,agent_params,training_params,world_size,),
-             nprocs=world_size,
-             join=True)
-    # train_network(data_dict,agent_params,training_params)
+    # train_parallel(data_dict,agent_params,training_params)
+    train_network(data_dict,agent_params,training_params)
+
+def train_parallel(data_dict,agent_params,training_params):
+    net = training_params['network'](agent_params['network_params']).to(agent_params['network_params']['gpu2'])
+    mp.set_start_method('spawn')
+    num_processes = min(mp.cpu_count(),6)
+    for id in range(num_processes): # No. of processes
+        p = mp.Process(target=train_network, args=(net,data_dict,agent_params,training_params))
+        p.start()
+        processes.append(p)
+    for p in processes: 
+        p.join()
 
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
