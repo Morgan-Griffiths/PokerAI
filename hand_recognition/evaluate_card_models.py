@@ -124,20 +124,20 @@ def train_network(data_dict,agent_params,training_params):
 
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
-    dataset['trainY'] = dataset['trainY'].long()
-    dataset['valY'] = dataset['valY'].long()
-    target = dt.Globals.TARGET_SET[dataset_params['datatype']]
-    y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
+    # dataset['trainY'] = dataset['trainY'].long()
+    # dataset['valY'] = dataset['valY'].long()
+    # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
+    # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
 
-    print(dataset['trainX'].size(),dataset['trainY'].size(),dataset['valX'].size(),dataset['valY'].size())
+    print(dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
 
     data_dict = {
         'trainloader':trainloader,
         'valX':dataset['valX'],
         'valY':dataset['valY'],
-        'y_handtype_indexes':y_handtype_indexes
+        # 'y_handtype_indexes':y_handtype_indexes
     }
     train_network(data_dict,agent_params,training_params)
 
