@@ -33,7 +33,7 @@ class datasetLoader(Dataset):
 def return_trainloader(X,y,device):
     data = datasetLoader(X,y,device)
     params = {
-        'batch_size':2048,
+        'batch_size':1024,
         'shuffle': True,
         'num_workers':8
     }
