@@ -68,6 +68,7 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
+            targets = targets.cuda()
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
