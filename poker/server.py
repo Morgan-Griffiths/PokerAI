@@ -5,6 +5,7 @@ import logging
 import pymongo
 import numpy as np
 from torch import load
+from torch import device as D
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
@@ -63,7 +64,7 @@ class API(object):
 
     def load_model(self,path):
         if os.path.isfile(path):
-            self.model.load_state_dict(load(path))
+            self.model.load_state_dict(load(path,map_location=D('cpu')))
             self.model.eval()
         else:
             raise ValueError('File does not exist')
