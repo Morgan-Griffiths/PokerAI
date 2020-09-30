@@ -736,15 +736,15 @@ class HandRankClassification(nn.Module):
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
 
-        hot_ranks = self.one_hot_ranks[ranks].to(params['gpu2'])
-        hot_suits = self.one_hot_suits[suits].to(params['gpu2'])
+        hot_ranks = self.one_hot_ranks[ranks].to(self.params['gpu2'])
+        hot_suits = self.one_hot_suits[suits].to(self.params['gpu2'])
 
         s = self.suit_conv(hot_suits.float())
         r = self.rank_conv(hot_ranks.float())
         s = s.cpu()
         r = r.cpu()
         x = torch.cat((r,s),dim=-1)
-        x = x.to(params['gpu2'])
+        x = x.to(self.params['gpu2'])
         # should be (b,64,88)
 
         for i,hidden_layer in enumerate(self.hidden_layers):
