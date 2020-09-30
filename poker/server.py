@@ -127,6 +127,22 @@ class API(object):
                     }
                     self.db['game_data'].insert_one(state_json)
 
+    def return_model_outputs(self):
+        query = {
+            'player':self.player['name']
+        }
+        player_data = self.db['game_data'].find(query).sort({_id:1})
+        action_probs = []
+        # total_hands = 0
+        for result in player_data:
+            action_probs.append(result['action_probs'])
+            break
+        model_outputs = {
+            'action_probs':action_probs,
+            'q_values':action_probs
+        }
+        return model_outputs
+
     def return_player_stats(self):
         """Returns dict of current player stats against the bot."""
         query = {
@@ -291,6 +307,10 @@ def player():
 @app.route('/api/player/stats')
 def player_stats():
     return json.dumps(api.return_player_stats())
+
+@app.route('/api/model/outputs')
+def model_outputs():
+    return json.dumps(api.return_model_outputs())
 
 @app.route('/api/model/load',methods=['POST'])
 def load_model():
