@@ -733,7 +733,6 @@ class HandRankClassification(nn.Module):
     def forward(self,x):
         # Input is (b,5,2)
         M,c,h = x.size()
-        x = x.to(self.params['gpu2'])
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
 

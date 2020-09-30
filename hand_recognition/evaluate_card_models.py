@@ -67,8 +67,6 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            inputs = inputs.to(device)
-            targets = targets.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -128,7 +126,7 @@ def train_classification(dataset_params,agent_params,training_params):
     dataset['valY'] = dataset['valY'].long()
     target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
-    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],training_params['gpu2'])
 
     print(dataset['trainX'].size(),dataset['trainY'].size(),dataset['valX'].size(),dataset['valY'].size())
     print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
@@ -155,7 +153,7 @@ def train_parallel(data_dict,agent_params,training_params):
 
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
-    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],training_params['gpu2'])
     print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
     data_dict = {
         'trainloader':trainloader,

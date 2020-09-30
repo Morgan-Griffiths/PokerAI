@@ -10,7 +10,7 @@ def return_uniques(values):
 class datasetLoader(Dataset):
     """Boolean Logic dataset."""
 
-    def __init__(self, X,y):
+    def __init__(self, X,y,device):
         if isinstance(X,(np.generic,np.ndarray)):
             self.X = torch.from_numpy(X)
             self.y = torch.from_numpy(y)
@@ -26,28 +26,28 @@ class datasetLoader(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
             
-        sample = {'item': self.X[idx], 'label': self.y[idx]}
+        sample = {'item': self.X[idx].to(device), 'label': self.y[idx].to(device)}
 
         return sample
 
-def return_trainloader(X,y):
-    data = datasetLoader(X,y)
+def return_trainloader(X,y,device):
+    data = datasetLoader(X,y,device)
     params = {
         'batch_size':2048,
         'shuffle': True,
-        'num_workers':2
+        'num_workers':8
     }
     trainloader = DataLoader(data, **params)
     return trainloader
 
-def return_dataloaders(X,y,multigpu=False):
+def return_dataloaders(X,y,device='cpu'):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=1)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=1)
     print(f'Dataset binary label balance: train: {return_uniques(y_train)[1]}, val: {return_uniques(y_val)[1]}, test: {return_uniques(y_test)[1]}')
 
-    trainset = datasetLoader(X_train,y_train)
-    valset = datasetLoader(X_val,y_val)
-    testset = datasetLoader(X_test,y_test)
+    trainset = datasetLoader(X_train,y_train,device)
+    valset = datasetLoader(X_val,y_val,device)
+    testset = datasetLoader(X_test,y_test,device)
 
     params = {
         'batch_size':2048,
