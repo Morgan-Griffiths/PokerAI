@@ -84,7 +84,7 @@ class TestEnv(unittest.TestCase):
             'bet_type': game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':1,
-            'stacksize': game_object.state_params['stacksize'],
+            'stacksize': 5.,
             'cards_per_player': game_object.state_params['cards_per_player'],
             'starting_street': game_object.starting_street,
             'global_mapping':config.global_mapping,
