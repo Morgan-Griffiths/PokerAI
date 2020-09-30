@@ -51,15 +51,11 @@ def unspool(X):
             i += 1
     return combined
 
-def train_network(rank,data_dict,agent_params,training_params):
+def train_network(rank,data_dict,agent_params,training_params,world_size):
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dist.init_process_group("gloo", rank=rank, world_size=2)
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
     net = training_params['network'](agent_params['network_params']).to(rank)
     if torch.cuda.device_count() > 1:
-        # rank = 1
-        # world_size = 1
-        # setup(rank=rank, world_size=world_size)
-        # net = net.to(rank)
         net = DDP(net,device_ids=[rank])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
@@ -145,8 +141,8 @@ def train_classification(dataset_params,agent_params,training_params):
         'y_handtype_indexes':y_handtype_indexes
     }
     mp.spawn(train_network,
-             args=(data_dict,agent_params,training_params,),
-             nprocs=2,
+             args=(data_dict,agent_params,training_params,world_size,),
+             nprocs=world_size,
              join=True)
     # train_network(data_dict,agent_params,training_params)
 
