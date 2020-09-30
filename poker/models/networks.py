@@ -8,7 +8,7 @@ from poker_env.datatypes import Action
 from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
+from models.model_layers import Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
 class BetAgent(object):

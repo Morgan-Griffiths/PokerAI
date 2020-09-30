@@ -142,9 +142,13 @@ class ProcessHandBoard(nn.Module):
         for i in range(M):
             hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
             hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                hero_r = self.activation_fc(self.bn_layers[i](hidden_layer(hero_r)))
             hero_activations.append(torch.cat((hero_r,hero_s),dim=-1))
             villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
             villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                villain_r = self.activation_fc(self.bn_layers[i](hidden_layer(villain_r)))
             villain_activations.append(torch.cat((villain_r,villain_s),dim=-1))
         hero = torch.stack(hero_activations).view(B,M,-1)
         villain = torch.stack(villain_activations).view(B,M,-1)
@@ -161,6 +165,8 @@ class ProcessHandBoard(nn.Module):
         for i in range(M):
             s = self.suit_conv(hot_suits[:,i,:,:].float())
             r = self.rank_conv(hot_ranks[:,i,:,:].float())
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
             activations.append(torch.cat((r,s),dim=-1))
         return torch.stack(activations).view(B,M,-1)
 
@@ -305,60 +311,6 @@ class PreProcessLayer(nn.Module):
         combined = torch.cat((h,emb_a,embeds),dim=-1)
         # print(h.size(),emb_a.size(),embeds.size())
         # print(combined.size())
-        return combined
-
-class PreProcessHistory(nn.Module):
-    def __init__(self,params,critic=False):
-        super().__init__()
-        self.mapping = params['mapping']
-        self.hand_emb = Embedder(5,255)
-        self.action_emb = Embedder(6,256)
-        self.betsize_fc = nn.Linear(1,256)
-        self.maxlen = 10
-        self.initialize(critic)
-
-    def initialize(self,critic):
-        if critic:
-            # self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
-            # self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
-            # self.conv = nn.Sequential(
-            #     nn.Conv1d(2, 32, kernel_size=3, stride=1),
-            #     nn.BatchNorm1d(32),
-            #     nn.ReLU(inplace=True)
-            # )
-            self.forward = self.forward_critic
-        else:
-            self.forward = self.forward_actor
-
-    def forward_critic(self,x):
-        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
-        M,C = stripped_x.size()
-        hand = stripped_x[:,self.mapping['state']['rank']].long()
-        h = self.hand_emb(hand)
-        last_action = stripped_x[:,self.mapping['state']['previous_action']].long()
-        last_action_emb = self.action_emb(last_action)
-        # o.size(B,M,5)
-        last_betsize = stripped_x[:,self.mapping['state']['previous_betsize']].float()
-        if last_betsize.dim() == 1:
-            last_betsize = last_betsize.unsqueeze(1)
-        # h.size(B,M,128)
-        combined = torch.cat([h,last_action_emb,last_betsize],dim=-1)
-        return combined
-
-    def forward_actor(self,x):
-        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
-        hand = stripped_x[:,self.mapping['state']['rank']].long()
-        hand = self.hand_emb(hand)
-        # h.size(B,M,240)
-        last_action = stripped_x[:,self.mapping['state']['previous_action']].long()
-        last_action_emb = self.action_emb(last_action)
-        # o.size(B,M,5)
-        previous_betsize = stripped_x[:,self.mapping['state']['previous_betsize']].float()
-        if previous_betsize.dim() == 1:
-            previous_betsize = previous_betsize.unsqueeze(1)
-        # h.size(B,M,128)
-        # b1 = self.betsize_fc(previous_betsize)
-        combined = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
         return combined
 
 ################################################
