@@ -131,7 +131,7 @@ class API(object):
         query = {
             'player':self.player['name']
         }
-        player_data = self.db['game_data'].find(query).sort({_id:1})
+        player_data = self.db['game_data'].find(query).sort('_id',1)
         action_probs = []
         # total_hands = 0
         for result in player_data:

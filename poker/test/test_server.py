@@ -27,7 +27,7 @@ class BaseTestCase(TestCase):
 
         self.app = self.create_app()
         c = self.app.test_client()
-        c.post('/api/player/name', data=json.dumps(dict(name='Bubba')),follow_redirects=True)
+        c.post('/api/player/name', data=json.dumps(dict(name='Morgan')),follow_redirects=True)
         # db.create_all()
 
     def tearDown(self):
@@ -55,6 +55,12 @@ class BaseTestCase(TestCase):
         # print(step_response.data)
         # step_response = c.post('/api/step', data=json.dumps(dict(action='call',betsize=1)),follow_redirects=True)
         # print(step_response.data)
+
+    def test_model_outputs(self):
+        c = self.app.test_client()
+        response = c.get('/api/model/outputs')
+        self.assertEqual(response.status_code, 200)
+        print(response.data)
 
     def test_player_results(self):
         c = self.app.test_client()
