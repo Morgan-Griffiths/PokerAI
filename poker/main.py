@@ -101,8 +101,8 @@ if __name__ == "__main__":
         'transformer_out':128,
         'device':device,
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression',
-        'actor_hand_recognizer_path':'',
-        'critic_hand_recognizer_path':'',
+        'actor_hand_recognizer_path':'hand_recognition/checkpoints/multiclass_categorization/HandClassificationV2',
+        'critic_hand_recognizer_path':'hand_recognition/checkpoints/regression/ThirteenCardV2',
     }
     training_params = {
         'lr_steps':args.steps,
