@@ -7,6 +7,22 @@ def return_uniques(values):
     uniques, count = np.unique(values, return_counts=True)
     return uniques, count
 
+class memDatasetLoader(Dataset):
+    def __init__(self, X,y):
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx])}
+
+        return sample
+
 class datasetLoader(Dataset):
     """Boolean Logic dataset."""
 
@@ -31,7 +47,7 @@ class datasetLoader(Dataset):
         return sample
 
 def return_trainloader(X,y):
-    data = datasetLoader(X,y)
+    data = memDatasetLoader(X,y)
     params = {
         'batch_size':1024,
         'shuffle': True,
