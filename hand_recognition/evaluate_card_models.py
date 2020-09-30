@@ -140,6 +140,7 @@ def train_classification(dataset_params,agent_params,training_params):
         'valY':dataset['valY'],
         'y_handtype_indexes':y_handtype_indexes
     }
+    world_size = 1
     mp.spawn(train_network,
              args=(data_dict,agent_params,training_params,world_size,),
              nprocs=world_size,
