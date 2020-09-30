@@ -140,7 +140,7 @@ class BaseHoldem(object):
         self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 2
         self.state_params['n_players'] = 2
-        self.state_params['stacksize'] = 10
+        self.state_params['stacksize'] = 5.
         self.state_params['pot'] = 2
         self.state_params['game_turn'] = 0
         self.rule_params = {
@@ -216,7 +216,7 @@ class BaseOmaha(object):
         self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 4
         self.state_params['n_players'] = 2
-        self.state_params['stacksize'] = 10
+        self.state_params['stacksize'] = 5.
         self.state_params['pot'] = 2
         self.state_params['game_turn'] = 0
         self.rule_params = {
@@ -279,7 +279,7 @@ class OmahaHI(object):
         self.starting_street = Street.RIVER
         self.rule_params = K.rule_params
         self.state_params = K.state_params
-        self.state_params['stacksize'] = 10.
+        self.state_params['stacksize'] = 5.
         self.state_params['pot']= 2.
         self.rule_params['betsizes'] = np.array([0.5,1.])
 
