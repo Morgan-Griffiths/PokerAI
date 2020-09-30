@@ -86,9 +86,10 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,critic=False,hidden_dims=(15,32,32)):
+    def __init__(self,params,hand_length,critic=False,hidden_dims=(15,32,32),activation_fc=F.relu):
         super().__init__()
         self.critic = critic
+        self.activation_fc = activation_fc
         self.hand_length = hand_length
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
@@ -142,13 +143,13 @@ class ProcessHandBoard(nn.Module):
         for i in range(M):
             hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
             hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                hero_r = self.activation_fc(self.bn_layers[i](hidden_layer(hero_r)))
+            # for i,hidden_layer in enumerate(self.hidden_layers):
+            #     hero_r = self.activation_fc(self.bn_layers[i](hidden_layer(hero_r)))
             hero_activations.append(torch.cat((hero_r,hero_s),dim=-1))
             villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
             villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                villain_r = self.activation_fc(self.bn_layers[i](hidden_layer(villain_r)))
+            # for i,hidden_layer in enumerate(self.hidden_layers):
+            #     villain_r = self.activation_fc(self.bn_layers[i](hidden_layer(villain_r)))
             villain_activations.append(torch.cat((villain_r,villain_s),dim=-1))
         hero = torch.stack(hero_activations).view(B,M,-1)
         villain = torch.stack(villain_activations).view(B,M,-1)
@@ -165,8 +166,8 @@ class ProcessHandBoard(nn.Module):
         for i in range(M):
             s = self.suit_conv(hot_suits[:,i,:,:].float())
             r = self.rank_conv(hot_ranks[:,i,:,:].float())
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
+            # for i,hidden_layer in enumerate(self.hidden_layers):
+            #     r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
             activations.append(torch.cat((r,s),dim=-1))
         return torch.stack(activations).view(B,M,-1)
 
