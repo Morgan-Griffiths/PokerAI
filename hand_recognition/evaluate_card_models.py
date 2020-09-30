@@ -292,7 +292,9 @@ if __name__ == "__main__":
         'criterion':NetworkConfig.LossFunctions[dataset_params['learning_category']],
         'network': network,
         'save_path':network_path,
-        'labels':dt.Globals.LABEL_DICT[args.datatype]
+        'labels':dt.Globals.LABEL_DICT[args.datatype],
+        'gpu1': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
     multitrain_params = {
         'conversion_list':[False],#,False],#[,True],
