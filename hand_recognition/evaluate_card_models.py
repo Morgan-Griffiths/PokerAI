@@ -53,9 +53,10 @@ def unspool(X):
 
 def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu2']
-    net = training_params['network'](agent_params['network_params']).to(device)
+    net = training_params['network'](agent_params['network_params'])
     if torch.cuda.device_count() > 1:
         net = DataParallel(net,device_ids=[1])
+        net.cuda()
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
