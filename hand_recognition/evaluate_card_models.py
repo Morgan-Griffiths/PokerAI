@@ -27,10 +27,9 @@ Omaha
 """
 
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    # os.environ['MASTER_ADDR'] = 'localhost'
+    # os.environ['MASTER_PORT'] = '12355'
 
-    mp.set_start_method('spawn')
     # initialize the process group
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
@@ -52,15 +51,16 @@ def unspool(X):
             i += 1
     return combined
 
-def train_network(data_dict,agent_params,training_params):
+def train_network(rank,data_dict,agent_params,training_params):
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net = training_params['network'](agent_params['network_params'])
+    dist.init_process_group("gloo", rank=rank, world_size=2)
+    net = training_params['network'](agent_params['network_params']).to(rank)
     if torch.cuda.device_count() > 1:
         # rank = 1
         # world_size = 1
         # setup(rank=rank, world_size=world_size)
         # net = net.to(rank)
-        net = DDP(net)
+        net = DDP(net,device_ids=[rank])
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     scores = []
@@ -72,8 +72,8 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            # inputs = inputs.to(device)
-            # targets = targets.to(device)
+            inputs = inputs.to(rank)
+            targets = targets.to(rank)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -145,7 +145,7 @@ def train_classification(dataset_params,agent_params,training_params):
         'y_handtype_indexes':y_handtype_indexes
     }
     mp.spawn(train_network,
-             args=(data_dict,agent_params,training_params),
+             args=(data_dict,agent_params,training_params,),
              nprocs=2,
              join=True)
     # train_network(data_dict,agent_params,training_params)
