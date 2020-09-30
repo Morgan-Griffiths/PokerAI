@@ -739,8 +739,8 @@ class HandRankClassification(nn.Module):
         hot_ranks = self.one_hot_ranks[ranks].to(self.params['gpu2'])
         hot_suits = self.one_hot_suits[suits].to(self.params['gpu2'])
 
-        s = self.suit_conv(hot_suits.float())
-        r = self.rank_conv(hot_ranks.float())
+        s = self.suit_conv(hot_suits.contiguous().float())
+        r = self.rank_conv(hot_ranks.contiguous().float())
         s = s.cpu()
         r = r.cpu()
         x = torch.cat((r,s),dim=-1)
