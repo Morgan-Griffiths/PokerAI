@@ -96,7 +96,7 @@ class ThirteenCardV2(nn.Module):
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
-
+asdf
         hot_ranks = self.one_hot_ranks[ranks]
         # (b,13,13)
         hot_suits = self.one_hot_suits[suits]
@@ -105,12 +105,19 @@ class ThirteenCardV2(nn.Module):
         hero_board_suits = hot_suits[:,torch.tensor([0,1,2,3,8,9,10,11,12])]
         vil_board_ranks = hot_ranks[:,4:]
         vil_board_suits = hot_suits[:,4:]
-        s = self.rank_conv(hero_board_ranks.float())
-        r = self.suit_conv(hero_board_suits.float())
+
+        if torch.cuda.is_available():
+            s = self.rank_conv(hero_board_ranks.float().cuda())
+            r = self.suit_conv(hero_board_suits.float().cuda())
+            s2 = self.rank_conv(vil_board_ranks.float().cuda())
+            r2 = self.suit_conv(vil_board_suits.float().cuda())
+        else:
+            s = self.rank_conv(hero_board_ranks.float())
+            r = self.suit_conv(hero_board_suits.float())
+            s2 = self.rank_conv(vil_board_ranks.float())
+            r2 = self.suit_conv(vil_board_suits.float())
         x1 = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
-        s2 = self.rank_conv(vil_board_ranks.float())
-        r2 = self.suit_conv(vil_board_suits.float())
         x2 = torch.cat((r2,s2),dim=-1)
 
         x = x1 - x2
