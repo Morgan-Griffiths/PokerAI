@@ -209,11 +209,6 @@ class API(object):
             'player1_handrank' :hero.handrank,
             'player2_handrank' :villain.handrank
         }
-        print('outcome_object',outcome_object)
-        for k,v in state_object.items():
-            print(k,type(v))
-        json.dumps(state_object)
-        json.dumps(outcome_object)
         json_obj = {'state':state_object,'outcome':outcome_object}
         return json.dumps(json_obj)
 
