@@ -84,9 +84,9 @@ def train_network(data_dict,agent_params,training_params):
 
             score_window.append(loss.item())
             scores.append(np.mean(score_window))
-            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['trainloader'])), (100*(i+1)//len(data_dict['trainloader']))))
             sys.stdout.flush()
-            sys.stdout.write(", epoch %d"% (epoch+1))
+            sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
         net.eval()
         for i, data in enumerate(data_dict['valloader'], 1):
@@ -101,12 +101,12 @@ def train_network(data_dict,agent_params,training_params):
             val_loss = criterion(val_preds, targets)
             val_window.append(val_loss.item())
             val_scores.append(np.mean(val_window))
-            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
             sys.stdout.flush()
-            sys.stdout.write(", epoch %d"% (epoch+1))
+            sys.stdout.write(f", validation sample {(i+1):.2f}")
             sys.stdout.flush()
         net.train()
-        print(f"Training loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}")
+        print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}\n")
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
