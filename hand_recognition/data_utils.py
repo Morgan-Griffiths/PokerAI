@@ -9,7 +9,6 @@ def return_ylabel_dict(X:torch.tensor,y:torch.tensor,target_set:set):
         type_dict[item] = torch.tensor(np.where(y.numpy() == item)[0])
     return type_dict
 
-
 def load_data(dir_path):
     """
     loads train,val,test folder numpy data from parent dir
@@ -47,17 +46,17 @@ def save_all(trainX,trainY,valX,valY,parent_dir):
         os.makedirs(train_dir)
     if not os.path.isdir(test_dir):
         os.makedirs(test_dir)
-    np.save(f"{os.path.join(parent_dir,'train')}/trainX",trainX)
-    np.save(f"{os.path.join(parent_dir,'train')}/trainY",trainY)
-    np.save(f"{os.path.join(parent_dir,'val')}/valX",valX)
-    np.save(f"{os.path.join(parent_dir,'val')}/valY",valY)
+    np.save(f"{os.path.join(parent_dir,'train')}/trainX",np.array(trainX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'train')}/trainY",np.array(trainY).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'val')}/valY",np.array(valY).astype('uint8'))
 
 def save_data(data,path):
     directory = os.path.dirname(path)
     if not os.path.isdir(directory):
         os.makedirs(directory)
-    np.save(path,data)
-    
+    print('save_data',path)
+    np.save(path,data.astype('uint8'))
 
 def return_handtype_data_shapes(dataset:dict):
     """
