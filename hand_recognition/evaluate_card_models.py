@@ -6,6 +6,7 @@ import torch.multiprocessing as mp
 import torch
 import numpy as np
 import os
+import time
 import sys
 import copy
 from torch import optim
@@ -299,7 +300,7 @@ if __name__ == "__main__":
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
     agent_params['multitrain_params'] = multitrain_params
-    
+    tic = time.time()
     if args.mode == dt.Modes.EXAMINE:
         check_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.TRAIN:
@@ -312,4 +313,6 @@ if __name__ == "__main__":
             raise ValueError(f'{args.datatype} datatype not understood')
     else:
         raise ValueError(f'{args.mode} Mode not understood')
+    toc = time.time()
+    print(f'Evaluation took {(toc-tic)/60} minutes')
     
