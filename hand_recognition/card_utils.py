@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+from datatypes import SUITS,RANKS
 
 SUIT_DICT = {
     0:'s',
@@ -55,18 +56,19 @@ def suits_to_num(cards):
 def to_52_vector(vector):
     rank = np.transpose(vector)[:][0]
     suit = np.transpose(vector)[1][:]
-    rank = np.subtract(rank,2)
+    rank = np.subtract(rank,RANKS.LOW)
+    suit = np.subtract(suit,SUITS.LOW)
     return np.add(rank,np.multiply(suit,13))
 
 #takes (1,4) vector of numbers between 0-51 and turns into 2d vector of numbers between 0-13 and 1-4
 #returns list
 def to_2d(vector):
     if type(vector) == np.ndarray or type(vector) == list:
-    #    print()
         suit = np.floor(np.divide(vector,13))
         suit = suit.astype(int)
         rank = np.subtract(vector,np.multiply(suit,13))
-        rank = np.add(rank,2)
+        rank = np.add(rank,RANKS.LOW)
+        suit = np.add(suit,SUITS.LOW)
         combined = np.concatenate([rank,suit])
         length = int(len(combined) / 2)
         hand_length = len(vector)
@@ -75,7 +77,8 @@ def to_2d(vector):
         suit = np.floor(np.divide(vector,13))
         suit = suit.astype(int)
         rank = np.subtract(vector,np.multiply(suit,13))
-        rank = np.add(rank,2)
+        rank = np.add(rank,RANKS.LOW)
+        suit = np.add(suit,SUITS.LOW)
         hand = [[rank,suit]]
         print(hand,'hand')
     #print(hand,'combined')
