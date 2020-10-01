@@ -8,7 +8,7 @@ import datatypes as dt
 ################################################
 
 class ThirteenCard(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -234,7 +234,7 @@ class HandClassificationV2(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,32)
+        self.suit_emb = Embedder(5,32)
         self.pos_emb = nn.Embedding(9, 32)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -279,7 +279,7 @@ class HandClassificationV3(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
+        self.suit_emb = Embedder(5,12)
         # Output shape is (1,64,9,4,4)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -322,7 +322,7 @@ class HandClassificationV4(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
+        self.suit_emb = Embedder(5,12)
         # Output shape is (1,64,9,4,4)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -644,7 +644,7 @@ class TenCardClassificationV3(nn.Module):
 ################################################
 
 class BlockerClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -759,7 +759,7 @@ class HandRankClassification(nn.Module):
 ################################################
 
 class PartialHandRegression(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
