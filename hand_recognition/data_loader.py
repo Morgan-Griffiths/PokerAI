@@ -18,9 +18,7 @@ class memDatasetLoader(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-            
-        sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx])}
-
+        sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).long()}
         return sample
 
 class datasetLoader(Dataset):
