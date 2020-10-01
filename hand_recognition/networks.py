@@ -60,7 +60,7 @@ class ThirteenCard(nn.Module):
         
 # Emb + fc
 class ThirteenCardV2(nn.Module):
-    def __init__(self,params,hidden_dims=(15,64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,64,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -172,7 +172,7 @@ class ThirteenCardV3(nn.Module):
 ################################################
 
 class HandClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super(HandClassification,self).__init__()
         self.params = params
         self.nA = params['nA']
