@@ -3,10 +3,10 @@ import copy
 from datatypes import SUITS,RANKS
 
 SUIT_DICT = {
-    0:'s',
-    1:'h',
-    2:'d',
-    3:'c'
+    1:'s',
+    2:'h',
+    3:'d',
+    4:'c'
 }
 REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
 
@@ -16,6 +16,7 @@ def convert_numpy_to_rust(vectors):
         np_suit = np.floor(np.divide(vector,13)).astype(int)
         rank = np.subtract(vector,np.multiply(np_suit,13))
         rank = np.add(rank,2)
+        np_suit = np.add(np_suit,1)
         suit = SUIT_DICT[np_suit]
         cards.append([rank,suit])
     return cards
@@ -26,6 +27,7 @@ def convert_numpy_to_2d(vectors):
         np_suit = np.floor(np.divide(vector,13)).astype(int)
         rank = np.subtract(vector,np.multiply(np_suit,13))
         rank = np.add(rank,2)
+        np_suit = np.add(np_suit,1)
         cards.append([rank,np_suit])
     return cards
 
