@@ -135,8 +135,8 @@ def train_classification(dataset_params,agent_params,training_params):
     # dataset['valY'] = dataset['valY'].long()
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
-    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
-    valloader = return_trainloader(dataset['valX'],dataset['valY'])
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='classification')
+    valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
 
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # print('Target values',np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
