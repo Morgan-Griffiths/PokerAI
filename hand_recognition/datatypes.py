@@ -46,10 +46,10 @@ class Globals(object):
         DataTypes.BLOCKERS : LearningCategories.BINARY_CATEGORIZATION
     }
     SUIT_DICT = {
-        0:'s',
-        1:'h',
-        2:'d',
-        3:'c'
+        1:'s',
+        2:'h',
+        3:'d',
+        4:'c'
     }
     REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
     INPUT_SET_DICT = {
@@ -123,5 +123,5 @@ class RANKS(object):
     LOW = 2
 
 class SUITS(object):
-    HIGH = 4
-    LOW = 0
+    HIGH = 5
+    LOW = 1
