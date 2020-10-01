@@ -139,6 +139,8 @@ class CardDataset(object):
         extra_cards_2d = to_2d(extra_cards_52)
         hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
         board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
         en_hand = [encode(c) for c in hand]
         en_board = [encode(c) for c in board]
         hand_strength = hand_rank(en_hand,en_board)
@@ -148,6 +150,8 @@ class CardDataset(object):
             extra_cards_2d = to_2d(extra_cards_52)
             hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
             board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
             en_hand = [encode(c) for c in hand]
             en_board = [encode(c) for c in board]
             hand_strength = hand_rank(en_hand,en_board)
@@ -280,7 +284,7 @@ class CardDataset(object):
         quads = np.full(4,np.random.choice(self.rank_types))
         other_rank = np.random.choice(list(set(self.rank_types).difference(set(quads))))
         ranks = np.hstack((quads,other_rank))
-        suits = np.arange(4)
+        suits = np.arange(dt.SUITS.LOW,dt.SUITS.HIGH)
         other_suit = np.random.choice(self.suit_types)
         suits = np.hstack((suits,other_suit))
         hand = np.stack((ranks,suits))
