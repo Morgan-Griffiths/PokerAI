@@ -64,8 +64,8 @@ def train_network(data_dict,agent_params,training_params):
     score_window = deque(maxlen=100)
     val_window = deque(maxlen=100)
     for epoch in range(training_params['epochs']):
-        sys.stdout.write('\r')
         for i, data in enumerate(data_dict['trainloader'], 1):
+            sys.stdout.write('\r')
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
             targets = targets.cuda() if torch.cuda.is_available() else targets
@@ -83,8 +83,13 @@ def train_network(data_dict,agent_params,training_params):
 
             score_window.append(loss.item())
             scores.append(np.mean(score_window))
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
+            sys.stdout.flush()
+            sys.stdout.write(", epoch %d"% (epoch+1))
+            sys.stdout.flush()
         net.eval()
         for i, data in enumerate(data_dict['valloader'], 1):
+            sys.stdout.write('\r')
             inputs, targets = data.values()
             targets = targets.cuda() if torch.cuda.is_available() else targets
             if training_params['five_card_conversion'] == True:
@@ -95,13 +100,12 @@ def train_network(data_dict,agent_params,training_params):
             val_loss = criterion(val_preds, targets)
             val_window.append(val_loss.item())
             val_scores.append(np.mean(val_window))
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
+            sys.stdout.flush()
+            sys.stdout.write(", epoch %d"% (epoch+1))
+            sys.stdout.flush()
         net.train()
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
-        sys.stdout.flush()
-        sys.stdout.write(", epoch %d"% (epoch+1))
-        sys.stdout.flush()
-        sys.stdout.write(f", loss {np.mean(score_window):.2f}")
-        sys.stdout.flush()
+        print(f"Training loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}")
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
