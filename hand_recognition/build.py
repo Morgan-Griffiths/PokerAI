@@ -124,6 +124,8 @@ class CardDataset(object):
                         y.append(category)
             else:
                 raise ValueError(f"{params['datatype']} datatype not understood")
+            X = np.stack(X)
+            y = np.stack(y)[:,None]
             save_data(X,xpath)
             save_data(y,ypath)
 
@@ -254,6 +256,8 @@ class CardDataset(object):
                 en_hand = [encode(c) for c in hand]
                 X.append(hand)
                 y.append(rank(en_hand))
+        X = np.stack(X)
+        y = np.stack(y)[:,None]
         return X,y
         
     def create_handtypes(self,category,randomize=True):
