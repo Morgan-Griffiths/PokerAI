@@ -68,7 +68,7 @@ def train_network(data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['trainloader'], 1):
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            targets = targets.cuda()
+            targets = targets.cuda() if torch.cuda.is_available() else targets
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -83,17 +83,19 @@ def train_network(data_dict,agent_params,training_params):
 
             score_window.append(loss.item())
             scores.append(np.mean(score_window))
-            net.eval()
-            val_inputs = data_dict['valX']
+        net.eval()
+        for i, data in enumerate(data_dict['valloader'], 1):
+            inputs, targets = data.values()
+            targets = targets.cuda() if torch.cuda.is_available() else targets
             if training_params['five_card_conversion'] == True:
-                val_inputs = unspool(val_inputs)
+                inputs = unspool(inputs)
             if training_params['one_hot'] == True:
-                inputs = torch.nn.functional.one_hot(val_inputs)
-            val_preds = net(val_inputs)
-            val_loss = criterion(val_preds, data_dict['valY'])
+                inputs = torch.nn.functional.one_hot(inputs)
+            val_preds = net(inputs)
+            val_loss = criterion(val_preds, targets)
             val_window.append(val_loss.item())
             val_scores.append(np.mean(val_window))
-            net.train()
+        net.train()
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(epoch+1)//training_params['epochs']), (100*(epoch+1)//training_params['epochs'])))
         sys.stdout.flush()
         sys.stdout.write(", epoch %d"% (epoch+1))
@@ -129,14 +131,14 @@ def train_classification(dataset_params,agent_params,training_params):
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
+    valloader = return_trainloader(dataset['valX'],dataset['valY'])
 
-    print(dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
-    print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
+    print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
+    # print('Target values',np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
 
     data_dict = {
         'trainloader':trainloader,
-        'valX':dataset['valX'],
-        'valY':dataset['valY'],
+        'valloader':valloader,
         # 'y_handtype_indexes':y_handtype_indexes
     }
     train_network(data_dict,agent_params,training_params)
@@ -144,11 +146,11 @@ def train_classification(dataset_params,agent_params,training_params):
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
-    print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
+    valloader = return_trainloader(dataset['valX'],dataset['valY'])
+    # print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
     data_dict = {
         'trainloader':trainloader,
-        'valX':dataset['valX'],
-        'valY':dataset['valY']
+        'valloader':valloader
     }
     train_network(data_dict,agent_params,training_params)
 
