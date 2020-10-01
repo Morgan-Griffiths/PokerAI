@@ -88,25 +88,25 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-        net.eval()
-        for i, data in enumerate(data_dict['valloader'], 1):
-            sys.stdout.write('\r')
-            inputs, targets = data.values()
-            targets = targets.cuda() if torch.cuda.is_available() else targets
-            if training_params['five_card_conversion'] == True:
-                inputs = unspool(inputs)
-            if training_params['one_hot'] == True:
-                inputs = torch.nn.functional.one_hot(inputs)
-            val_preds = net(inputs)
-            val_loss = criterion(val_preds, targets)
-            val_window.append(val_loss.item())
-            val_scores.append(np.mean(val_window))
-            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
-            sys.stdout.flush()
-            sys.stdout.write(f", validation sample {(i+1):.2f}")
-            sys.stdout.flush()
-        net.train()
-        print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}\n")
+            net.eval()
+            for i, data in enumerate(data_dict['valloader'], 1):
+                sys.stdout.write('\r')
+                inputs, targets = data.values()
+                targets = targets.cuda() if torch.cuda.is_available() else targets
+                if training_params['five_card_conversion'] == True:
+                    inputs = unspool(inputs)
+                if training_params['one_hot'] == True:
+                    inputs = torch.nn.functional.one_hot(inputs)
+                val_preds = net(inputs)
+                val_loss = criterion(val_preds, targets)
+                val_window.append(val_loss.item())
+                val_scores.append(np.mean(val_window))
+                sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
+                sys.stdout.flush()
+                sys.stdout.write(f", validation sample {(i+1):.2f}")
+                sys.stdout.flush()
+            net.train()
+            print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}\n")
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
