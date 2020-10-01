@@ -82,13 +82,11 @@ class ThirteenCardV2(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
-
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
-        self.dropout = nn.Dropout(0.5)
         self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
@@ -107,24 +105,24 @@ class ThirteenCardV2(nn.Module):
         vil_board_suits = hot_suits[:,4:]
 
         # if torch.cuda.is_available():
-        #     s = self.rank_conv(hero_board_ranks.float().cuda())
-        #     r = self.suit_conv(hero_board_suits.float().cuda())
-        #     s2 = self.rank_conv(vil_board_ranks.float().cuda())
-        #     r2 = self.suit_conv(vil_board_suits.float().cuda())
+        #     r = self.rank_conv(hero_board_ranks.float().cuda())
+        #     s = self.suit_conv(hero_board_suits.float().cuda())
+        #     r2 = self.rank_conv(vil_board_ranks.float().cuda())
+        #     s2 = self.suit_conv(vil_board_suits.float().cuda())
         # else:
-        s = self.rank_conv(hero_board_ranks.float())
-        r = self.suit_conv(hero_board_suits.float())
-        s2 = self.rank_conv(vil_board_ranks.float())
-        r2 = self.suit_conv(vil_board_suits.float())
+        r = self.rank_conv(hero_board_ranks.float())
+        s = self.suit_conv(hero_board_suits.float())
         x1 = torch.cat((r,s),dim=-1)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
+        r2 = self.rank_conv(vil_board_ranks.float())
+        s2 = self.suit_conv(vil_board_suits.float())
         # should be (b,64,88)
         x2 = torch.cat((r2,s2),dim=-1)
-
-        x = x1 - x2
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+            x2 = self.activation_fc(self.bn_layers[i](hidden_layer(x2)))
+        x = x1 - x2
         x = x.view(M,-1)
-        # x = self.dropout(x)
         return torch.tanh(self.categorical_output(x))
 
 # Conv + multiheaded attention
