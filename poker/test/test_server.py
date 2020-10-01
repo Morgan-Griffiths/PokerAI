@@ -56,6 +56,12 @@ class BaseTestCase(TestCase):
         # step_response = c.post('/api/step', data=json.dumps(dict(action='call',betsize=1)),follow_redirects=True)
         # print(step_response.data)
 
+    def test_model_outputs(self):
+        c = self.app.test_client()
+        response = c.get('/api/model/outputs')
+        self.assertEqual(response.status_code, 200)
+        print(response.data)
+
     def test_player_results(self):
         c = self.app.test_client()
         response = c.get('/api/player/stats')
