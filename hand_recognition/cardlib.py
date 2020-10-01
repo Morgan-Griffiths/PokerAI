@@ -22,7 +22,7 @@ def encode(card):
     suitnum = card[1]
     if isinstance(card[1],str):
         suitnum = {'s': 0, 'h': 1,'d': 2,'c': 3}.get(card[1], 0)
-    return lib.encode(ctypes.c_byte(card[0] - 2), ctypes.c_byte(suitnum))
+    return lib.encode(ctypes.c_byte(card[0] - 2), ctypes.c_byte(suitnum - 1))
 
 # takes a cactus kev encoded card and returns a list like [2,'s']
 def decode(encoded):
