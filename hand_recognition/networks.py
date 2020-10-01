@@ -96,7 +96,7 @@ class ThirteenCardV2(nn.Module):
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
-asdf
+        
         hot_ranks = self.one_hot_ranks[ranks]
         # (b,13,13)
         hot_suits = self.one_hot_suits[suits]
