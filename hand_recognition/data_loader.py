@@ -8,9 +8,10 @@ def return_uniques(values):
     return uniques, count
 
 class memDatasetLoader(Dataset):
-    def __init__(self, X,y):
+    def __init__(self, X,y,category='classification'):
         self.X = X
         self.y = y
+        self.category = category
 
     def __len__(self):
         return self.X.shape[0]
@@ -18,7 +19,11 @@ class memDatasetLoader(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).long()}
+        if self.category == 'classification':
+            sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).long()}
+        else:
+            sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).float()}
+
         return sample
 
 class datasetLoader(Dataset):
@@ -44,8 +49,8 @@ class datasetLoader(Dataset):
 
         return sample
 
-def return_trainloader(X,y):
-    data = memDatasetLoader(X,y)
+def return_trainloader(X,y,category):
+    data = memDatasetLoader(X,y,category)
     params = {
         'batch_size':1024,
         'shuffle': True,

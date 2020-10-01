@@ -149,8 +149,8 @@ def train_classification(dataset_params,agent_params,training_params):
 
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
-    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'])
-    valloader = return_trainloader(dataset['valX'],dataset['valY'])
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='regression')
+    valloader = return_trainloader(dataset['valX'],dataset['valY'],category='regression')
     # print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
     data_dict = {
         'trainloader':trainloader,
