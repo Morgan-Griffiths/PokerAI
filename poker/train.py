@@ -13,7 +13,7 @@ import time
 import logging
 
 from models.networks import BetAgent
-from models.model_updates import update_actor_critic,update_combined
+from models.model_updates import update_actor_critic,update_combined,update_critic_batch
 from utils.data_loaders import return_trajectoryloader
 from models.model_utils import scale_rewards,soft_update
 from tournament import tournament
@@ -192,6 +192,41 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
         # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     del data
     return actor,critic,params
+
+def batch_learning_update(actor,critic,target_actor,target_critic,params):
+    mongo = MongoDB()
+    actor.train()
+    query = {'training_round':params['training_round']}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    db_data = mongo.get_data(query,projection)
+    trainloader = return_trajectoryloader(db_data)
+    for _ in range(params['learning_rounds']):
+        policy_losses = []
+        losses = []
+        for i,data in enumerate(trainloader):
+            critic_loss = update_critic_batch(data,critic,target_critic,params)
+            losses.append(critic_loss)
+            # policy_losses.append(policy_loss)
+        # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
+    return actor,critic,params
+
+def train_batch(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
+    villain = BetAgent()
+    for e in range(training_params['training_epochs']):
+        sys.stdout.write('\r')
+        generate_vs_frozen(env,actor,target_critic,villain,training_params,id)
+        # generate_trajectories(env,actor,target_critic,training_params,id)
+        # train on trajectories
+        actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
+        sys.stdout.flush()
+        sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")
+        sys.stdout.flush()
+        training_params['training_round'] += 1
+        learning_params['training_round'] += 1
+        if e % training_params['save_every'] == 0 and id == 0:
+            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
 
 def train(env,model,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
