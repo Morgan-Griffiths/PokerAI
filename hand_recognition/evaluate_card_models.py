@@ -57,8 +57,9 @@ def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     count_parameters(net)
-    if torch.cuda.device_count() > 1:
-        net = DDP(net)
+    # if torch.cuda.device_count() > 1:
+    #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    #     net = DDP(net)
     net.to(device)
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
@@ -135,6 +136,7 @@ def train_network(data_dict,agent_params,training_params):
                 val_loss = criterion(val_preds, data_dict['valY'][mask])
                 print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
         net.train()
+    # cleanup()
     torch.save(net.state_dict(), training_params['save_path'])
 
 def train_classification(dataset_params,agent_params,training_params):
