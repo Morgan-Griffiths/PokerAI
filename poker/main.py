@@ -5,7 +5,7 @@ import torch
 import os
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
 
-from train import train,train_dual,generate_trajectories,dual_learning_update,combined_learning_update
+from train import train,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
@@ -97,12 +97,12 @@ if __name__ == "__main__":
         'state_mapping':config.state_mapping,
         'obs_mapping':config.obs_mapping,
         'embedding_size':128,
-        'transformer_in':1280,
+        'transformer_in':256,
         'transformer_out':128,
         'device':device,
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression',
-        'actor_hand_recognizer_path':'hand_recognition/checkpoints/multiclass_categorization/HandClassificationV2',
-        'critic_hand_recognizer_path':'hand_recognition/checkpoints/regression/ThirteenCardV2',
+        'actor_hand_recognizer_path':os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassification'),
+        'critic_hand_recognizer_path':os.path.join(os.getcwd(),'checkpoints/frozen_layers/ThirteenCardV2'),
     }
     training_params = {
         'lr_steps':args.steps,
@@ -172,10 +172,10 @@ if __name__ == "__main__":
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         # Load pretrained hand recognizer
-        update_weights(actor,network_params['actor_hand_recognizer_path'])
-        update_weights(critic,network_params['critic_hand_recognizer_path'])
-        actor.summary
-        critic.summary
+        # update_weights(actor,network_params['actor_hand_recognizer_path'])
+        # update_weights(critic,network_params['critic_hand_recognizer_path'])
+        # actor.summary
+        # critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,actor)
@@ -195,17 +195,17 @@ if __name__ == "__main__":
         # for debugging
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
-        for e in range(training_params['lr_steps']):
-            for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
-                p.start()
-                processes.append(p)
-            for p in processes: 
-                p.join()
-            learning_params['actor_lrscheduler'].step()
-            learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
+        train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
+        # for e in range(training_params['lr_steps']):
+        #     for id in range(num_processes): # No. of processes
+        #         p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
+        #         p.start()
+        #         processes.append(p)
+        #     for p in processes: 
+        #         p.join()
+        #     learning_params['actor_lrscheduler'].step()
+        #     learning_params['critic_lrscheduler'].step()
+        #     training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
