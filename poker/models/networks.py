@@ -378,14 +378,13 @@ class OmahaActor(Network):
         
         # self.seed = torch.manual_seed(seed)
         self.state_mapping = params['state_mapping']
-        self.hand_emb = Embedder(5,64)
         self.action_emb = Embedder(Action.UNOPENED,64)
         self.betsize_emb = Embedder(self.nB,64)
         self.noise = GaussianNoise(self.device)
         self.emb = 1248
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(1280, 128,bidirectional=True)
+        self.lstm = nn.LSTM(7718, 128,bidirectional=True)
         self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
@@ -399,7 +398,6 @@ class OmahaActor(Network):
         action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
         betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-
         out = self.process_input(x)
         B,M,c = out.size()
         n_padding = self.maxlen - M
@@ -490,7 +488,9 @@ class OmahaObsQCritic(Network):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,obs):
-        x = torch.tensor(obs,dtype=torch.float32).to(self.device)
+        x = obs
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
