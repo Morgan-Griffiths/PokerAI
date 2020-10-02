@@ -231,8 +231,12 @@ class HandClassification(nn.Module):
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
 
-        s = self.suit_conv(hot_suits.float())
-        r = self.rank_conv(hot_ranks.float())
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
 
