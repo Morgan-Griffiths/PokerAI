@@ -72,15 +72,15 @@ if __name__ == "__main__":
     if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
         trainX,trainY = dataset.build_hand_ranks(100)
         valX,valY = dataset.build_hand_ranks(10)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
     elif learning_category == dt.LearningCategories.REGRESSION:
         trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int8')
     elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
         trainX,trainY = dataset.build_blockers(dataset_params['train_set_size'])
         valX,valY = dataset.build_blockers(dataset_params['val_set_size'])
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='uint8')
     else:
         raise ValueError(f'{args.datatype} datatype not understood')
