@@ -3,6 +3,7 @@ from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from torch.optim.lr_scheduler import MultiStepLR,StepLR
 import torch
 import numpy as np
 import os
@@ -60,6 +61,8 @@ def train_network(data_dict,agent_params,training_params):
     net.to(device)
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
+    lr_stepsize = training_params['epochs'] // 5
+    lr_stepper = MultiStepLR(optimizer=optimizer,milestones=[lr_stepsize*2,lr_stepsize*3,lr_stepsize*4],gamma=0.1)
     scores = []
     val_scores = []
     score_window = deque(maxlen=100)
@@ -87,6 +90,7 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
+        lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
         net.eval()
@@ -293,7 +297,7 @@ if __name__ == "__main__":
         'save_path':network_path,
         'labels':dt.Globals.LABEL_DICT[args.datatype],
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-        'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu"),
     }
     multitrain_params = {
         'conversion_list':[False],#,False],#[,True],
