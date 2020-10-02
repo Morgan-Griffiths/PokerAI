@@ -220,7 +220,10 @@ def check_network(dataset_params,params):
             rand_index = torch.randint(0,indicies.size(0),(1,))
             rand_hand = indicies[rand_index]
             print(f'Evaluating on: {valX[rand_hand]}')
-            out = net(torch.tensor(valX[rand_hand]).unsqueeze(0))
+            if torch.cuda.is_available():
+                out = net(torch.tensor(valX[rand_hand]).unsqueeze(0).cuda())
+            else:
+                out = net(torch.tensor(valX[rand_hand]).unsqueeze(0))
             print(f'Network output: {output_map(out)}, Maximum value {torch.max(output_map(out))}, Location {torch.argmax(output_map(out))}')
             print(f'Actual category: {valY[rand_hand]}')
         else:
