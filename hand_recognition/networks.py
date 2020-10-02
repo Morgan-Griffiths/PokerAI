@@ -100,7 +100,7 @@ class ThirteenCardV2(nn.Module):
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i+1]))
+            # self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i+1]))
         self.categorical_output = nn.Linear(512,self.nA)
 
     def forward(self,x):
@@ -131,9 +131,9 @@ class ThirteenCardV2(nn.Module):
         x1 = torch.cat((r,s),dim=-1).view(M,-1)
         x2 = torch.cat((r2,s2),dim=-1).view(M,-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
+            x1 = self.activation_fc(hidden_layer(x1))
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x2 = self.activation_fc(self.bn_layers[i](hidden_layer(x2)))
+            x2 = self.activation_fc(hidden_layer(x2))
 
         x = x1 - x2
         x = x.view(M,-1)
