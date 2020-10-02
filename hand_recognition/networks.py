@@ -766,7 +766,7 @@ class HandRankClassification(nn.Module):
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc((hidden_layer(x))
+            x = self.activation_fc(hidden_layer(x))
         x = x.view(M,-1)
         return self.categorical_output(x)
 
