@@ -749,7 +749,6 @@ class HandRankClassification(nn.Module):
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             self.bn_layers.append(nn.BatchNorm1d(64))
-        self.dropout = nn.Dropout(0.5)
         self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
@@ -757,10 +756,8 @@ class HandRankClassification(nn.Module):
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
-
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
-
         if torch.cuda.is_available():
             s = self.suit_conv(hot_suits.float().cuda())
             r = self.rank_conv(hot_ranks.float().cuda())
@@ -769,11 +766,9 @@ class HandRankClassification(nn.Module):
             r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
-
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
         x = x.view(M,-1)
-        # x = self.dropout(x)
         return self.categorical_output(x)
 
 ################################################
