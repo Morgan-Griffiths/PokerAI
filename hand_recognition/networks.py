@@ -829,5 +829,4 @@ class PartialHandRegression(nn.Module):
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
         x = x.view(M,-1)
-        x = self.dropout(x)
         return self.categorical_output(x)

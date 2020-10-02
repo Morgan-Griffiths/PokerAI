@@ -4,9 +4,9 @@ import os
 
 def return_ylabel_dict(X:torch.tensor,y:torch.tensor,target_set:set):
     type_dict = {}
-    print(np.unique(y,return_counts=True))
+    # print(np.unique(y,return_counts=True))
     for item in target_set:
-        type_dict[item] = torch.tensor(np.where(y.numpy() == item)[0])
+        type_dict[item] = torch.tensor(np.where(y == item)[0])
     return type_dict
 
 def load_data(dir_path):
