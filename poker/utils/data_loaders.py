@@ -34,9 +34,9 @@ class trajectoryLoader(Dataset):
 def return_trajectoryloader(data):
     data = trajectoryLoader(data)
     params = {
-        'batch_size':48,
+        'batch_size':64,
         'shuffle': True,
-        'num_workers':2
+        'num_workers':4
     }
     trainloader = DataLoader(data, **params)
     return trainloader
