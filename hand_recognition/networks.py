@@ -2,6 +2,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import datatypes as dt
+from prettytable import PrettyTable
+
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: 
+            continue
+        param = parameter.numel()
+        table.add_row([name, param])
+        total_params+=param
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 ################################################
 #           13 card winner prediction          #
@@ -60,7 +74,7 @@ class ThirteenCard(nn.Module):
         
 # Emb + fc
 class ThirteenCardV2(nn.Module):
-    def __init__(self,params,hidden_dims=(16,64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -73,21 +87,21 @@ class ThirteenCardV2(nn.Module):
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(9, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(9, 720, kernel_size=1, stride=1),
+            nn.BatchNorm1d(720),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(9, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(9, 720, kernel_size=5, stride=1),
+            nn.BatchNorm1d(720),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(2048,self.nA)
+            self.bn_layers.append(nn.BatchNorm1d(720))
+        self.categorical_output = nn.Linear(23040,self.nA)
 
     def forward(self,x):
         # Input is (b,13,2)
@@ -114,8 +128,8 @@ class ThirteenCardV2(nn.Module):
             s = self.suit_conv(hero_board_suits.float())
             r2 = self.rank_conv(vil_board_ranks.float())
             s2 = self.suit_conv(vil_board_suits.float())
-        x1 = torch.cat((r,s),dim=-1)
-        x2 = torch.cat((r2,s2),dim=-1)
+        x1 = torch.cat((r,s),dim=-1)#.view(M,-1)
+        x2 = torch.cat((r2,s2),dim=-1)#.view(M,-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
         for i,hidden_layer in enumerate(self.hidden_layers):

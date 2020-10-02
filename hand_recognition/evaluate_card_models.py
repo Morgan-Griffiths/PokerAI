@@ -56,6 +56,7 @@ def unspool(X):
 def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
+    count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DataParallel(net)
     net.to(device)
@@ -113,7 +114,7 @@ def train_network(data_dict,agent_params,training_params):
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
         net.train()
-        print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}")
+        print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}, Epoch {epoch}")
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
