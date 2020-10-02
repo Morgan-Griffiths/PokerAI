@@ -62,7 +62,6 @@ class NetworkFunctions(object):
 
     # def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
     #     """Unwraps flat action into action_category and betsize_category"""
-    #     # print(action,previous_action)
     #     actions_output = torch.zeros(action.size(0),self.nA)
     #     betsizes = torch.zeros(action.size(0),self.nB)
     #     # actions[action[action < 3]] = 1
@@ -86,13 +85,16 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,critic=False,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hand_length,critic=False,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.critic = critic
         self.activation_fc = activation_fc
+        self.hidden_dims = hidden_dims
         self.hand_length = hand_length
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
+        self.maxlen = params['maxlen']
+        self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
             nn.Conv1d(5+hand_length, 64, kernel_size=1, stride=1),
@@ -106,17 +108,19 @@ class ProcessHandBoard(nn.Module):
         )
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
-        self.maxlen = params['maxlen']
-        self.device = params['device']
         self.initialize(critic)
 
     def initialize(self,critic):
         if critic:
+            self.hidden_dims=(1024,512,512)
+            for i in range(len(self.hidden_dims)-1):
+                self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+            self.categorical_output = nn.Linear(512,1)
             self.forward = self.forward_critic
         else:
+            for i in range(len(self.hidden_dims)-1):
+                self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+            self.categorical_output = nn.Linear(2048,7463)
             self.forward = self.forward_actor
 
     def forward_critic(self,x):
@@ -138,22 +142,27 @@ class ProcessHandBoard(nn.Module):
         hero_hot_suits = self.one_hot_suits[hero_hand_suits].to(self.device)
         villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks].to(self.device)
         villain_hot_suits = self.one_hot_suits[villain_hand_suits].to(self.device)
-        hero_activations = []
-        villain_activations = []
+        activations = []
         for i in range(M):
-            hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
-            hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
-            # for i,hidden_layer in enumerate(self.hidden_layers):
-            #     hero_r = self.activation_fc(self.bn_layers[i](hidden_layer(hero_r)))
-            hero_activations.append(torch.cat((hero_r,hero_s),dim=-1))
-            villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
-            villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
-            # for i,hidden_layer in enumerate(self.hidden_layers):
-            #     villain_r = self.activation_fc(self.bn_layers[i](hidden_layer(villain_r)))
-            villain_activations.append(torch.cat((villain_r,villain_s),dim=-1))
-        hero = torch.stack(hero_activations).view(B,M,-1)
-        villain = torch.stack(villain_activations).view(B,M,-1)
-        return hero - villain
+            if torch.cuda.is_available():
+                hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float().cuda())
+                hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float().cuda())
+                villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float().cuda())
+                villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float().cuda())
+            else:
+                hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
+                hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
+                villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
+                villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
+            x1 = torch.cat((hero_r,hero_s),dim=-1).view(B,-1)
+            x2 = torch.cat((villain_r,villain_s),dim=-1).view(B,-1)
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                x1 = self.activation_fc(hidden_layer(x1))
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                x2 = self.activation_fc(hidden_layer(x2))
+            out = x1 - x2
+            activations.append(torch.tanh(self.categorical_output(out.view(B,-1))))
+        return torch.stack(activations).view(B,M,1)
 
     def forward_actor(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
@@ -166,9 +175,11 @@ class ProcessHandBoard(nn.Module):
         for i in range(M):
             s = self.suit_conv(hot_suits[:,i,:,:].float())
             r = self.rank_conv(hot_ranks[:,i,:,:].float())
-            # for i,hidden_layer in enumerate(self.hidden_layers):
-            #     r = self.activation_fc(self.bn_layers[i](hidden_layer(r)))
-            activations.append(torch.cat((r,s),dim=-1))
+            out = torch.cat((r,s),dim=-1)
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                out = self.activation_fc(hidden_layer(out))
+            out = self.categorical_output(out.view(B,-1))
+            activations.append(out)
         return torch.stack(activations).view(B,M,-1)
 
 class ProcessOrdinal(nn.Module):
@@ -282,7 +293,7 @@ class PreProcessLayer(nn.Module):
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
+        self.betsize_fc = nn.Linear(1,params['embedding_size']-1)
 
     def forward(self,x):
         B,M,C = x.size()
@@ -295,14 +306,11 @@ class PreProcessLayer(nn.Module):
         bets = []
         # for i in range()
         last_b = x[:,:,self.state_mapping['last_betsize']]
-        # print(last_a.size(),last_b.size())
         emb_a = self.action_emb(last_a)
         embedded_bets = []
         for i in range(M):
             embedded_bets.append(self.betsize_fc(last_b[:,i]))
         embeds = torch.stack(embedded_bets)
-        # print('embeds',embeds.size())
-        # print('emb_a',emb_a.size())
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
@@ -310,8 +318,6 @@ class PreProcessLayer(nn.Module):
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
         combined = torch.cat((h,emb_a,embeds),dim=-1)
-        # print(h.size(),emb_a.size(),embeds.size())
-        # print(combined.size())
         return combined
 
 ################################################
