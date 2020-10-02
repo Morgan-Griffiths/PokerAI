@@ -104,19 +104,19 @@ class ThirteenCardV2(nn.Module):
         vil_board_ranks = hot_ranks[:,4:]
         vil_board_suits = hot_suits[:,4:]
 
-        # if torch.cuda.is_available():
-        #     r = self.rank_conv(hero_board_ranks.float().cuda())
-        #     s = self.suit_conv(hero_board_suits.float().cuda())
-        #     r2 = self.rank_conv(vil_board_ranks.float().cuda())
-        #     s2 = self.suit_conv(vil_board_suits.float().cuda())
-        # else:
-        r = self.rank_conv(hero_board_ranks.float())
-        s = self.suit_conv(hero_board_suits.float())
+        if torch.cuda.is_available():
+            r = self.rank_conv(hero_board_ranks.float().cuda())
+            s = self.suit_conv(hero_board_suits.float().cuda())
+            r2 = self.rank_conv(vil_board_ranks.float().cuda())
+            s2 = self.suit_conv(vil_board_suits.float().cuda())
+        else:
+            r = self.rank_conv(hero_board_ranks.float())
+            s = self.suit_conv(hero_board_suits.float())
+            r2 = self.rank_conv(vil_board_ranks.float())
+            s2 = self.suit_conv(vil_board_suits.float())
         x1 = torch.cat((r,s),dim=-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
-        r2 = self.rank_conv(vil_board_ranks.float())
-        s2 = self.suit_conv(vil_board_suits.float())
         # should be (b,64,88)
         x2 = torch.cat((r2,s2),dim=-1)
         for i,hidden_layer in enumerate(self.hidden_layers):
@@ -372,7 +372,6 @@ class FiveCardClassification(nn.Module):
 
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-
         # Input is (b,5,2) -> (b,5,4)
         self.suit_conv = nn.Conv1d(5, 64, kernel_size=1, stride=1)
         self.suit_bn = nn.BatchNorm1d(64)
@@ -382,7 +381,7 @@ class FiveCardClassification(nn.Module):
         self.rank_bn = nn.BatchNorm1d(64)
         # Output shape is (b,64,9) or (b,64,11) 
         self.rank_output = nn.Linear(11,32)
-        self.suit_output = nn.Linear(4,12)
+        self.suit_output = nn.Linear(5,12)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
