@@ -5,7 +5,7 @@ from models.model_utils import scale_rewards,soft_update,return_value_mask
 import logging
 from prettytable import PrettyTable
 
-def update_critic_batch(local_critic,target_critic,data,params):
+def update_critic_batch(data,local_critic,target_critic,params):
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']
     trajectory, target = data.values()
