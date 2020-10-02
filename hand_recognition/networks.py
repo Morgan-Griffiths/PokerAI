@@ -734,25 +734,24 @@ class HandRankClassification(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
-
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
+            # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
-        # Input is (b,5,2)
+        # Input is (b,9,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
@@ -767,7 +766,7 @@ class HandRankClassification(nn.Module):
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+            x = self.activation_fc((hidden_layer(x))
         x = x.view(M,-1)
         return self.categorical_output(x)
 
