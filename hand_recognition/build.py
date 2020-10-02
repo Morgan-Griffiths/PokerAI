@@ -158,7 +158,7 @@ class CardDataset(object):
             en_board = [encode(c) for c in board]
             hand_strength = hand_rank(en_hand,en_board)
             hand_type = CardDataset.find_strength(hand_strength)
-        return hand,board
+        return hand,board,hand_strength
 
     def build_blockers(self,iterations):
         """
@@ -201,7 +201,7 @@ class CardDataset(object):
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(iterations // 9):
-                hero_hand,board = self.create_ninecard_handtypes(category)
+                hero_hand,board,_ = self.create_ninecard_handtypes(category)
                 ninecards = np.concatenate([hero_hand,board],axis=0)
                 flat_card_vector = to_52_vector(ninecards)
                 available_cards = list(set(self.deck) - set(flat_card_vector))
@@ -252,10 +252,9 @@ class CardDataset(object):
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(Number_of_examples[category] * multiplier):
-                hand = self.create_handtypes(category)
-                en_hand = [encode(c) for c in hand]
-                X.append(hand)
-                y.append(rank(en_hand))
+                hand,board,hand_strength = self.create_ninecard_handtypes(category)
+                X.append(np.concatenate([hand,board],axis=0))
+                y.append(hand_strength)
         X = np.stack(X)
         y = np.stack(y)
         return X,y
