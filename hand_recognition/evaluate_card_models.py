@@ -57,8 +57,8 @@ def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     count_parameters(net)
-    if torch.cuda.device_count() > 1:
-        net = DataParallel(net)
+    # if torch.cuda.device_count() > 1:
+    #     net = DataParallel(net)
     net.to(device)
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
@@ -160,7 +160,7 @@ def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='regression')
     valloader = return_trainloader(dataset['valX'],dataset['valY'],category='regression')
-    
+
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # print(np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
     data_dict = {
