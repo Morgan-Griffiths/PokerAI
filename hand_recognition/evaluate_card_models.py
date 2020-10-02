@@ -57,8 +57,8 @@ def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     count_parameters(net)
-    # if torch.cuda.device_count() > 1:
-    #     net = DataParallel(net)
+    if torch.cuda.device_count() > 1:
+        net = DDP(net)
     net.to(device)
     criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
