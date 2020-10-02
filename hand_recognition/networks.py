@@ -116,12 +116,12 @@ class ThirteenCardV2(nn.Module):
             s2 = self.suit_conv(vil_board_suits.float())
         x1 = torch.cat((r,s),dim=-1)
         x2 = torch.cat((r2,s2),dim=-1)
-        # for i,hidden_layer in enumerate(self.hidden_layers):
-        #     x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
-        # should be (b,64,88)
-        x = x1 - x2
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
+            x1 = self.activation_fc(self.bn_layers[i](hidden_layer(x1)))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x2 = self.activation_fc(self.bn_layers[i](hidden_layer(x2)))
+
+        x = x1 - x2
         x = x.view(M,-1)
         return torch.tanh(self.categorical_output(x))
 
