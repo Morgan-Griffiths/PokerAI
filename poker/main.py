@@ -97,7 +97,7 @@ if __name__ == "__main__":
         'state_mapping':config.state_mapping,
         'obs_mapping':config.obs_mapping,
         'embedding_size':128,
-        'transformer_in':256,
+        'transformer_in':768,
         'transformer_out':128,
         'device':device,
         'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression',

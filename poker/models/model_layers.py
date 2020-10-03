@@ -115,12 +115,12 @@ class ProcessHandBoard(nn.Module):
             self.hidden_dims=(1024,512,512)
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            self.categorical_output = nn.Linear(512,1)
+            # self.categorical_output = nn.Linear(512,1)
             self.forward = self.forward_critic
         else:
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            self.categorical_output = nn.Linear(2048,7463)
+            # self.categorical_output = nn.Linear(2048,7463)
             self.forward = self.forward_actor
 
     def forward_critic(self,x):
@@ -161,8 +161,9 @@ class ProcessHandBoard(nn.Module):
             for i,hidden_layer in enumerate(self.hidden_layers):
                 x2 = self.activation_fc(hidden_layer(x2))
             out = x1 - x2
-            activations.append(torch.tanh(self.categorical_output(out.view(B,-1))))
-        return torch.stack(activations).view(B,M,1)
+            activations.append(out)
+            # activations.append(torch.tanh(self.categorical_output(out.view(B,-1))))
+        return torch.stack(activations).view(B,M,-1)
 
     def forward_actor(self,x):
         """x: concatenated hand and board. alternating rank and suit."""
@@ -178,7 +179,7 @@ class ProcessHandBoard(nn.Module):
             out = torch.cat((r,s),dim=-1)
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
-            out = self.categorical_output(out.view(B,-1))
+            # out = self.categorical_output(out.view(B,-1))
             activations.append(out)
         return torch.stack(activations).view(B,M,-1)
 
@@ -293,7 +294,7 @@ class PreProcessLayer(nn.Module):
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        self.betsize_fc = nn.Linear(1,params['embedding_size']-1)
+        self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
         B,M,C = x.size()
