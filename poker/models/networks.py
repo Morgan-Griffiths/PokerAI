@@ -406,7 +406,7 @@ class OmahaActor(Network):
         else:
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
-        lstm_out,_ = self.lstm(h)
+        lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
         # blocks_out = self.blocks(lstm_out.view(-1))
         t_logits = self.fc_final(norm.view(-1))
