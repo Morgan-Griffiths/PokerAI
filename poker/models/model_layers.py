@@ -280,7 +280,16 @@ class PreProcessPokerInputs(nn.Module):
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
-    
+class VectorAttention(nn.Module):
+    def __init__(self,in_size,out_size):
+        super().__init__()
+        self.context_nn = nn.Linear(in_size,in_size)
+        
+    def forward(x):
+        context = self.context_nn(x)
+        scores = F.softmax(context)
+        return scores * x
+
 class PreProcessLayer(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
