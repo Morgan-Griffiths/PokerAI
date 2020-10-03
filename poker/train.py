@@ -250,7 +250,7 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,actor,target_critic,villain,training_params,id)
+        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         # generate_trajectories(env,actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
