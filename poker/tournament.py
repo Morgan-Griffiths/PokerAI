@@ -102,16 +102,9 @@ if __name__ == "__main__":
     training_params = config.training_params
     training_params['epochs'] = args.epochs
     training_params['save_dir']:os.path.join(os.getcwd(),'checkpoints/training_run')
-    network_params = {
-        'game':pdt.GameTypes.OMAHAHI,
-        'maxlen':config.maxlen,
-        'state_mapping':config.state_mapping,
-        'obs_mapping':config.obs_mapping,
-        'embedding_size':128,
-        'transformer_in':1280,
-        'transformer_out':128,
-        'device':device,
-    }
+
+    network_params                                = config.network_params
+    network_params['device']                      = device
 
     nS = env.state_space
     nO = env.observation_space
