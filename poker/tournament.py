@@ -154,6 +154,7 @@ if __name__ == "__main__":
         """Runs all saved weights (in training_run folder) against each other in a round robin"""
         # load all file paths
         weight_paths = load_paths(training_params['actor_path'])
+        print('weight_paths',weight_paths)
         # all combinations
         model_names = list(weight_paths.keys())
         model_names.sort(key=lambda l: int(grep("\d+", l)))
@@ -179,8 +180,8 @@ if __name__ == "__main__":
             table.add_row([model,*row])
         print(table)
     else:
-        print(f'Evaluating {model_name}')
-        trained_model.load_state_dict(torch.load(os.path.join(training_params['save_dir'],model_name)))
+        print(f'Evaluating {model_name}, from {os.path.join(training_params["actor_path"],model_name)}')
+        trained_model.load_state_dict(torch.load(os.path.join(training_params['actor_path'],model_name)))
         baseline_evaluation = BetAgent()
         model_names = ['baseline_evaluation','trained_model']
         results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
