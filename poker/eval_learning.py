@@ -169,23 +169,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpu1 = 'cuda:0'
     gpu2 = 'cuda:1'
-
-    network_params = {
-        'game':pdt.GameTypes.OMAHAHI,
-        'maxlen':config.maxlen,
-        'state_mapping':config.state_mapping,
-        'obs_mapping':config.obs_mapping,
-        'embedding_size':128,
-        'transformer_in':1280,
-        'transformer_out':128,
-        'device':device,
-        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
-    }
+    network_params = config.network_params
+    network_params['device'] = device
     training_params = {
         'training_epochs':50,
         'generate_epochs':10,
         'training_round':0,
-        'game':'Omaha',
+        'game':pdt.GameTypes.OMAHAHI,
         'id':0
     }
     learning_params = {
@@ -233,13 +223,13 @@ if __name__ == "__main__":
         learning_params['critic_optimizer'] = critic_optimizer
 
         # Gen trajectories
-        generate_trajectories(env,local_actor,training_params,id=0)
+        generate_trajectories(env,local_actor,local_critic,training_params,id=0)
 
         # Eval learning models
         if args.eval == 'actor':
             eval_actor(local_actor,target_actor,target_critic,learning_params)
         elif args.eval == 'critic':
-            # eval_critic(local_critic,learning_params)
-            eval_batch_critic(local_critic,target_critic,learning_params)
+            eval_critic(local_critic,learning_params)
+            # eval_batch_critic(local_critic,target_critic,learning_params)
         else:
             eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
