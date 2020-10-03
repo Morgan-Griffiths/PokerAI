@@ -52,6 +52,11 @@ if __name__ == "__main__":
                         default=3,
                         type=int,
                         help='Number of learning rate decays')
+    parser.add_argument('--frozen','-f',
+                        dest='frozen',
+                        default=True,
+                        type=bool,
+                        help='Preload handboard recognizer weights')
 
     args = parser.parse_args()
 
@@ -90,20 +95,8 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpu1 = 'cuda:0'
     gpu2 = 'cuda:1'
-
-    network_params = {
-        'game':pdt.GameTypes.OMAHAHI,
-        'maxlen':config.maxlen,
-        'state_mapping':config.state_mapping,
-        'obs_mapping':config.obs_mapping,
-        'embedding_size':128,
-        'transformer_in':768,
-        'transformer_out':128,
-        'device':device,
-        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression',
-        'actor_hand_recognizer_path':os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassification'),
-        'critic_hand_recognizer_path':os.path.join(os.getcwd(),'checkpoints/frozen_layers/ThirteenCardV2'),
-    }
+    network_params                                = config.network_params
+    network_params['device']                      = device
     training_params = {
         'lr_steps':args.steps,
         'training_epochs':args.epochs,
@@ -143,8 +136,9 @@ if __name__ == "__main__":
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-        # Load pretrained hand recognizer
-        update_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
+        if args.frozen:
+            # Load pretrained hand recognizer
+            update_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
         alphaPoker.summary
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         lrscheduler = StepLR(alphaPoker_optimizer, step_size=1, gamma=0.1)
@@ -171,9 +165,10 @@ if __name__ == "__main__":
     else:
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        # Load pretrained hand recognizer
-        update_weights(actor,network_params['actor_hand_recognizer_path'])
-        update_weights(critic,network_params['critic_hand_recognizer_path'])
+        if args.frozen:
+            # Load pretrained hand recognizer
+            update_weights(actor,network_params['actor_hand_recognizer_path'])
+            update_weights(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
         critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
