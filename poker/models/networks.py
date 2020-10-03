@@ -8,7 +8,7 @@ from poker_env.datatypes import Action
 from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
+from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
 
 class BetAgent(object):
@@ -384,7 +384,8 @@ class OmahaActor(Network):
         self.emb = 1248
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(2304, 128,bidirectional=True)
+        self.attention = EncoderAttention(params['lstm_in'],params['lstm_out'])
+        self.lstm = nn.LSTM(params['lstm_in'],params['lstm_out'],bidirectional=True)
         self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
@@ -408,10 +409,12 @@ class OmahaActor(Network):
             h = torch.cat((out,padding),dim=1)
         lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
+        # self.attention(out)
         # blocks_out = self.blocks(lstm_out.view(-1))
         t_logits = self.fc_final(norm.view(-1))
         category_logits = self.noise(t_logits)
-        
+        # skip connection
+        # category_logits += h
         action_soft = F.softmax(category_logits,dim=-1)
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
@@ -455,7 +458,6 @@ class OmahaQCritic(Network):
         # n_padding = max(self.maxlen - M,0)
         # padding = torch.zeros(B,n_padding,out.size(-1))
         # h = torch.cat((out,padding),dim=1)
-
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
@@ -473,6 +475,7 @@ class OmahaObsQCritic(Network):
         self.nO = nO
         self.nA = nA
         self.combined_output = nA - 2 + nB
+        self.attention = VectorAttention(params['transformer_in'])
         self.process_input = PreProcessLayer(params,critic=True)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
@@ -492,7 +495,8 @@ class OmahaObsQCritic(Network):
         if not isinstance(x,torch.Tensor):
             x = torch.tensor(x,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
-        q_input = self.transformer(out)
+        context = self.attention(out)
+        q_input = self.transformer(context)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
         v = v.expand_as(a)
