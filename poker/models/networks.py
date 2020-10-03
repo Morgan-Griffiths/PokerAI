@@ -384,7 +384,7 @@ class OmahaActor(Network):
         self.emb = 1248
         n_heads = 8
         depth = 2
-        self.lstm = nn.LSTM(7718, 128,bidirectional=True)
+        self.lstm = nn.LSTM(2304, 128,bidirectional=True)
         self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
