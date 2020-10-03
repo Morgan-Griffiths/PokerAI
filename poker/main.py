@@ -111,7 +111,7 @@ if __name__ == "__main__":
         'training_round':0,
         'game':'Omaha',
         'id':0,
-        'save_every':5,
+        'save_every':args.epochs // 4,
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
         'actor_path':config.agent_params['actor_path'],
         'critic_path':config.agent_params['critic_path'],
