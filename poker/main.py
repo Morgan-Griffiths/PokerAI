@@ -57,8 +57,15 @@ if __name__ == "__main__":
                         default=True,
                         type=bool,
                         help='Preload handboard recognizer weights')
+    parser.add_argument('--gpu',
+                        dest='gpu',
+                        default=0,
+                        type=int,
+                        help='Which gpu to use')
 
     args = parser.parse_args()
+
+    cuda_dict = {0:'cuda:0',1:'cuda:1'}
 
     print("Number of processors: ", mp.cpu_count())
     print(f'Number of GPUs: {torch.cuda.device_count()}')
@@ -92,7 +99,7 @@ if __name__ == "__main__":
     nA = env.action_space
     nB = env.betsize_space
     seed = 1235
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(cuda_dict[args.gpu] if torch.cuda.is_available() else "cpu")
     gpu1 = 'cuda:0'
     gpu2 = 'cuda:1'
     network_params                                = config.network_params
