@@ -37,7 +37,7 @@ class Config(object):
             'critic_type':'q',
             'embedding_size': 32,
             'actor_lr':3e-4,
-            'critic_lr':4e-7,
+            'critic_lr':3e-4,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/PartialHandRegression'),
             'frozen_layer' : False,
             'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
@@ -152,8 +152,10 @@ class Config(object):
             'state_mapping':self.state_mapping,
             'obs_mapping':self.obs_mapping,
             'embedding_size':128,
-            'transformer_in':768,
+            'transformer_in':512,
             'transformer_out':128,
+            'lstm_in':2048,
+            'lstm_out':128,
             'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassification'),
             'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/ThirteenCardV2')
         }
