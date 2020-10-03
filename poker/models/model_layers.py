@@ -280,14 +280,24 @@ class PreProcessPokerInputs(nn.Module):
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
+class EncoderAttention(nn.Module):
+    def __init__(self,in_size,lstm_out):
+        super().__init__()
+        self.context_nn = nn.Linear(lstm_out,in_size)
+        
+    def forward(self,x,hidden_states):
+        context = self.context_nn(hidden_states)
+        scores = F.softmax(context,dim=-1)
+        return scores * x
+
 class VectorAttention(nn.Module):
-    def __init__(self,in_size,out_size):
+    def __init__(self,in_size):
         super().__init__()
         self.context_nn = nn.Linear(in_size,in_size)
         
-    def forward(x):
+    def forward(self,x):
         context = self.context_nn(x)
-        scores = F.softmax(context)
+        scores = F.softmax(context,dim=-1)
         return scores * x
 
 class PreProcessLayer(nn.Module):
@@ -302,7 +312,10 @@ class PreProcessLayer(nn.Module):
         self.hand_board = ProcessHandBoard(params,hand_length,critic)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
+        if critic:
+            self.action_emb = nn.Embedding(embedding_dim=512, num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
+        else:
+            self.action_emb = nn.Embedding(embedding_dim=2048, num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
         self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
@@ -313,21 +326,20 @@ class PreProcessLayer(nn.Module):
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long()
-        bets = []
-        # for i in range()
-        last_b = x[:,:,self.state_mapping['last_betsize']]
         emb_a = self.action_emb(last_a)
-        embedded_bets = []
-        for i in range(M):
-            embedded_bets.append(self.betsize_fc(last_b[:,i]))
-        embeds = torch.stack(embedded_bets)
+        # last_b = x[:,:,self.state_mapping['last_betsize']]
+        # embedded_bets = []
+        # for i in range(M):
+        #     embedded_bets.append(self.betsize_fc(last_b[:,i]))
+        # embeds = torch.stack(embedded_bets)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
-        if embeds.dim() == 2:
-            embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h,emb_a,embeds),dim=-1)
+        # if embeds.dim() == 2:
+        #     embeds = embeds.unsqueeze(0)
+        # combined = torch.cat((h,emb_a,embeds),dim=-1)
+        combined = emb_a + h
         return combined
 
 ################################################
