@@ -33,10 +33,8 @@ def scale_rewards(reward,min_reward,max_reward,factor=1):
     return ((reward-sub) / span) * factor
 
 def update_weights(network,path):
-    print(f'Preloading {network} weights')
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.named_parameters():
-        print(name,param.size(),layer_weights[name].data.size())
         param.data.copy_(layer_weights[name].data)
         param.requires_grad = False
     return network
