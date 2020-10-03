@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from poker_env.datatypes import GameTypes
 
 class Config(object):
     def __init__(self):
@@ -144,4 +145,15 @@ class Config(object):
             'hand_board':[2,3,4,5,6,7,8,9] + [20,21,22,23,24,25,26,27,28,29],
             'villain_board':[12,13,14,15,16,17,18,19] + [20,21,22,23,24,25,26,27,28,29],
             'hands_and_board':[2,3,4,5,6,7,8,9] + [12,13,14,15,16,17,18,19] + [20,21,22,23,24,25,26,27,28,29],
+        }
+        self.network_params = {
+            'game':GameTypes.OMAHAHI,
+            'maxlen':self.maxlen,
+            'state_mapping':self.state_mapping,
+            'obs_mapping':self.obs_mapping,
+            'embedding_size':128,
+            'transformer_in':768,
+            'transformer_out':128,
+            'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassification'),
+            'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/ThirteenCardV2')
         }
