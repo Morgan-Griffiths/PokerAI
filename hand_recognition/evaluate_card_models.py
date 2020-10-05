@@ -19,8 +19,7 @@ from data_loader import return_trainloader
 import datatypes as dt
 from networks import *
 from network_config import NetworkConfig
-from models.model_utils import unspool
-from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes
+from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes,unspool
 
 """
 Creating a hand dataset for training and evaluating networks.
