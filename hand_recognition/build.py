@@ -230,8 +230,37 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
+    def build_hand_ranks_five(self,multiplier):
+        """
+        rank 5 card hands
+        input 5 cards
+        target = {0-7462}
+        """
+        Number_of_examples = {
+            0:10,
+            1:156,
+            2:156,
+            3:1277,
+            4:10,
+            5:858,
+            6:858,
+            7:2860,
+            8:1277
+        }
+        X = []
+        y = []
+        for category in dt.Globals.HAND_TYPE_DICT.keys():
+            for _ in range(Number_of_examples[category] * multiplier):
+                hand = self.create_handtypes(category,randomize=False)
+                hand = hand[np.argsort(hand[:,0]),:]
+                en_hand = [encode(c) for c in hand]
+                X.append(hand)
+                y.append(rank(en_hand))
+        X = np.stack(X)
+        y = np.stack(y)
+        return X,y
 
-    def build_hand_ranks(self,multiplier):
+    def build_hand_ranks_nine(self,multiplier):
         """
         rank 5 card hands
         input 5 cards
