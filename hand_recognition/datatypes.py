@@ -12,7 +12,8 @@ class DataTypes(object):
     TENCARD = 'tencard'
     BLOCKERS = 'blockers'
     PARTIAL = 'partial'
-    HANDRANKS = 'handranks'
+    HANDRANKSFIVE = 'handranksfive'
+    HANDRANKSNINE = 'handranksnine'
 
 class Encodings(object):
     TWO_DIMENSIONAL = '2d'
@@ -39,7 +40,8 @@ class Globals(object):
     DatasetCategories = {
         DataTypes.FIVECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
-        DataTypes.HANDRANKS : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.HANDRANKSNINE : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.HANDRANKSFIVE : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.TENCARD : LearningCategories.REGRESSION,
         DataTypes.THIRTEENCARD : LearningCategories.REGRESSION,
         DataTypes.PARTIAL : LearningCategories.REGRESSION,
@@ -60,7 +62,8 @@ class Globals(object):
     ACTION_SPACES = {
         DataTypes.FIVECARD:9,
         DataTypes.NINECARD:9,
-        DataTypes.HANDRANKS:7463,
+        DataTypes.HANDRANKSFIVE:7463,
+        DataTypes.HANDRANKSNINE:7463,
         DataTypes.BLOCKERS:1,
         DataTypes.THIRTEENCARD:1,
         DataTypes.TENCARD:1,
@@ -70,7 +73,8 @@ class Globals(object):
         DataTypes.BLOCKERS :{0:'No Blocker',1:'Blocker'},
         DataTypes.FIVECARD : HAND_TYPE_DICT,
         DataTypes.NINECARD : HAND_TYPE_DICT,
-        DataTypes.HANDRANKS : {i:i for i in range(7463)},
+        DataTypes.HANDRANKSNINE : {i:i for i in range(7463)},
+        DataTypes.HANDRANKSFIVE : {i:i for i in range(7463)},
         DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
@@ -79,7 +83,8 @@ class Globals(object):
         DataTypes.THIRTEENCARD:set(range(-1,2)),
         DataTypes.TENCARD:set(range(-1,2)),
         DataTypes.PARTIAL:set(range(-1,2)),
-        DataTypes.HANDRANKS:set(range(7463)),
+        DataTypes.HANDRANKSFIVE:set(range(7463)),
+        DataTypes.HANDRANKSNINE:set(range(7463)),
         DataTypes.NINECARD:set(range(9)),
         DataTypes.FIVECARD:set(range(9)),
         DataTypes.BLOCKERS:set(range(2)),
