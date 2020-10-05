@@ -1,6 +1,7 @@
 import torch, os
 import numpy as np
 from prettytable import PrettyTable
+from itertools import combinations
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -14,6 +15,32 @@ def count_parameters(model):
     print(table)
     print(f"Total Trainable Params: {total_params}")
     return total_params
+
+def unspool(X):
+    # Size of (M,9,2)
+    M = X.size(0)
+    hand = X[:,:4,:].permute(1,0,2)
+    hand_combos = combinations(hand,2)
+    board = X[:,4:,:].permute(1,0,2)
+    board_combos = list(combinations(board,3))
+    combined = torch.zeros(M,60,5,2)
+    i = 0
+    for hcombo in hand_combos:
+        for bcombo in board_combos:
+            stacked_board = torch.stack(bcombo)
+            stacked_hand = torch.stack(hcombo)
+            combined[:,i,:,:] = torch.cat((stacked_hand[torch.argsort(stacked_hand[:,0,0]),:,:],stacked_board[torch.argsort(stacked_board[:,0,0]),:,:]),dim=0).permute(1,0,2)
+            i += 1
+    return combined
+
+def batch_unspool(X):
+    # Size of (B,M,9,2)
+    B,M,C,H = X.size()
+    # loop over batch dim
+    batches = torch.zeros(B,M,60,5,2)
+    for i in range(B):
+        batches[i,:,:,:,:] = unspool(X[i,:,:,:])
+    return batches
 
 def return_value_mask(actions):
     """supports both batch and single int actions"""

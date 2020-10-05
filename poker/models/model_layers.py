@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
-from models.model_utils import strip_padding
+from models.model_utils import strip_padding,unspool,batch_unspool
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -166,10 +166,15 @@ class ProcessHandBoard(nn.Module):
         return torch.stack(activations).view(B,M,-1)
 
     def forward_actor(self,x):
-        """x: concatenated hand and board. alternating rank and suit."""
+        """
+        x: concatenated hand and board. alternating rank and suit.
+        shape: B,9,2
+        """
         B,M,C = x.size()
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
+        unspooled_x = unspool(x)
+        # Shape of B,60,5,2
+        ranks = unspooled_x[:,:,::2]
+        suits = unspooled_x[:,:,1::2]
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         activations = []
@@ -309,37 +314,35 @@ class PreProcessLayer(nn.Module):
         self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length,critic)
+        self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
-        if critic:
-            self.action_emb = nn.Embedding(embedding_dim=512, num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
-        else:
-            self.action_emb = nn.Embedding(embedding_dim=2048, num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
         self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
-            h = self.hand_board(x[:,:,self.obs_mapping['hands_and_board']].long())
+            h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].long())
+            h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].long())
+            h = h1 - h2
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long()
         emb_a = self.action_emb(last_a)
-        # last_b = x[:,:,self.state_mapping['last_betsize']]
-        # embedded_bets = []
-        # for i in range(M):
-        #     embedded_bets.append(self.betsize_fc(last_b[:,i]))
-        # embeds = torch.stack(embedded_bets)
+        last_b = x[:,:,self.state_mapping['last_betsize']]
+        embedded_bets = []
+        for i in range(M):
+            embedded_bets.append(self.betsize_fc(last_b[:,i]))
+        embeds = torch.stack(embedded_bets)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
-        # if embeds.dim() == 2:
-        #     embeds = embeds.unsqueeze(0)
-        # combined = torch.cat((h,emb_a,embeds),dim=-1)
-        combined = emb_a + h
+        if embeds.dim() == 2:
+            embeds = embeds.unsqueeze(0)
+        combined = torch.cat((h,emb_a,embeds),dim=-1)
         return combined
 
 ################################################
