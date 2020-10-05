@@ -13,13 +13,13 @@ import copy
 from torch import optim
 from random import shuffle
 from collections import deque
-from itertools import combinations
 
 from plot import plot_data
 from data_loader import return_trainloader
 import datatypes as dt
 from networks import *
 from network_config import NetworkConfig
+from models.model_utils import unspool
 from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes
 
 """
@@ -37,21 +37,6 @@ def setup(rank, world_size):
 
 def cleanup():
     dist.destroy_process_group()
-
-def unspool(X):
-    # Size of (M,9,2)
-    M = X.size(0)
-    hand = X[:,:4,:].permute(1,0,2)
-    hand_combos = combinations(hand,2)
-    board = X[:,4:,:].permute(1,0,2)
-    board_combos = list(combinations(board,3))
-    combined = torch.zeros(M,60,5,2)
-    i = 0
-    for hcombo in hand_combos:
-        for bcombo in board_combos:
-            combined[:,i,:,:] = torch.cat((torch.stack(hcombo),torch.stack(bcombo)),dim=0).permute(1,0,2)
-            i += 1
-    return combined
 
 def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
