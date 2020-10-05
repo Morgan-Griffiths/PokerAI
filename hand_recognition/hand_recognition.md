@@ -157,3 +157,11 @@ Learning representations that work for preflop/flop/turn/river
 - convolve ranks with (C,5) 1d convnet
 - convolve suits with (C,1) 1d convnet
 
+## Combinations
+
+52 choose 9 = ~3.7B combinations. initially because i wanted a 'pure' approach, i started by convolving 4 hand cards with 5 board cards. However the number of combinations is too prohibitive to be condusive to learning, and the hand+board data essentially becomes a random stream which the network learns to ignore. And instead plays as if it can't see the hand (or understand it, as is the case). 
+
+52 choose 5 is 2.6m combinations.
+52 choose 4 is 270,725 combinations.
+
+Its tempting to reduce the problem to 5 card hands and sort them. However this will lose critical information about which cards are in your hand vs on the board. Blockers to the nut flush for example become impossible to detect. Its possible to keep the same sequence of 2 hand cards + 3 board cards. And sort the hand cards and board cards. This would not lose info about the hand/board. 
