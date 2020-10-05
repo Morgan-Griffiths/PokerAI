@@ -70,6 +70,9 @@ if __name__ == "__main__":
 
     dataset = CardDataset(dataset_params)
     if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
+        # trainX,trainY = dataset.build_hand_ranks_nine(200)
+        # valX,valY = dataset.build_hand_ranks_nine(10)
+        # save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
         trainX,trainY = dataset.build_hand_ranks(200)
         valX,valY = dataset.build_hand_ranks(10)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
