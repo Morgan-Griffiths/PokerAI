@@ -169,7 +169,8 @@ def check_network(dataset_params,params):
     target_mapping = {
         dt.DataTypes.NINECARD:{i:i for i in range(9)},
         dt.DataTypes.FIVECARD:{i:i for i in range(9)},
-        dt.DataTypes.HANDRANKS:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.HANDRANKSNINE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.HANDRANKSFIVE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
@@ -227,7 +228,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default=dt.DataTypes.FIVECARD,type=str,
-                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
+                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train on')
     parser.add_argument('-M','--mode',
                         metavar=f"[{dt.Modes.TRAIN}, {dt.Modes.EXAMINE}]",
