@@ -32,6 +32,8 @@ class CardDataset(object):
         elif params['datatype'] == dt.DataTypes.PARTIAL:
             trainX,trainY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['train']])
             valX,valY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['val']])
+        else:
+            raise ValueError(f"Datatype {params['datatype']} not understood")
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY

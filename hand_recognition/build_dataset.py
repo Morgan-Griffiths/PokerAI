@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
+                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train or build')
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
@@ -69,12 +69,13 @@ if __name__ == "__main__":
     #     print(f'Hand {hand}, Category {handtype}')
 
     dataset = CardDataset(dataset_params)
-    if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        # trainX,trainY = dataset.build_hand_ranks_nine(200)
-        # valX,valY = dataset.build_hand_ranks_nine(10)
-        # save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
-        trainX,trainY = dataset.build_hand_ranks_five(1)
-        valX,valY = dataset.build_hand_ranks_five(1)
+    if dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
+        trainX,trainY = dataset.build_hand_ranks_nine(200)
+        valX,valY = dataset.build_hand_ranks_nine(20)
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+    elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSFIVE:
+        trainX,trainY = dataset.build_hand_ranks_five(200)
+        valX,valY = dataset.build_hand_ranks_five(20)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
