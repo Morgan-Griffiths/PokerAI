@@ -73,8 +73,8 @@ if __name__ == "__main__":
         # trainX,trainY = dataset.build_hand_ranks_nine(200)
         # valX,valY = dataset.build_hand_ranks_nine(10)
         # save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
-        trainX,trainY = dataset.build_hand_ranks(200)
-        valX,valY = dataset.build_hand_ranks(10)
+        trainX,trainY = dataset.build_hand_ranks_five(1)
+        valX,valY = dataset.build_hand_ranks_five(1)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
