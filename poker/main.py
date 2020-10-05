@@ -67,6 +67,7 @@ if __name__ == "__main__":
 
     cuda_dict = {0:'cuda:0',1:'cuda:1'}
 
+    print(args)
     print("Number of processors: ", mp.cpu_count())
     print(f'Number of GPUs: {torch.cuda.device_count()}')
     tic = time.time()
