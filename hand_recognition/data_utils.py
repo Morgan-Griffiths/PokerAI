@@ -2,6 +2,23 @@ import torch
 import numpy as np
 import os
 
+def unspool(X):
+    # Size of (M,9,2)
+    M = X.size(0)
+    hand = X[:,:4,:].permute(1,0,2)
+    hand_combos = combinations(hand,2)
+    board = X[:,4:,:].permute(1,0,2)
+    board_combos = list(combinations(board,3))
+    combined = torch.zeros(M,60,5,2)
+    i = 0
+    for hcombo in hand_combos:
+        for bcombo in board_combos:
+            stacked_board = torch.stack(bcombo)
+            stacked_hand = torch.stack(hcombo)
+            combined[:,i,:,:] = torch.cat((stacked_hand[torch.argsort(stacked_hand[:,0,0]),:,:],stacked_board[torch.argsort(stacked_board[:,0,0]),:,:]),dim=0).permute(1,0,2)
+            i += 1
+    return combined
+
 def return_ylabel_dict(X:torch.tensor,y:torch.tensor,target_set:set):
     type_dict = {}
     # print(np.unique(y,return_counts=True))
