@@ -16,31 +16,25 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
+UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
+
 def unspool(X):
-    # Size of (M,9,2)
-    M = X.size(0)
-    hand = X[:,:4,:].permute(1,0,2)
-    hand_combos = combinations(hand,2)
-    board = X[:,4:,:].permute(1,0,2)
-    board_combos = list(combinations(board,3))
-    combined = torch.zeros(M,60,5,2)
-    i = 0
-    for hcombo in hand_combos:
-        for bcombo in board_combos:
-            stacked_board = torch.stack(bcombo)
-            stacked_hand = torch.stack(hcombo)
-            combined[:,i,:,:] = torch.cat((stacked_hand[torch.argsort(stacked_hand[:,0,0]),:,:],stacked_board[torch.argsort(stacked_board[:,0,0]),:,:]),dim=0).permute(1,0,2)
-            i += 1
-    return combined
+    # Size of (B,M,18)
+    ranks = X[:,:,::2]
+    suits = X[:,:,1::2]
+    sequence_ranks = ranks[:,:,UNSPOOL_INDEX]
+    sequence_suits = suits[:,:,UNSPOOL_INDEX]
+    return sequence_ranks,sequence_suits
 
 def batch_unspool(X):
-    # Size of (B,M,9,2)
-    B,M,C,H = X.size()
+    # Size of (B,M,18)
+    B,M,C = X.size()
     # loop over batch dim
-    batches = torch.zeros(B,M,60,5,2)
+    batche_ranks = torch.zeros(B,M,60,5)
+    batche_suits = torch.zeros(B,M,60,5)
     for i in range(B):
-        batches[i,:,:,:,:] = unspool(X[i,:,:,:])
-    return batches
+        batche_ranks[i,:,:,:],batche_suits[i,:,:,:] = unspool(X[i,:,:,:])
+    return batche_ranks,batche_suits
 
 def return_value_mask(actions):
     """supports both batch and single int actions"""
@@ -144,3 +138,13 @@ def here(subpath=None):
 
 def contains_nan(tensor):
     return bool((tensor != tensor).sum() > 0)
+
+if __name__ == '__main__':
+    ranks = torch.arange(14,5,-1)
+    suits = torch.arange(1,4).repeat(3)
+    combined = torch.zeros(18)
+    for i in range(0,9):
+        combined[i*2] = ranks[i]
+        combined[(i*2)+1] = suits[i]
+    combined = combined.repeat(1,2,1)
+    unspooled_ranks,unspooled_suits = unspool(combined[0,:,:])
