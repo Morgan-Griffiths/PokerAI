@@ -97,17 +97,17 @@ class ProcessHandBoard(nn.Module):
         self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv2d(60, 64, kernel_size=(5,1), stride=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv2d(60, 64, kernel_size=(5,5), stride=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
-        self.hand_out = nn.Linear(256,params['lstm_in'] // 2)
-        self.seq_out = nn.Linear(122880,256)
+        self.hand_out = nn.Linear(2048,params['lstm_in'] // 2)
+        # self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         self.initialize(critic)
@@ -181,17 +181,12 @@ class ProcessHandBoard(nn.Module):
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         activations = []
         for j in range(M):
-            sequence_activations = []
-            for i in range(60):
-                s = self.suit_conv(hot_suits[:,j,i,:,:].float())
-                r = self.rank_conv(hot_ranks[:,j,i,:,:].float())
-                out = torch.cat((r,s),dim=-1)
-                for i,hidden_layer in enumerate(self.hidden_layers):
-                    out = self.activation_fc(hidden_layer(out))
-                sequence_activations.append(out)
-            seq_input = torch.stack(sequence_activations).view(B,1,-1)
-            seq_input = self.activation_fc(self.seq_out(seq_input))
-            activations.append(seq_input)
+            s = self.suit_conv(hot_suits[:,j,:,:,:].float())
+            r = self.rank_conv(hot_ranks[:,j,:,:,:].float())
+            out = torch.cat((r,s),dim=-1)
+            for i,hidden_layer in enumerate(self.hidden_layers):
+                out = self.activation_fc(hidden_layer(out))
+            activations.append(out)
                 # out = self.categorical_output(out.view(B,-1))
         return self.hand_out(torch.stack(activations).view(B,M,-1))
 
