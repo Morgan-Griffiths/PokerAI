@@ -52,16 +52,18 @@ if __name__ == "__main__":
                         default=3,
                         type=int,
                         help='Number of learning rate decays')
-    parser.add_argument('--frozen','-f',
-                        dest='frozen',
-                        default=True,
-                        type=bool,
+    parser.add_argument('--frozen',
+                        dest='frozen',action='store_true',
                         help='Preload handboard recognizer weights')
+    parser.add_argument('--no-frozen',
+                        dest='frozen',action='store_false',
+                        help='Do not preload handboard recognizer weights')
     parser.add_argument('--gpu',
                         dest='gpu',
                         default=0,
                         type=int,
                         help='Which gpu to use')
+    parser.set_defaults(frozen=True)
 
     args = parser.parse_args()
 
@@ -112,7 +114,7 @@ if __name__ == "__main__":
         'training_round':0,
         'game':'Omaha',
         'id':0,
-        'save_every':args.epochs // 4,
+        'save_every':max(args.epochs // 4,1),
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
         'actor_path':config.agent_params['actor_path'],
         'critic_path':config.agent_params['critic_path'],
@@ -198,17 +200,17 @@ if __name__ == "__main__":
         # for debugging
         # generate_trajectories(env,actor,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
-        for e in range(training_params['lr_steps']):
-            for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
-                p.start()
-                processes.append(p)
-            for p in processes: 
-                p.join()
-            learning_params['actor_lrscheduler'].step()
-            learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
+        train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
+        # for e in range(training_params['lr_steps']):
+        #     for id in range(num_processes): # No. of processes
+        #         p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
+        #         p.start()
+        #         processes.append(p)
+        #     for p in processes: 
+        #         p.join()
+        #     learning_params['actor_lrscheduler'].step()
+        #     learning_params['critic_lrscheduler'].step()
+        #     training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
