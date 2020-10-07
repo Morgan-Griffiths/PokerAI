@@ -16,6 +16,39 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
+def expand_conv2d(network,path):
+    layer_weights = torch.load(path)
+    for name, param in network.process_input.hand_board.rank_conv.named_parameters():
+        print(name,param.shape)
+        if len(param.shape) > 1:
+            print('loading rank')
+            if name == 'weight':
+                expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
+                param.data.copy_(layer_weights.rank_conv.weight.data)
+            elif name == 'bias':
+                param.data.copy_(layer_weights.rank_conv.bias.data)
+    for name, param in network.process_input.hand_board.suit_conv.named_parameters():
+        print(name,param.shape)
+        if len(param.shape) > 1:
+            print('loading suit')
+            if name == 'weight':
+                expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
+                param.data.copy_(layer_weights.rank_conv.weight.data)
+            elif name == 'bias':
+                param.data.copy_(layer_weights.rank_conv.bias.data)
+
+def update_weights(network,path):
+    layer_weights = torch.load(path)
+    for name, param in network.process_input.hand_board.named_parameters():
+        if name in layer_weights:
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+    return network
+
+def soft_update(local,target,tau=1e-1):
+    for local_param,target_param in zip(local.parameters(),target.parameters()):
+        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
+
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
 def unspool(X):
@@ -42,18 +75,6 @@ def scale_rewards(reward,min_reward,max_reward,factor=1):
     span = (max_reward - min_reward) / 2
     sub = (max_reward+min_reward) / 2
     return ((reward-sub) / span) * factor
-
-def update_weights(network,path):
-    layer_weights = torch.load(path)
-    for name, param in network.process_input.hand_board.named_parameters():
-        if name in layer_weights:
-            param.data.copy_(layer_weights[name].data)
-            param.requires_grad = False
-    return network
-
-def soft_update(local,target,tau=1e-1):
-    for local_param,target_param in zip(local.parameters(),target.parameters()):
-        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
 
 def strip_padding(x,maxlen):
     assert(x.ndim == 3)
