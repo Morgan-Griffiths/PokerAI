@@ -801,7 +801,7 @@ class HandRankClassificationFive(nn.Module):
         self.categorical_output = nn.Linear(2048,self.nA)
 
     def forward(self,x):
-        # Input is (b,9,2)
+        # Input is (b,5,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
