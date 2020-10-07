@@ -414,7 +414,7 @@ class OmahaObsQCritic(Network):
         self.nA = nA
         self.combined_output = nA - 2 + nB
         self.attention = VectorAttention(params['transformer_in'])
-        self.process_input = PreProcessLayer(params,critic=False)
+        self.process_input = PreProcessLayer(params,critic=True)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
         self.device = params['device']
