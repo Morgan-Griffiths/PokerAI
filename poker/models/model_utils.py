@@ -26,16 +26,6 @@ def unspool(X):
     sequence_suits = suits[:,:,UNSPOOL_INDEX]
     return sequence_ranks,sequence_suits
 
-def batch_unspool(X):
-    # Size of (B,M,18)
-    B,M,C = X.size()
-    # loop over batch dim
-    batche_ranks = torch.zeros(B,M,60,5)
-    batche_suits = torch.zeros(B,M,60,5)
-    for i in range(B):
-        batche_ranks[i,:,:,:],batche_suits[i,:,:,:] = unspool(X[i,:,:,:])
-    return batche_ranks,batche_suits
-
 def return_value_mask(actions):
     """supports both batch and single int actions"""
     if hasattr(actions,'shape'):
