@@ -97,15 +97,17 @@ class ProcessHandBoard(nn.Module):
         self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5+hand_length, 64, kernel_size=1, stride=1),
+            nn.Conv1d(5, 64, kernel_size=1, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5+hand_length, 64, kernel_size=5, stride=1),
+            nn.Conv1d(5, 64, kernel_size=5, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
+        self.hand_out = nn.Linear(256,params['lstm_in'] // 2)
+        self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         self.initialize(critic)
@@ -168,25 +170,33 @@ class ProcessHandBoard(nn.Module):
     def forward_actor(self,x):
         """
         x: concatenated hand and board. alternating rank and suit.
-        shape: B,9,2
+        shape: B,M,18
         """
         B,M,C = x.size()
-        unspooled_x = unspool(x)
-        # Shape of B,60,5,2
-        ranks = unspooled_x[:,:,::2]
-        suits = unspooled_x[:,:,1::2]
+        ranks,suits = unspool(x)
+        # Shape of B,M,60,5
+        # print('unspooled_x.size()',unspooled_x.size())
+        # ranks = unspooled_x[:,:,::2].long()
+        # suits = unspooled_x[:,:,1::2].long()
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
+        # hot_ranks torch.Size([1, 2, 60, 5, 15])
+        # hot_suits torch.Size([1, 2, 60, 5, 5])
         activations = []
-        for i in range(M):
-            s = self.suit_conv(hot_suits[:,i,:,:].float())
-            r = self.rank_conv(hot_ranks[:,i,:,:].float())
-            out = torch.cat((r,s),dim=-1)
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                out = self.activation_fc(hidden_layer(out))
-            # out = self.categorical_output(out.view(B,-1))
-            activations.append(out)
-        return torch.stack(activations).view(B,M,-1)
+        for j in range(M):
+            sequence_activations = []
+            for i in range(60):
+                s = self.suit_conv(hot_suits[:,j,i,:,:].float())
+                r = self.rank_conv(hot_ranks[:,j,i,:,:].float())
+                out = torch.cat((r,s),dim=-1)
+                for i,hidden_layer in enumerate(self.hidden_layers):
+                    out = self.activation_fc(hidden_layer(out))
+                sequence_activations.append(out)
+            seq_input = torch.stack(sequence_activations).view(B,1,-1)
+            seq_input = self.activation_fc(self.seq_out(seq_input))
+            activations.append(seq_input)
+                # out = self.categorical_output(out.view(B,-1))
+        return self.hand_out(torch.stack(activations).view(B,M,-1))
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
