@@ -56,8 +56,9 @@ def scale_rewards(reward,min_reward,max_reward,factor=1):
 def update_weights(network,path):
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.named_parameters():
-        param.data.copy_(layer_weights[name].data)
-        param.requires_grad = False
+        if name in layer_weights:
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
     return network
 
 def soft_update(local,target,tau=1e-1):
