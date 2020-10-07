@@ -175,9 +175,6 @@ class ProcessHandBoard(nn.Module):
         B,M,C = x.size()
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
-        # print('unspooled_x.size()',unspooled_x.size())
-        # ranks = unspooled_x[:,:,::2].long()
-        # suits = unspooled_x[:,:,1::2].long()
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])

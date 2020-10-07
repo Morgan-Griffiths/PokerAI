@@ -339,7 +339,6 @@ class OmahaActor(Network):
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
-        print('B,M,c ',B,M,c )
         n_padding = self.maxlen - M
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
