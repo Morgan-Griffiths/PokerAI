@@ -25,8 +25,10 @@ def expand_conv2d(network,path):
             if name == 'weight':
                 expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
                 param.data.copy_(layer_weights.rank_conv.weight.data)
+                param.requires_grad = False
             elif name == 'bias':
                 param.data.copy_(layer_weights.rank_conv.bias.data)
+                param.requires_grad = False
     for name, param in network.process_input.hand_board.suit_conv.named_parameters():
         print(name,param.shape)
         if len(param.shape) > 1:
@@ -34,8 +36,10 @@ def expand_conv2d(network,path):
             if name == 'weight':
                 expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
                 param.data.copy_(layer_weights.rank_conv.weight.data)
+                param.requires_grad = False
             elif name == 'bias':
                 param.data.copy_(layer_weights.rank_conv.bias.data)
+                param.requires_grad = False
 
 def update_weights(network,path):
     layer_weights = torch.load(path)
