@@ -54,7 +54,7 @@ class API(object):
 
     def instantiate_network_params(self):
         device = 'cpu'
-        network_params = copy.deepcopy(self.env_params)
+        network_params = copy.deepcopy(self.config.network_params)
         network_params['maxlen'] = 10
         network_params['embedding_size'] = 128
         network_params['transformer_in'] = 256
