@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
-from models.model_utils import strip_padding,unspool,batch_unspool
+from models.model_utils import strip_padding,unspool
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -173,11 +173,9 @@ class ProcessHandBoard(nn.Module):
         shape: B,M,18
         """
         B,M,C = x.size()
-        print('B,M,C',B,M,C)
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
-        print('suits',suits)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
