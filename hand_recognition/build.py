@@ -253,8 +253,13 @@ class CardDataset(object):
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(Number_of_examples[category] * multiplier):
-                hand = self.create_handtypes(category,randomize=False)
-                hand = hand[np.argsort(hand[:,0]),:]
+                hand = self.create_handtypes(category,randomize=True)
+                hero = hand[:2]
+                board = hand[2:]
+                hero = hero[np.argsort(hero[:,0]),:]
+                board = board[np.argsort(board[:,0]),:]
+                hand = np.concatenate([hero,board])
+                # hand = hand[np.argsort(hand[:,0]),:] # lost blocker info
                 en_hand = [encode(c) for c in hand]
                 X.append(hand)
                 y.append(rank(en_hand))
