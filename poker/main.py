@@ -179,6 +179,7 @@ if __name__ == "__main__":
             # Load pretrained hand recognizer
             # update_weights(actor,network_params['actor_hand_recognizer_path'])
             # update_weights(critic,network_params['critic_hand_recognizer_path'])
+            # Expand conv1d over conv2d
             expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         critic.share_memory()
         processes = []
         # for debugging
-        # generate_trajectories(env,actor,training_params,id=0)
+        # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
         for e in range(training_params['lr_steps']):
