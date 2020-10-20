@@ -770,7 +770,6 @@ class HandRankClassificationNine(nn.Module):
         x = x.view(M,-1)
         return self.categorical_output(x)
 
-
 class HandRankClassificationFive(nn.Module):
     def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
@@ -817,8 +816,7 @@ class HandRankClassificationFive(nn.Module):
         # should be (b,64,88)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
-        x = x.view(M,-1)
-        return self.categorical_output(x)
+        return self.categorical_output(x.view(M,-1))
 
 ################################################
 #            Partial hand regression           #

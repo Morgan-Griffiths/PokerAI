@@ -117,7 +117,7 @@ class ProcessHandBoard(nn.Module):
             self.hidden_dims=(1024,512,512)
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            self.categorical_output = nn.Linear(512,1)
+            # self.categorical_output = nn.Linear(512,1)
             self.forward = self.forward_critic
         else:
             for i in range(len(self.hidden_dims)-1):
