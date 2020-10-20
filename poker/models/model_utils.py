@@ -43,9 +43,11 @@ def expand_conv2d(network,path):
                 param.requires_grad = False
 
 def update_weights(network,path):
+    print(path)
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.named_parameters():
-        if name in layer_weights:
+        if name in layer_weights and name not in ['suit_conv.0.weight','rank_conv.0.weight']:
+            # print(name)
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
     return network
