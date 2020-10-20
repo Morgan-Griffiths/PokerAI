@@ -21,25 +21,25 @@ def expand_conv2d(network,path):
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.rank_conv.named_parameters():
         print(name,param.shape)
-        if len(param.shape) > 1:
-            print('loading rank')
-            if name == 'weight':
-                expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
-                param.data.copy_(layer_weights.rank_conv.weight.data)
+        if name in ['0.weight','0.bias']:
+            print(f'loading {name}')
+            if name == '0.weight':
+                expanded_param = layer_weights['rank_conv.0.weight'].data.repeat(60,1,1,1).permute(1,0,2,3)
+                param.data.copy_(expanded_param)
                 param.requires_grad = False
-            elif name == 'bias':
-                param.data.copy_(layer_weights.rank_conv.bias.data)
+            elif name == '0.bias':
+                param.data.copy_(layer_weights['rank_conv.0.bias'].data)
                 param.requires_grad = False
     for name, param in network.process_input.hand_board.suit_conv.named_parameters():
         print(name,param.shape)
-        if len(param.shape) > 1:
-            print('loading suit')
-            if name == 'weight':
-                expanded_param = param.repeat(60,1,1,1).permute(1,0,2,3)
-                param.data.copy_(layer_weights.rank_conv.weight.data)
+        if name in ['0.weight','0.bias']:
+            print(f'loading {name}')
+            if name == '0.weight':
+                expanded_param = layer_weights['suit_conv.0.weight'].data.repeat(60,1,1,1).permute(1,0,2,3)
+                param.data.copy_(expanded_param)
                 param.requires_grad = False
-            elif name == 'bias':
-                param.data.copy_(layer_weights.rank_conv.bias.data)
+            elif name == '0.bias':
+                param.data.copy_(layer_weights['suit_conv.0.bias'].data)
                 param.requires_grad = False
 
 def update_weights(network,path):
@@ -47,10 +47,10 @@ def update_weights(network,path):
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.named_parameters():
         if name in layer_weights and name not in ['suit_conv.0.weight','rank_conv.0.weight']:
-            # print(name)
+            print('update_weights',name)
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
-    return network
+    # return network
 
 def soft_update(local,target,tau=1e-1):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
