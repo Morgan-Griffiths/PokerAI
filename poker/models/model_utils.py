@@ -2,6 +2,7 @@ import torch, os
 import numpy as np
 from prettytable import PrettyTable
 from itertools import combinations
+from utils.cardlib import hand_rank,encode
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -55,10 +56,36 @@ def soft_update(local,target,tau=1e-1):
 
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
+def hardcode_handstrength(x):
+    B,M,C = x.size()
+    hands = x[:,:,:8]
+    boards = x[:,:,8:]
+    ranks = []
+    for j in range(B):
+        for i in range(M):
+            hand = [[int(hands[j,i,c]),int(hands[j,i,c+1])] for c in range(0,len(hands[j,i,:]),2)]
+            board = [[int(boards[j,i,c]),int(boards[j,i,c+1])] for c in range(0,len(boards[j,i,:]),2)]
+            hand_en = [encode(c) for c in hand]
+            board_en = [encode(c) for c in board]
+            ranks.append(torch.tensor(hand_rank(hand_en,board_en),dtype=torch.float))
+    return torch.stack(ranks).view(B,M,1)
+
 def unspool(X):
+    """
+    Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
+    sorts them with hand and board, and returns (B,M,60,5) vector
+    """
     # Size of (B,M,18)
     ranks = X[:,:,::2]
     suits = X[:,:,1::2]
+    hand_ranks = ranks[:,:,:4]
+    hand_suits = suits[:,:,:4]
+    board_ranks = ranks[:,:,4:]
+    board_suits = suits[:,:,4:]
+    hand_index = torch.argsort(hand_ranks)
+    board_index = torch.argsort(board_ranks)
+    ranks = torch.cat((torch.gather(hand_ranks,-1,hand_index),torch.gather(board_ranks,-1,board_index)),dim=-1).long()
+    suits = torch.cat((torch.gather(hand_suits,-1,hand_index),torch.gather(board_suits,-1,board_index)),dim=-1).long()
     sequence_ranks = ranks[:,:,UNSPOOL_INDEX]
     sequence_suits = suits[:,:,UNSPOOL_INDEX]
     return sequence_ranks,sequence_suits
@@ -156,11 +183,13 @@ def contains_nan(tensor):
     return bool((tensor != tensor).sum() > 0)
 
 if __name__ == '__main__':
-    ranks = torch.arange(14,5,-1)
+    ranks = torch.arange(5,14,1)
     suits = torch.arange(1,4).repeat(3)
     combined = torch.zeros(18)
     for i in range(0,9):
         combined[i*2] = ranks[i]
         combined[(i*2)+1] = suits[i]
     combined = combined.repeat(1,2,1)
-    unspooled_ranks,unspooled_suits = unspool(combined[0,:,:])
+    unspooled_ranks,unspooled_suits = unspool(combined)
+    # print('unspooled_ranks',unspooled_ranks)
+    # print('unspooled_suits',unspooled_suits)
