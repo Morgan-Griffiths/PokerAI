@@ -106,7 +106,7 @@ class ProcessHandBoard(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
-        self.hand_out = nn.Linear(2048,128) #params['lstm_in'] // 3)
+        self.hand_out = nn.Linear(7463,128) #params['lstm_in'] // 3)
         # self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -122,7 +122,7 @@ class ProcessHandBoard(nn.Module):
         else:
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            # self.categorical_output = nn.Linear(2048,7463)
+            self.categorical_output = nn.Linear(2048,7463)
             self.forward = self.forward_actor
 
     def forward_critic(self,x):
@@ -187,7 +187,7 @@ class ProcessHandBoard(nn.Module):
             out = torch.cat((r,s),dim=-1)
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
-            # out = self.categorical_output(out.view(B,-1))
+            out = self.categorical_output(out.view(B,-1))
             activations.append(out)
         return self.hand_out(torch.stack(activations).view(B,M,-1))
 
