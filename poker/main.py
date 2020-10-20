@@ -177,8 +177,8 @@ if __name__ == "__main__":
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         if args.frozen:
             # Load pretrained hand recognizer
-            # update_weights(actor,network_params['actor_hand_recognizer_path'])
-            # update_weights(critic,network_params['critic_hand_recognizer_path'])
+            update_weights(actor,network_params['actor_hand_recognizer_path'])
+            update_weights(critic,network_params['critic_hand_recognizer_path'])
             # Expand conv1d over conv2d
             expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
