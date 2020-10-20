@@ -10,6 +10,7 @@ from prettytable import PrettyTable
 import models.network_config as ng
 from models.networks import OmahaActor,CombinedNet,BetAgent
 from models.network_config import NetworkConfig
+from models.model_utils import hardcode_handstrength
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
@@ -29,11 +30,17 @@ def tournament(env,agent1,agent2,model_names,training_params):
             agent_positions = {'SB':agent2,'BB':agent1}
             agent_loc = {'SB':model_names[1],'BB':model_names[0]}
         state,obs,done,action_mask,betsize_mask = env.reset()
+        print('new hand')
+        print('hero handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0])
+        print('villain handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0])
         while not done:
             actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
+            print('action_mask',action_mask)
+            print('actor_outputs',actor_outputs['action_probs'])
             state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
 
         rewards = env.player_rewards()
+        print('rewards',rewards)
         agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
         agent_performance[agent_loc['BB']]['BB'] += rewards['BB']
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
