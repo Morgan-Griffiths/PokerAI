@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
-from models.model_utils import strip_padding,unspool
+from models.model_utils import strip_padding,unspool,hardcode_handstrength
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -106,7 +106,7 @@ class ProcessHandBoard(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
-        self.hand_out = nn.Linear(2048,params['lstm_in'] // 2)
+        self.hand_out = nn.Linear(2048,128) #params['lstm_in'] // 3)
         # self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -117,12 +117,12 @@ class ProcessHandBoard(nn.Module):
             self.hidden_dims=(1024,512,512)
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            # self.categorical_output = nn.Linear(512,1)
+            self.categorical_output = nn.Linear(512,1)
             self.forward = self.forward_critic
         else:
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            # self.categorical_output = nn.Linear(2048,7463)
+            self.categorical_output = nn.Linear(2048,7463)
             self.forward = self.forward_actor
 
     def forward_critic(self,x):
@@ -172,6 +172,7 @@ class ProcessHandBoard(nn.Module):
         x: concatenated hand and board. alternating rank and suit.
         shape: B,M,18
         """
+        # return hardcode_handstrength(x)
         B,M,C = x.size()
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
@@ -186,8 +187,8 @@ class ProcessHandBoard(nn.Module):
             out = torch.cat((r,s),dim=-1)
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
+            out = self.categorical_output(out.view(B,-1))
             activations.append(out)
-                # out = self.categorical_output(out.view(B,-1))
         return self.hand_out(torch.stack(activations).view(B,M,-1))
 
 class ProcessOrdinal(nn.Module):
@@ -325,11 +326,11 @@ class PreProcessLayer(nn.Module):
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
-            h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].long())
-            h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].long())
+            h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
+            h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
         else:
-            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
+            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long()
         emb_a = self.action_emb(last_a)
