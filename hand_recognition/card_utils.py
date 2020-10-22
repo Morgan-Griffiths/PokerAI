@@ -10,6 +10,27 @@ SUIT_DICT = {
 }
 REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
 
+
+def swap_suits(cards):
+  """
+  Swap suits to remove most symmetries.
+
+  Modifies cards in place
+
+  Fails to remove some in the case where there is a lower-ranked
+  pair or triple that shares a suit with a higher-ranked card.
+  TODO: handle [2,3], [2,4], [6,3], [7,4] deterministically
+  """
+  cards_need_swap = cards
+  new_suit = 5
+  while cards_need_swap.shape[0] > 0:
+    suit = cards_need_swap[0,1]
+    cards[cards[:,1] == suit, 1] = new_suit
+    new_suit += 1
+    cards_need_swap = cards[cards[:,1] < 5]
+  cards[:,1] = cards[:,1] - 4
+  return cards
+
 def convert_numpy_to_rust(vectors):
     cards = []
     for vector in vectors:
