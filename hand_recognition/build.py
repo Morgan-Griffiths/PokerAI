@@ -6,7 +6,7 @@ from random import shuffle
 import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits
 
 class CardDataset(object):
     def __init__(self,params):
@@ -232,7 +232,7 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_hand_ranks_five(self,multiplier):
+    def build_hand_ranks_five(self,multiplier,reduce_suits=True):
         """
         rank 5 card hands
         input 5 cards
@@ -241,13 +241,13 @@ class CardDataset(object):
         Number_of_examples = {
             0:10,
             1:156,
-            2:156,
-            3:1277,
-            4:10,
-            5:858,
-            6:858,
-            7:2860,
-            8:1277
+            2:375,
+            3:510,
+            4:1020,
+            5:5491,
+            6:12355,
+            7:109824,
+            8:130254
         }
         X = []
         y = []
@@ -256,9 +256,13 @@ class CardDataset(object):
                 hand = self.create_handtypes(category,randomize=True)
                 hero = hand[:2]
                 board = hand[2:]
+                hero = hero[np.argsort(hero[:,1]),:]
+                board = board[np.argsort(board[:,1]),:]
                 hero = hero[np.argsort(hero[:,0]),:]
                 board = board[np.argsort(board[:,0]),:]
                 hand = np.concatenate([hero,board])
+                if reduce_suits:
+                    hand = swap_suits(hand)
                 # hand = hand[np.argsort(hand[:,0]),:] # lost blocker info
                 en_hand = [encode(c) for c in hand]
                 X.append(hand)
