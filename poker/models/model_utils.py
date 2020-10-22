@@ -17,6 +17,20 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
+def swap_suits(cards):
+    """
+    Swap suits to remove most symmetries.
+    """
+    cards_need_swap = cards
+    new_suit = 5
+    while cards_need_swap.shape[0] > 0:
+        suit = cards_need_swap[0,1]
+        cards[cards[:,1] == suit, 1] = new_suit
+        new_suit += 1
+        cards_need_swap = cards[cards[:,1] < 5]
+    cards[:,1] = cards[:,1] - 4
+    return cards
+
 def expand_conv2d(network,path):
     layer_weights = torch.load(path)
     for name, param in network.process_input.hand_board.rank_conv.named_parameters():
@@ -72,6 +86,26 @@ def hardcode_handstrength(x):
             ranks.append(torch.tensor(hand_rank(hand_en,board_en),dtype=torch.float))
     return torch.stack(ranks).view(B,M,1)
 
+def swap_suit_vector(cards):
+    """Takes flat suit vector"""
+    cards_need_swap = cards
+    new_suit = 5
+    while cards_need_swap.shape[0] > 0:
+        suit = cards_need_swap[0]
+        cards[cards[:] == suit] = new_suit
+        new_suit += 1
+        cards_need_swap = cards[cards[:] < 5]
+    cards -= 4
+    return cards
+
+def swap_batch_suits(suit_vector):
+    batch,seq,c,p = suit_vector.size()
+    for b in range(batch):
+        for s in range(seq):
+            for i in range(60):
+                suit_vector[b,s,i,:] = swap_suit_vector(suit_vector[b,s,i,:])
+    return suit_vector
+
 def unspool(X):
     """
     Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
@@ -84,13 +118,22 @@ def unspool(X):
     hand_suits = suits[:,:,:4]
     board_ranks = ranks[:,:,4:]
     board_suits = suits[:,:,4:]
+    # sort by suit
+    hand_suit_index = torch.argsort(hand_suits)
+    board_suit_index = torch.argsort(board_suits)
+    hand_ranks = torch.gather(hand_ranks,-1,hand_suit_index)
+    hand_suits = torch.gather(hand_suits,-1,hand_suit_index)
+    board_ranks = torch.gather(board_ranks,-1,board_suit_index)
+    board_suits = torch.gather(board_suits,-1,board_suit_index)
+    # sort by rank
     hand_index = torch.argsort(hand_ranks)
     board_index = torch.argsort(board_ranks)
     ranks = torch.cat((torch.gather(hand_ranks,-1,hand_index),torch.gather(board_ranks,-1,board_index)),dim=-1).long()
     suits = torch.cat((torch.gather(hand_suits,-1,hand_index),torch.gather(board_suits,-1,board_index)),dim=-1).long()
     sequence_ranks = ranks[:,:,UNSPOOL_INDEX]
     sequence_suits = suits[:,:,UNSPOOL_INDEX]
-    return sequence_ranks,sequence_suits
+    swapped_suits = swap_batch_suits(sequence_suits)
+    return sequence_ranks,swapped_suits
 
 def return_value_mask(actions):
     """supports both batch and single int actions"""
