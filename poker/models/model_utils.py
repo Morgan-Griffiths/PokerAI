@@ -132,8 +132,8 @@ def unspool(X):
     suits = torch.cat((torch.gather(hand_suits,-1,hand_index),torch.gather(board_suits,-1,board_index)),dim=-1).long()
     sequence_ranks = ranks[:,:,UNSPOOL_INDEX]
     sequence_suits = suits[:,:,UNSPOOL_INDEX]
-    swapped_suits = swap_batch_suits(sequence_suits)
-    return sequence_ranks,swapped_suits
+    # sequence_suits = swap_batch_suits(sequence_suits)
+    return sequence_ranks,sequence_suits
 
 def return_value_mask(actions):
     """supports both batch and single int actions"""
