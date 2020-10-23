@@ -101,9 +101,9 @@ def train_network(data_dict,agent_params,training_params):
             val_window.append(sum(val_losses))
             val_scores.append(np.mean(val_window))
             net.train()
-            print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}, Epoch {epoch}")
+            print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
         else:
-            print(f"\nTraining loss {np.mean(score_window):.2f}, Epoch {epoch}")
+            print(f"\nTraining loss {np.mean(score_window):.4f}, Epoch {epoch}")
     print('')
     # Save graphs
     if valtrain:
