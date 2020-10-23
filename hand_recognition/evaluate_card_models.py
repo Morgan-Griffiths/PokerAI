@@ -104,6 +104,7 @@ def train_network(data_dict,agent_params,training_params):
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
         else:
             print(f"\nTraining loss {np.mean(score_window):.4f}, Epoch {epoch}")
+        torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
     if valtrain:
@@ -129,7 +130,6 @@ def train_network(data_dict,agent_params,training_params):
                 print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
         net.train()
     # cleanup()
-    torch.save(net.state_dict(), training_params['save_path'])
 
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
