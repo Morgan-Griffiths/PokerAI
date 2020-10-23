@@ -253,7 +253,7 @@ class CardDataset(object):
         X = []
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
-            five_hands = switcher(category)
+            five_hands = switcher[category]()
             for hand in five_hands:
                 hero_hands = hero_5_cards(hand)
                 for h in hero_hands:
