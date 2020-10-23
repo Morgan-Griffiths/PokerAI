@@ -233,7 +233,7 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_hand_ranks_five(self,multiplier,reduce_suits=True):
+    def build_hand_ranks_five(self,reduce_suits=True):
         """
         rank 5 card hands
         input 5 cards

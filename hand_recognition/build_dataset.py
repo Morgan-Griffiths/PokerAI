@@ -2,7 +2,7 @@ import os
 
 import datatypes as dt
 from build import CardDataset
-from data_utils import load_data,save_all
+from data_utils import load_data,save_all,save_trainset
 
 if __name__ == "__main__":
     import argparse
@@ -74,9 +74,8 @@ if __name__ == "__main__":
         valX,valY = dataset.build_hand_ranks_nine(20)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSFIVE:
-        trainX,trainY = dataset.build_hand_ranks_five(20)
-        valX,valY = dataset.build_hand_ranks_five(1)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+        trainX,trainY = dataset.build_hand_ranks_five()
+        save_trainset(trainX,trainY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
     elif learning_category == dt.LearningCategories.REGRESSION:

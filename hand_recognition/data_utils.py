@@ -53,6 +53,18 @@ def load_handtypes(dir_path):
                 data[folder][name] = torch.Tensor(np.load(os.path.join(dir_path,folder,f)))
     return data
 
+def save_trainset(trainX,trainY,parent_dir,y_dtype='uint8'):
+    """
+    saves train,test folder numpy data from parent dir
+    """
+    train_dir = os.path.join(parent_dir,'train')
+    if not os.path.isdir(train_dir):
+        os.makedirs(train_dir)
+    if not os.path.isdir(test_dir):
+        os.makedirs(test_dir)
+    np.save(f"{os.path.join(parent_dir,'train')}/trainX",np.array(trainX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'train')}/trainY",np.array(trainY).astype(y_dtype))
+
 def save_all(trainX,trainY,valX,valY,parent_dir,y_dtype='uint8'):
     """
     saves train,test folder numpy data from parent dir
