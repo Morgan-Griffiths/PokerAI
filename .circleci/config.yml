@@ -13,6 +13,17 @@ jobs:
       - checkout
       - python/load-cache
       - run:
+          name: install aws-cli
+          command: |
+            pip install aws-cli
+      - run:
+          name: download models
+          command: |
+            mkdir checkpoints/frozen
+            mkdir checkpoints/production
+            aws s3 sync s3://pokerai/production checkpoints/production --no-sign-request
+            aws s3 sync s3://pokerai/frozen checkpoints/frozen --no-sign-request
+      - run:
           name: install-deps
           command: |
             pip install -r pip_requirements.txt
