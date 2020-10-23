@@ -73,6 +73,7 @@ def soft_update(local,target,tau=1e-1):
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
 def hardcode_handstrength(x):
+    """input shape: (b,m,18)"""
     B,M,C = x.size()
     hands = x[:,:,:8]
     boards = x[:,:,8:]
