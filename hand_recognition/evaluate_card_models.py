@@ -38,6 +38,7 @@ def cleanup():
     dist.destroy_process_group()
 
 def train_network(data_dict,agent_params,training_params):
+    valtrain = True if 'valloader' in data_dict else False
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     count_parameters(net)
@@ -79,34 +80,38 @@ def train_network(data_dict,agent_params,training_params):
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
-        print(f"\nTraining loss {np.mean(score_window):.2f}, Epoch {epoch}")
-        # net.eval()
-        # val_losses = []
-        # for i, data in enumerate(data_dict['valloader'], 1):
-        #     sys.stdout.write('\r')
-        #     inputs, targets = data.values()
-        #     targets = targets.cuda() if torch.cuda.is_available() else targets
-        #     if training_params['five_card_conversion'] == True:
-        #         inputs = unspool(inputs)
-        #     if training_params['one_hot'] == True:
-        #         inputs = torch.nn.functional.one_hot(inputs)
-        #     val_preds = net(inputs)
-        #     val_loss = criterion(val_preds, targets)
-        #     val_losses.append(val_loss.item())
-        #     sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
-        #     sys.stdout.flush()
-        #     sys.stdout.write(f", validation sample {(i+1):.2f}")
-        #     sys.stdout.flush()
-        # val_window.append(sum(val_losses))
-        # val_scores.append(np.mean(val_window))
-        # net.train()
-        # print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}, Epoch {epoch}")
+        if valtrain:
+            net.eval()
+            val_losses = []
+            for i, data in enumerate(data_dict['valloader'], 1):
+                sys.stdout.write('\r')
+                inputs, targets = data.values()
+                targets = targets.cuda() if torch.cuda.is_available() else targets
+                if training_params['five_card_conversion'] == True:
+                    inputs = unspool(inputs)
+                if training_params['one_hot'] == True:
+                    inputs = torch.nn.functional.one_hot(inputs)
+                val_preds = net(inputs)
+                val_loss = criterion(val_preds, targets)
+                val_losses.append(val_loss.item())
+                sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
+                sys.stdout.flush()
+                sys.stdout.write(f", validation sample {(i+1):.2f}")
+                sys.stdout.flush()
+            val_window.append(sum(val_losses))
+            val_scores.append(np.mean(val_window))
+            net.train()
+            print(f"\nTraining loss {np.mean(score_window):.2f}, Val loss {np.mean(val_window):.2f}, Epoch {epoch}")
+        else:
+            print(f"\nTraining loss {np.mean(score_window):.2f}, Epoch {epoch}")
     print('')
     # Save graphs
-    loss_data = [scores]
-    loss_labels = ['Training_loss']
-    # loss_data = [scores,val_scores]
-    # loss_labels = ['Training_loss','Validation_loss']
+    if valtrain:
+        loss_data = [scores,val_scores]
+        loss_labels = ['Training_loss','Validation_loss']
+    else:
+        loss_data = [scores]
+        loss_labels = ['Training_loss']
     plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
     # check each hand type
     if 'y_handtype_indexes' in data_dict:

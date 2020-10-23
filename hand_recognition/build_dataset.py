@@ -1,5 +1,5 @@
 import os
-
+import time
 import datatypes as dt
 from build import CardDataset
 from data_utils import load_data,save_all,save_trainset
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     #     handtype = input('Enter in int 0-8 to pick handtype')
     #     hand = dataset.create_handtypes(int(handtype))
     #     print(f'Hand {hand}, Category {handtype}')
-
+    tic = time.time()
     dataset = CardDataset(dataset_params)
     if dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
         trainX,trainY = dataset.build_hand_ranks_nine(200)
@@ -87,3 +87,4 @@ if __name__ == "__main__":
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='uint8')
     else:
         raise ValueError(f'{args.datatype} datatype not understood')
+    print(f'dataset took {(time.time() - tic) / 60} Minutes')
