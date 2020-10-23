@@ -12,6 +12,9 @@ jobs:
     steps:
       - checkout
       - python/load-cache
+      - restore_cache:
+          keys:
+            - model_cache
       - run:
           name: install aws-cli
           command: |
@@ -31,6 +34,11 @@ jobs:
           name: install-rust
           command: |
             sudo apt install cargo
+      - save_cache:
+          key: model_cache
+          paths:
+            - checkpoints/production
+            - checkpoints/frozen
       - run:
           name: build-rust
           command: |
