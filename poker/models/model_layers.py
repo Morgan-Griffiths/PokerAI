@@ -188,11 +188,11 @@ class ProcessHandBoard(nn.Module):
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
             out = self.categorical_output(out.view(B,-1))
+            out = torch.argmax(out,dim=-1)
             activations.append(out)
         result = torch.stack(activations).view(B,M,-1)
-        print('result shape',result.shape)
+        print('result',result,result.shape)
         print('baseline',baseline,baseline.shape)
-        print('result',torch.argmax(result,dim=-1),torch.argmax(result,dim=-1).shape)
         asdf
         return result
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
