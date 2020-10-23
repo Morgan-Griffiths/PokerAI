@@ -7,6 +7,7 @@ import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits
+from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards
 
 class CardDataset(object):
     def __init__(self,params):
@@ -238,35 +239,37 @@ class CardDataset(object):
         input 5 cards
         target = {0-7462}
         """
-        Number_of_examples = {
-            0:10,
-            1:156,
-            2:375,
-            3:510,
-            4:1020,
-            5:5491,
-            6:12355,
-            7:109824,
-            8:130254
+        switcher = {
+            0: straight_flushes,
+            1: quads,
+            2: full_houses,
+            3: flushes,
+            4: straights,
+            5: trips,
+            6: two_pairs,
+            7: one_pairs,
+            8: high_cards
         }
         X = []
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
-            for _ in range(Number_of_examples[category] * multiplier):
-                hand = self.create_handtypes(category,randomize=True)
-                hero = hand[:2]
-                board = hand[2:]
-                hero = hero[np.argsort(hero[:,1]),:]
-                board = board[np.argsort(board[:,1]),:]
-                hero = hero[np.argsort(hero[:,0]),:]
-                board = board[np.argsort(board[:,0]),:]
-                hand = np.concatenate([hero,board])
-                if reduce_suits:
-                    hand = swap_suits(hand)
-                # hand = hand[np.argsort(hand[:,0]),:] # lost blocker info
-                en_hand = [encode(c) for c in hand]
-                X.append(hand)
-                y.append(rank(en_hand))
+            five_hands = switcher(category)
+            for hand in five_hands:
+                hero_hands = hero_5_cards(hand)
+                for h in hero_hands:
+                    en_hand = [encode(c) for c in h]
+                    X.append(h)
+                    y.append(rank(en_hand))
+            # hero = hand[:2]
+            # board = hand[2:]
+            # hero = hero[np.argsort(hero[:,1]),:]
+            # board = board[np.argsort(board[:,1]),:]
+            # hero = hero[np.argsort(hero[:,0]),:]
+            # board = board[np.argsort(board[:,0]),:]
+            # hand = np.concatenate([hero,board])
+            # if reduce_suits:
+            #     hand = swap_suits(hand)
+            # hand = hand[np.argsort(hand[:,0]),:] # lost blocker info
         X = np.stack(X)
         y = np.stack(y)
         return X,y
