@@ -32,7 +32,10 @@ def swap_suits(cards):
     return cards
 
 def expand_conv2d(network,path):
-    layer_weights = torch.load(path)
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
     for name, param in network.process_input.hand_board.rank_conv.named_parameters():
         print(name,param.shape)
         if name in ['0.weight','0.bias']:
@@ -58,7 +61,10 @@ def expand_conv2d(network,path):
 
 def update_weights(network,path):
     print(path)
-    layer_weights = torch.load(path)
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
     for name, param in network.process_input.hand_board.named_parameters():
         if name in layer_weights and name not in ['suit_conv.0.weight','rank_conv.0.weight']:
             print('update_weights',name)
