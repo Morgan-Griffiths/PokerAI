@@ -101,6 +101,10 @@ def train_network(data_dict,agent_params,training_params):
                 sys.stdout.flush()
                 sys.stdout.write(f", validation sample {(i+1):.2f}")
                 sys.stdout.flush()
+                if i % 1000 == 0:
+                    print('guesses',torch.argmax(outputs,dim=-1)[:100])
+                    print('targets',targets[:100])
+
             val_window.append(sum(val_losses))
             val_scores.append(np.mean(val_window))
             net.train()
