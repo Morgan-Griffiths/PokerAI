@@ -41,6 +41,8 @@ def train_network(data_dict,agent_params,training_params):
     valtrain = True if 'valloader' in data_dict else False
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
+    if training_params['resume']:
+        net.load_state_dict(torch.load(training_params['save_path']))
     count_parameters(net)
     # if torch.cuda.device_count() > 1:
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -80,9 +82,6 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i % 1000 == 0:
-                print('\nguesses',torch.argmax(outputs,dim=-1)[:100])
-                print('targets',targets[:100])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -110,7 +109,7 @@ def train_network(data_dict,agent_params,training_params):
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
         else:
             print(f"\nTraining loss {np.mean(score_window):.4f}, Epoch {epoch}")
-        print('guesses',torch.argmax(outputs,dim=-1)[:100])
+        print('\nguesses',torch.argmax(outputs,dim=-1)[:100])
         print('targets',targets[:100])
         torch.save(net.state_dict(), training_params['save_path'])
     print('')
@@ -268,6 +267,11 @@ if __name__ == "__main__":
     parser.add_argument('-e','--epochs',
                         help='Number of training epochs',
                         default=10,type=int)
+    parser.add_argument('--resume',
+                        help='resume training from an earlier run',
+                        action='store_true')
+    parser.set_defaults(resume=False)
+
 
     args = parser.parse_args()
 
@@ -308,6 +312,7 @@ if __name__ == "__main__":
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
     training_params = {
+        'resume':args.resume,
         'epochs':args.epochs,
         'five_card_conversion':False,
         'one_hot':False,
