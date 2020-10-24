@@ -806,6 +806,8 @@ class HandRankClassificationFive(nn.Module):
         suits = x[:,:,1].long()
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
+        # hot_ranks is (b,5,15)
+        # hot_ranks is (b,5,5)
         if torch.cuda.is_available():
             s = self.suit_conv(hot_suits.float().cuda())
             r = self.rank_conv(hot_ranks.float().cuda())

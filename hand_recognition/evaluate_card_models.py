@@ -80,8 +80,6 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 10:
-                break
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
