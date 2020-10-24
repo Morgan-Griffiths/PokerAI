@@ -81,7 +81,7 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
             if i % 1000 == 0:
-                print('guesses',torch.argmax(outputs,dim=-1)[:100])
+                print('\nguesses',torch.argmax(outputs,dim=-1)[:100])
                 print('targets',targets[:100])
         lr_stepper.step()
         score_window.append(loss.item())
@@ -234,7 +234,7 @@ def check_network(dataset_params,params):
                 out = net(torch.tensor(valX[rand_hand]).unsqueeze(0).cuda())
             else:
                 out = net(torch.tensor(valX[rand_hand]).unsqueeze(0))
-            print(f'Network output: {output_map(out)}, Maximum value {torch.max(output_map(out))}, Location {torch.argmax(output_map(out))}')
+            print(f'Network output: {output_map(out,dim=-1)}, Maximum value {torch.max(output_map(out,dim=-1))}, Location {torch.argmax(output_map(out,dim=-1))}')
             print(f'Actual category: {valY[rand_hand]}')
         else:
             print('No instances of this, please try again')
