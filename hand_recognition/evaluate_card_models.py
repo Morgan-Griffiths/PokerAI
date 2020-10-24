@@ -47,7 +47,7 @@ def train_network(data_dict,agent_params,training_params):
     #     net = DDP(net)
     net.to(device)
     if 'category_weights' in data_dict:
-        criterion = training_params['criterion'](data_dict['category_weights'])
+        criterion = training_params['criterion'](data_dict['category_weights'].to(device))
     else:
         criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
