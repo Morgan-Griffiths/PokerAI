@@ -250,17 +250,30 @@ class CardDataset(object):
             7: one_pairs,
             8: high_cards
         }
+        # if you want to make up for the samples
+        repeats = {
+            0:10,
+            1:4,
+            2:10,
+            3:4,
+            4:1,
+            5:1,
+            6:1,
+            7:1,
+            8:1
+        }
         X = []
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
-            five_hands = switcher[category]()
-            for hand in five_hands:
-                sorted_cards = sort_hand(hand)
-                hero_hands = hero_5_cards(sorted_cards)
-                for h in hero_hands:
-                    en_hand = [encode(c) for c in h]
-                    X.append(h)
-                    y.append(rank(en_hand))
+            for _ in range(repeats[category]):
+                five_hands = switcher[category]()
+                for hand in five_hands:
+                    sorted_cards = sort_hand(hand)
+                    hero_hands = hero_5_cards(sorted_cards)
+                    for h in hero_hands:
+                        en_hand = [encode(c) for c in h]
+                        X.append(h)
+                        y.append(rank(en_hand))
             # hero = hand[:2]
             # board = hand[2:]
             # hero = hero[np.argsort(hero[:,1]),:]

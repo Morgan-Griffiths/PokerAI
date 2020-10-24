@@ -783,13 +783,13 @@ class HandRankClassificationFive(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=1, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=5, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
@@ -815,7 +815,7 @@ class HandRankClassificationFive(nn.Module):
             s = self.suit_conv(hot_suits.float())
             r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
-        # x (b, 128, 16)
+        # x (b, 64, 16)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
         return self.categorical_output(x.view(M,-1))
