@@ -186,7 +186,9 @@ class ProcessHandBoard(nn.Module):
         for j in range(M):
             s = self.suit_conv(hot_suits[:,j,:,:,:].float())
             r = self.rank_conv(hot_ranks[:,j,:,:,:].float())
-            out = torch.cat((r,s),dim=-1)
+            out = torch.cat((r,s),dim=-1).squeeze(-2)
+            # out: (b,128,16)
+            print('out',out,out.size())
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
             out = self.categorical_output(out.view(B,-1))
