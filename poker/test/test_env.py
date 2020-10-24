@@ -78,6 +78,9 @@ class TestEnv(unittest.TestCase):
     def setUp(self):
         game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
         config = Config()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.network_params = config.network_params 
+        self.network_params['device'] = device
         self.env_params = {
             'game':pdt.GameTypes.OMAHAHI,
             'betsizes': game_object.rule_params['betsizes'],
@@ -562,11 +565,7 @@ class TestEnv(unittest.TestCase):
         nB = env.betsize_space
         nS = env.state_space
         seed = 152
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        params['device'] = device
-        params['maxlen'] = 10
-        params['embedding_size'] = 128
-        actor = OmahaActor(seed,nS,nA,nB,params)
+        actor = OmahaActor(seed,nS,nA,nB,self.network_params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = actor(state,mask,betsize_mask)
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
@@ -580,15 +579,8 @@ class TestEnv(unittest.TestCase):
         nA = env.action_space
         nB = env.betsize_space
         nS = env.state_space
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         seed = 152
-        params['maxlen'] = 10
-        params['embedding_size'] = 128
-        params['transformer_in'] = 256
-        params['transformer_out'] = 128
-        params['transformer_out'] = 128
-        params['device'] = device
-        critic = OmahaObsQCritic(seed,nS,nA,nB,params)
+        critic = OmahaObsQCritic(seed,nS,nA,nB,self.network_params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = critic(obs)
         assert isinstance(output['value'],torch.Tensor)
@@ -794,8 +786,8 @@ def envTestSuite():
     suite.addTest(TestEnv('testThreePlayers'))
     suite.addTest(TestEnv('testBetLimits'))
     suite.addTest(TestEnv('testAllin'))
-    # suite.addTest(TestEnv('testActor'))
-    # suite.addTest(TestEnv('testCritic'))
+    suite.addTest(TestEnv('testActor'))
+    suite.addTest(TestEnv('testCritic'))
     # suite.addTest(TestEnv('testCombined'))
     suite.addTest(TestEnv('testMasks'))
     suite.addTest(TestEnv('testEnvCategoryMapping'))
