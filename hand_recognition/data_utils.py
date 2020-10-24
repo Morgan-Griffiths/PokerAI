@@ -95,3 +95,35 @@ def return_handtype_data_shapes(dataset:dict):
     train_shape = (trm*9,trh,trw)
     train_batch = trm
     return train_shape,train_batch
+
+def generate_category_weights():
+    Number_of_examples = {
+        0:10,
+        1:156,
+        2:156,
+        3:1277,
+        4:10,
+        5:858,
+        6:858,
+        7:2860,
+        8:1278
+    }
+    straight_flush_weight = 0.0016
+    quad_weight = 0.0240
+    full_house_weight = 0.1441
+    flush_weight = 0.1965
+    straight_weight = 0.3925
+    trip_weight = 2.1128
+    two_pair = 4.7539
+    one_pair = 42.2569
+    high_card = 50.1177
+    weight_categories = [straight_flush_weight,quad_weight,full_house_weight,flush_weight,straight_weight,trip_weight,two_pair,one_pair,high_card]
+    weights = torch.empty(7463,dtype=torch.float)
+    weights[:Number_of_examples[0]] = weight_categories[0]
+    start = 0
+    for i in range(0,9):
+        values = torch.tensor(weight_categories[i]).repeat(Number_of_examples[i])
+        print(values.size(),i)
+        weights[start:Number_of_examples[i] + start] = values
+        start += Number_of_examples[i]
+    return weights

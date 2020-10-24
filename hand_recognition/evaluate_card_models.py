@@ -19,7 +19,7 @@ from data_loader import return_trainloader
 import datatypes as dt
 from networks import *
 from network_config import NetworkConfig
-from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes,unspool
+from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes,unspool,generate_category_weights
 
 """
 Creating a hand dataset for training and evaluating networks.
@@ -46,7 +46,10 @@ def train_network(data_dict,agent_params,training_params):
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
     #     net = DDP(net)
     net.to(device)
-    criterion = training_params['criterion']()
+    if 'category_weights' in data_dict:
+        criterion = training_params['criterion'](data_dict['category_weights'])
+    else:
+        criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
     lr_stepsize = training_params['epochs'] // 5
     lr_stepper = MultiStepLR(optimizer=optimizer,milestones=[lr_stepsize*2,lr_stepsize*3,lr_stepsize*4],gamma=0.1)
@@ -77,6 +80,8 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
+            if i == 10:
+                break
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -104,6 +109,8 @@ def train_network(data_dict,agent_params,training_params):
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
         else:
             print(f"\nTraining loss {np.mean(score_window):.4f}, Epoch {epoch}")
+        print('guesses',torch.argmax(outputs,dim=-1)[:100])
+        print('targets',targets[:100])
         torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
@@ -134,7 +141,14 @@ def train_network(data_dict,agent_params,training_params):
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='classification')
-    if dataset_params['datatype'] != f'{dt.DataTypes.HANDRANKSFIVE}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
+        category_weights = generate_category_weights()
+        data_dict = {
+            'trainloader':trainloader,
+            'category_weights':category_weights
+        }
+        print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape)
+    else:
         valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
         data_dict = {
             'trainloader':trainloader,
@@ -142,11 +156,6 @@ def train_classification(dataset_params,agent_params,training_params):
             # 'y_handtype_indexes':y_handtype_indexes
         }
         print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
-    else:
-        data_dict = {
-            'trainloader':trainloader
-        }
-        print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
     # dataset['valY'] = dataset['valY'].long()
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
@@ -260,6 +269,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print('OPTIONS',args)
+    torch.set_printoptions(threshold=100)
 
     learning_category = dt.Globals.DatasetCategories[args.datatype]
     network = NetworkConfig.DataModels[args.datatype]
