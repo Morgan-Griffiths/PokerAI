@@ -175,11 +175,13 @@ class ProcessHandBoard(nn.Module):
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
         ranks,suits = unspool(x)
+        # print(ranks,suits)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
+        torch.set_printoptions(threshold=7500)
         activations = []
         for j in range(M):
             s = self.suit_conv(hot_suits[:,j,:,:,:].float())
@@ -188,12 +190,13 @@ class ProcessHandBoard(nn.Module):
             for i,hidden_layer in enumerate(self.hidden_layers):
                 out = self.activation_fc(hidden_layer(out))
             out = self.categorical_output(out.view(B,-1))
+            # print('check',torch.log_softmax(out,dim=-1))
             out = torch.argmax(out,dim=-1)
             activations.append(out)
         result = torch.stack(activations).view(B,M,-1)
-        print('result',result,result.shape)
-        print('baseline',baseline,baseline.shape)
-        asdf
+        print('result',result)
+        print('baseline',baseline)
+        # asdf
         return result
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 
