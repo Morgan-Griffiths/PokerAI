@@ -174,33 +174,35 @@ class ProcessHandBoard(nn.Module):
         """
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
+        print('B,M,C ',B,M,C)
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
-        hot_ranks = self.one_hot_ranks[ranks].to(self.device)
-        hot_suits = self.one_hot_suits[suits].to(self.device)
+        hot_ranks = self.one_hot_ranks[ranks].to(self.device).float()
+        hot_suits = self.one_hot_suits[suits].to(self.device).float()
         print('hot_ranks',hot_ranks.size())
         print('hot_suits',hot_suits.size())
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         torch.set_printoptions(threshold=7500)
         activations = []
-        for j in range(M):
+        for i in range(B):
             combinations = []
-            for c in range(60):
-                s = self.suit_conv(hot_suits[:,j,c,:,:].float())
-                r = self.rank_conv(hot_ranks[:,j,c,:,:].float())
+            for j in range(M):
+                s = self.suit_conv(hot_suits[i,j,:,:,:])
+                r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
                 # out: (b,64,16)
-                for i,hidden_layer in enumerate(self.hidden_layers):
+                for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                out = self.categorical_output(out.view(B,-1))
-                # print('check',torch.log_softmax(out,dim=-1))
+                out = self.categorical_output(out.view(60,-1))
+                print('check',torch.argmax(out,dim=-1))
                 out = torch.argmax(out,dim=-1)
                 combinations.append(out)
             activations.append(torch.stack(combinations))
         result = torch.stack(activations)
         result = result.view(B,M,-1)
         print('result',result,result.size())
+        print('best hand',torch.argmax(result,dim=-1))
         print('baseline',baseline)
         asdf
         return result
