@@ -815,7 +815,7 @@ class HandRankClassificationFive(nn.Module):
             s = self.suit_conv(hot_suits.float())
             r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
-        # should be (b,64,88)
+        # x (b, 128, 16)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
         return self.categorical_output(x.view(M,-1))
