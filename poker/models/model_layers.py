@@ -97,13 +97,13 @@ class ProcessHandBoard(nn.Module):
         self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=1, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=5, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.hand_out = nn.Linear(7463,128) #params['lstm_in'] // 3)
@@ -122,7 +122,7 @@ class ProcessHandBoard(nn.Module):
         else:
             for i in range(len(self.hidden_dims)-1):
                 self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            self.categorical_output = nn.Linear(2048,7463)
+            self.categorical_output = nn.Linear(4096,7463)
             self.forward = self.forward_actor
 
     def forward_critic(self,x):

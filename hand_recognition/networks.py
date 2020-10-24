@@ -783,13 +783,13 @@ class HandRankClassificationFive(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=1, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=5, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
