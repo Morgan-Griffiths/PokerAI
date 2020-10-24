@@ -176,6 +176,32 @@ def high_cards():
                     hands.append(hand)
     return hands
 
+def sort_hand(cards):
+    """
+    Takes 5 card hand of shape: (2,5),
+    returns sorted by hand+board, shape (2,5)
+    """
+    hero_ranks = cards[0,:2]
+    hero_suits = cards[1,:2]
+    board_ranks = cards[0,2:]
+    board_suits = cards[1,2:]
+    hero_index = np.argsort(hero_suits)
+    board_index = np.argsort(board_suits)
+    hero_ranks = hero_ranks[hero_index]
+    hero_suits = hero_suits[hero_index]
+    board_ranks = board_ranks[board_index]
+    board_suits = board_suits[board_index]
+    hero_index = np.argsort(hero_ranks)
+    board_index = np.argsort(board_ranks)
+    hero_ranks = hero_ranks[hero_index]
+    hero_suits = hero_suits[hero_index]
+    board_ranks = board_ranks[board_index]
+    board_suits = board_suits[board_index]
+    hero = np.vstack([hero_ranks,hero_suits])
+    board = np.vstack([board_ranks,board_suits])
+    sorted_cards = np.concatenate([hero,board],axis=-1)
+    return sorted_cards
+
 def hero_5_cards(cards):
     """
     Takes a 5 card combination, and extrapolates out to all the sorted 2 cards, sorted 3 cards, hand+board combos.
