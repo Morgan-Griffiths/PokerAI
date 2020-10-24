@@ -7,7 +7,7 @@ import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
 from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits
-from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards
+from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards,sort_hand
 
 class CardDataset(object):
     def __init__(self,params):
@@ -255,7 +255,8 @@ class CardDataset(object):
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             five_hands = switcher[category]()
             for hand in five_hands:
-                hero_hands = hero_5_cards(hand)
+                sorted_cards = sort_hand(hand)
+                hero_hands = hero_5_cards(sorted_cards)
                 for h in hero_hands:
                     en_hand = [encode(c) for c in h]
                     X.append(h)
