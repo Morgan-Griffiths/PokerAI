@@ -42,6 +42,7 @@ def expand_conv2d(network,path):
             print(f'loading {name}')
             if name == '0.weight':
                 expanded_param = layer_weights['rank_conv.0.weight'].data.repeat(60,1,1,1).permute(1,0,2,3)
+                # Size 64,60,5,5
                 param.data.copy_(expanded_param)
                 param.requires_grad = False
             elif name == '0.bias':
@@ -53,6 +54,7 @@ def expand_conv2d(network,path):
             print(f'loading {name}')
             if name == '0.weight':
                 expanded_param = layer_weights['suit_conv.0.weight'].data.repeat(60,1,1,1).permute(1,0,2,3)
+                # Size 64,60,5,1
                 param.data.copy_(expanded_param)
                 param.requires_grad = False
             elif name == '0.bias':
