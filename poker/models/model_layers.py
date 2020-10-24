@@ -196,7 +196,7 @@ class ProcessHandBoard(nn.Module):
         result = torch.stack(activations).view(B,M,-1)
         print('result',result)
         print('baseline',baseline)
-        # asdf
+        asdf
         return result
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 
