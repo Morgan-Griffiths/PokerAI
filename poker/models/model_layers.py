@@ -194,7 +194,7 @@ class ProcessHandBoard(nn.Module):
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                out = self.categorical_output(out.view(60,-1))
+                out = self.categorical_output(out.view(B,-1))
                 print('check',torch.argmax(out,dim=-1))
                 out = torch.argmax(out,dim=-1)
                 combinations.append(out)
@@ -202,7 +202,7 @@ class ProcessHandBoard(nn.Module):
         result = torch.stack(activations)
         result = result.view(B,M,-1)
         print('result',result,result.size())
-        print('best hand',torch.argmax(result,dim=-1))
+        print('best hand',torch.max(result,dim=-1))
         print('baseline',baseline)
         asdf
         return result
