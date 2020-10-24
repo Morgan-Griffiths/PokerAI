@@ -185,11 +185,11 @@ class ProcessHandBoard(nn.Module):
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         torch.set_printoptions(threshold=7500)
         activations = []
-        for i in range(B):
+        for i in range(M):
             combinations = []
-            for j in range(M):
-                s = self.suit_conv(hot_suits[i,j,:,:,:])
-                r = self.rank_conv(hot_ranks[i,j,:,:,:])
+            for j in range(60):
+                s = self.suit_conv(hot_suits[:,i,j,:,:])
+                r = self.rank_conv(hot_ranks[:,i,j,:,:])
                 out = torch.cat((r,s),dim=-1)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
