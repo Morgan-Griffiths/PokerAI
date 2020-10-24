@@ -201,8 +201,9 @@ def check_network(dataset_params,params):
     mapping = target_mapping[dataset_params['datatype']]
     message = messages[dataset_params['learning_category']]
     examine_params = params['examine_params']
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     net = examine_params['network'](params['network_params'])
-    net.load_state_dict(torch.load(examine_params['load_path']))
+    net.load_state_dict(torch.load(examine_params['load_path'])).to(device)
     net.eval()
 
     dataset = load_data(dataset_params['data_path'])
