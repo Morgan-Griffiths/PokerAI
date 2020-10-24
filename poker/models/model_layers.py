@@ -97,13 +97,13 @@ class ProcessHandBoard(nn.Module):
         self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv2d(60, 64, kernel_size=(5,1), stride=1),
-            nn.BatchNorm2d(64),
+            nn.Conv1d(5, 64, kernel_size=1, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv2d(60, 64, kernel_size=(5,5), stride=1),
-            nn.BatchNorm2d(64),
+            nn.Conv1d(5, 64, kernel_size=5, stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.hand_out = nn.Linear(7463,128) #params['lstm_in'] // 3)
@@ -175,28 +175,32 @@ class ProcessHandBoard(nn.Module):
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
         ranks,suits = unspool(x)
-        print(ranks,suits)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device)
         hot_suits = self.one_hot_suits[suits].to(self.device)
+        print('hot_ranks',hot_ranks.size())
+        print('hot_suits',hot_suits.size())
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         torch.set_printoptions(threshold=7500)
         activations = []
         for j in range(M):
-            s = self.suit_conv(hot_suits[:,j,:,:,:].float())
-            r = self.rank_conv(hot_ranks[:,j,:,:,:].float())
-            out = torch.cat((r,s),dim=-1).squeeze(-2)
-            # out: (b,128,16)
-            print('out',out,out.size())
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                out = self.activation_fc(hidden_layer(out))
-            out = self.categorical_output(out.view(B,-1))
-            # print('check',torch.log_softmax(out,dim=-1))
-            out = torch.argmax(out,dim=-1)
-            activations.append(out)
-        result = torch.stack(activations).view(B,M,-1)
-        print('result',result)
+            combinations = []
+            for c in range(60):
+                s = self.suit_conv(hot_suits[:,j,c,:,:].float())
+                r = self.rank_conv(hot_ranks[:,j,c,:,:].float())
+                out = torch.cat((r,s),dim=-1)
+                # out: (b,64,16)
+                for i,hidden_layer in enumerate(self.hidden_layers):
+                    out = self.activation_fc(hidden_layer(out))
+                out = self.categorical_output(out.view(B,-1))
+                # print('check',torch.log_softmax(out,dim=-1))
+                out = torch.argmax(out,dim=-1)
+                combinations.append(out)
+            activations.append(torch.stack(combinations))
+        result = torch.stack(activations)
+        result = result.view(B,M,-1)
+        print('result',result,result.size())
         print('baseline',baseline)
         asdf
         return result
