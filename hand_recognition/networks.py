@@ -783,13 +783,13 @@ class HandRankClassificationFive(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=1, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 128, kernel_size=5, stride=1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
@@ -797,7 +797,7 @@ class HandRankClassificationFive(nn.Module):
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(2048,self.nA)
+        self.categorical_output = nn.Linear(4096,self.nA)
 
     def forward(self,x):
         # Input is (b,5,2)
