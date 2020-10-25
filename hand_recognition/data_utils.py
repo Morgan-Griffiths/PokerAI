@@ -63,6 +63,16 @@ def save_trainset(trainX,trainY,parent_dir,y_dtype='uint8'):
     np.save(f"{os.path.join(parent_dir,'train')}/trainX",np.array(trainX).astype('uint8'))
     np.save(f"{os.path.join(parent_dir,'train')}/trainY",np.array(trainY).astype(y_dtype))
 
+def save_valset(valX,valX,parent_dir,y_dtype='uint8'):
+    """
+    saves train,test folder numpy data from parent dir
+    """
+    val_dir = os.path.join(parent_dir,'val')
+    if not os.path.isdir(val_dir):
+        os.makedirs(val_dir)
+    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype(y_dtype))
+
 def save_all(trainX,trainY,valX,valY,parent_dir,y_dtype='uint8'):
     """
     saves train,test folder numpy data from parent dir
