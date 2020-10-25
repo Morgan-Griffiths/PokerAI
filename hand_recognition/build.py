@@ -233,7 +233,7 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_hand_ranks_five(self,reduce_suits=True):
+    def build_hand_ranks_five(self,reduce_suits=True,valset=False):
         """
         rank 5 card hands
         input 5 cards
@@ -265,14 +265,24 @@ class CardDataset(object):
         X = []
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
-            for _ in range(repeats[category]):
+            if valset:
                 five_hands = switcher[category]()
                 for hand in five_hands:
-                    hero_hands = hero_5_cards(hand)
-                    for h in hero_hands:
-                        en_hand = [encode(c) for c in h]
-                        X.append(sort_hand(np.transpose(h)))
-                        y.append(rank(en_hand))
+                    sorted_hand = sort_hand(hand)
+                    en_hand = [encode(c) for c in sorted_hand]
+                    X.append(sort_hand(np.transpose(sorted_hand)))
+                    y.append(rank(en_hand))
+                    break
+            else:
+                for _ in range(repeats[category]):
+                    five_hands = switcher[category]()
+                    for hand in five_hands:
+                        hero_hands = hero_5_cards(hand)
+                        for h in hero_hands:
+                            en_hand = [encode(c) for c in h]
+                            X.append(sort_hand(np.transpose(h)))
+                            y.append(rank(en_hand))
+            break
             # hero = hand[:2]
             # board = hand[2:]
             # hero = hero[np.argsort(hero[:,1]),:]
