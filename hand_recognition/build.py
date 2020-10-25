@@ -270,7 +270,7 @@ class CardDataset(object):
                 for hand in five_hands:
                     sorted_hand = np.transpose(sort_hand(hand))
                     en_hand = [encode(c) for c in sorted_hand]
-                    X.append(np.transpose(sorted_hand))
+                    X.append(sorted_hand)
                     y.append(rank(en_hand))
             else:
                 for _ in range(repeats[category]):
@@ -279,7 +279,7 @@ class CardDataset(object):
                         hero_hands = hero_5_cards(hand)
                         for h in hero_hands:
                             en_hand = [encode(c) for c in h]
-                            X.append(sort_hand(np.transpose(h)))
+                            X.append(np.transpose(sort_hand(np.transpose(h))))
                             y.append(rank(en_hand))
             # hero = hand[:2]
             # board = hand[2:]
