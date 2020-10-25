@@ -273,7 +273,6 @@ class CardDataset(object):
                     en_hand = [encode(c) for c in sorted_hand]
                     X.append(sorted_hand)
                     y.append(rank(en_hand))
-                    break
             else:
                 for _ in range(repeats[category]):
                     five_hands = switcher[category]()
@@ -285,7 +284,6 @@ class CardDataset(object):
                             en_hand = [encode(c) for c in h]
                             X.append(sort_hand(np.transpose(h)))
                             y.append(rank(en_hand))
-            break
             # hero = hand[:2]
             # board = hand[2:]
             # hero = hero[np.argsort(hero[:,1]),:]
