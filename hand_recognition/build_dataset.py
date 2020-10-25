@@ -74,9 +74,11 @@ if __name__ == "__main__":
         valX,valY = dataset.build_hand_ranks_nine(20)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSFIVE:
-        # trainX,trainY = dataset.build_hand_ranks_five()
+        trainX,trainY = dataset.build_hand_ranks_five()
+        save_trainset(trainX,trainY,dataset_params['save_dir'],y_dtype='int32')
+        del trainX
+        del trainY
         valX,valY = dataset.build_hand_ranks_five(valset=True)
-        # save_trainset(trainX,trainY,dataset_params['save_dir'],y_dtype='int32')
         save_valset(valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)

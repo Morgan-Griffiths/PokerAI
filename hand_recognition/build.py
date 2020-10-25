@@ -268,9 +268,10 @@ class CardDataset(object):
             if valset:
                 five_hands = switcher[category]()
                 for hand in five_hands:
-                    sorted_hand = sort_hand(hand)
+                    sorted_hand = np.transpose(sort_hand(hand))
+                    print(sorted_hand.shape)
                     en_hand = [encode(c) for c in sorted_hand]
-                    X.append(sort_hand(np.transpose(sorted_hand)))
+                    X.append(sorted_hand)
                     y.append(rank(en_hand))
                     break
             else:
@@ -279,6 +280,8 @@ class CardDataset(object):
                     for hand in five_hands:
                         hero_hands = hero_5_cards(hand)
                         for h in hero_hands:
+                            print(h.shape)
+                            # print(sort_hand(np.transpose(h)))
                             en_hand = [encode(c) for c in h]
                             X.append(sort_hand(np.transpose(h)))
                             y.append(rank(en_hand))
