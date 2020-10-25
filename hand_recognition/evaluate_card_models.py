@@ -38,7 +38,6 @@ def cleanup():
     dist.destroy_process_group()
 
 def train_network(data_dict,agent_params,training_params):
-    valtrain = True if 'valloader' in data_dict else False
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
@@ -85,41 +84,36 @@ def train_network(data_dict,agent_params,training_params):
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
-        if valtrain:
-            net.eval()
-            val_losses = []
-            for i, data in enumerate(data_dict['valloader'], 1):
-                sys.stdout.write('\r')
-                inputs, targets = data.values()
-                targets = targets.cuda() if torch.cuda.is_available() else targets
-                if training_params['five_card_conversion'] == True:
-                    inputs = unspool(inputs)
-                if training_params['one_hot'] == True:
-                    inputs = torch.nn.functional.one_hot(inputs)
-                val_preds = net(inputs)
-                val_loss = criterion(val_preds, targets)
-                val_losses.append(val_loss.item())
-                sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
-                sys.stdout.flush()
-                sys.stdout.write(f", validation sample {(i+1):.2f}")
-                sys.stdout.flush()
-            val_window.append(sum(val_losses))
-            val_scores.append(np.mean(val_window))
-            net.train()
-            print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
-        else:
-            print(f"\nTraining loss {np.mean(score_window):.4f}, Epoch {epoch}")
+        net.eval()
+        val_losses = []
+        for i, data in enumerate(data_dict['valloader'], 1):
+            sys.stdout.write('\r')
+            inputs, targets = data.values()
+            targets = targets.cuda() if torch.cuda.is_available() else targets
+            if training_params['five_card_conversion'] == True:
+                inputs = unspool(inputs)
+            if training_params['one_hot'] == True:
+                inputs = torch.nn.functional.one_hot(inputs)
+            val_preds = net(inputs)
+            val_loss = criterion(val_preds, targets)
+            val_losses.append(val_loss.item())
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(data_dict['valloader'])), (100*(i+1)//len(data_dict['valloader']))))
+            sys.stdout.flush()
+            sys.stdout.write(f", validation sample {(i+1):.2f}")
+            sys.stdout.flush()
+            if i == 10:
+                break
+        val_window.append(sum(val_losses))
+        val_scores.append(np.mean(val_window))
+        net.train()
+        print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
         print('\nguesses',torch.argmax(outputs,dim=-1)[:100])
         print('targets',targets[:100])
         torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
-    if valtrain:
-        loss_data = [scores,val_scores]
-        loss_labels = ['Training_loss','Validation_loss']
-    else:
-        loss_data = [scores]
-        loss_labels = ['Training_loss']
+    loss_data = [scores,val_scores]
+    loss_labels = ['Training_loss','Validation_loss']
     plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
     # check each hand type
     if 'y_handtype_indexes' in data_dict:
@@ -141,21 +135,16 @@ def train_network(data_dict,agent_params,training_params):
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
     trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='classification')
+    valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
+    data_dict = {
+        'trainloader':trainloader,
+        'valloader':valloader
+        # 'y_handtype_indexes':y_handtype_indexes
+    }
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
         category_weights = generate_category_weights()
-        data_dict = {
-            'trainloader':trainloader,
-            'category_weights':category_weights
-        }
-        print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape)
-    else:
-        valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
-        data_dict = {
-            'trainloader':trainloader,
-            'valloader':valloader
-            # 'y_handtype_indexes':y_handtype_indexes
-        }
-        print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
+        data_dict['category_weights'] = category_weights
+    print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
     # dataset['valY'] = dataset['valY'].long()
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
