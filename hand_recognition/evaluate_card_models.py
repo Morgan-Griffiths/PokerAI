@@ -33,7 +33,6 @@ def load_weights(net):
     else: 
         net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
 
-
 def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
