@@ -174,8 +174,8 @@ class ProcessHandBoard(nn.Module):
         """
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
+        print('x',x)
         ranks,suits = unspool(x)
-        print(ranks,suits)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device).float()
         hot_suits = self.one_hot_suits[suits].to(self.device).float()
@@ -183,25 +183,24 @@ class ProcessHandBoard(nn.Module):
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         torch.set_printoptions(threshold=7500)
         activations = []
-        for i in range(M):
+        for i in range(B):
             combinations = []
-            for j in range(60):
-                s = self.suit_conv(hot_suits[:,i,j,:,:])
-                r = self.rank_conv(hot_ranks[:,i,j,:,:])
+            for j in range(M):
+                s = self.suit_conv(hot_suits[i,j,:,:,:])
+                r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                out = self.categorical_output(out.view(B,-1))
-                out = torch.argmax(out,dim=-1)
-                combinations.append(out)
+                out = self.categorical_output(out.view(60,-1))
+                # out = torch.argmax(torch.softmax(out,dim=-1))
+                combinations.append(torch.argmax(torch.softmax(out,dim=-1),dim=-1))
+                # print(f'Maximum value {torch.max(torch.softmax(out,dim=-1))}, Location {torch.argmax(torch.softmax(out,dim=-1))}')
             activations.append(torch.stack(combinations))
         result = torch.stack(activations)
-        result = result.view(B,M,-1)
-        print('guesses',result,result.size())
+        print('result',result.shape)
         print('best hand guess',torch.min(result,dim=-1)[0])
         print('baseline',baseline)
-        asdf
         return result
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 
