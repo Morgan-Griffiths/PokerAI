@@ -85,9 +85,8 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,critic=False,hidden_dims=(16,32,32),activation_fc=F.relu):
+    def __init__(self,params,hand_length,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
-        self.critic = critic
         self.activation_fc = activation_fc
         self.hidden_dims = hidden_dims
         self.hand_length = hand_length
