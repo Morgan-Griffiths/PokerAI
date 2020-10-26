@@ -186,8 +186,8 @@ if __name__ == "__main__":
         critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        hard_update(target_actor,actor)
-        hard_update(target_critic,critic)
+        hard_update(actor,target_actor)
+        hard_update(critic,target_critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
         actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
