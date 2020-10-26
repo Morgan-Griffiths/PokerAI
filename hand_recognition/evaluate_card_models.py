@@ -176,7 +176,7 @@ def validate_network(dataset_params,params):
     net.eval()
 
     dataset = load_data(dataset_params['data_path'])
-    trainloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='classification')
     # valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
     for i, data in enumerate(trainloader, 1):
         sys.stdout.write('\r')
