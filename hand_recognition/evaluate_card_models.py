@@ -175,8 +175,8 @@ def validate_network(dataset_params,params):
     net.to(device)
     net.eval()
 
-    inputs = []
-    labels = []
+    bad_outputs = []
+    bad_labels = []
     dataset = load_data(dataset_params['data_path'])
     trainloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
     # valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
@@ -191,13 +191,15 @@ def validate_network(dataset_params,params):
         if bool_mask.any():
             print(outputs[bool_mask])
             print(targets[bool_mask])
-            inputs.append(utputs[bool_mask])
-            labels.append(targets[bool_mask])
+            bad_outputs.append(output[bool_mask])
+            bad_labels.append(targets[bool_mask])
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
-    print(f'Number of incorrect guesses{len(inputs)}')
+    print(f'Number of incorrect guesses {len(bad_outputs)}')
+    print(f'Bad guesses {bad_labels}')
+    print(f'Missed labels {bad_labels}')
 
 
 def check_network(dataset_params,params):
