@@ -174,7 +174,7 @@ class ProcessHandBoard(nn.Module):
         """
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
-        print('x',x)
+        # print('x',x)
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device).float()
@@ -198,10 +198,10 @@ class ProcessHandBoard(nn.Module):
                 # print(f'Maximum value {torch.max(torch.softmax(out,dim=-1))}, Location {torch.argmax(torch.softmax(out,dim=-1))}')
             activations.append(torch.stack(combinations))
         result = torch.stack(activations)
-        print('result',result.shape)
-        print('best hand guess',torch.min(result,dim=-1)[0])
-        print('baseline',baseline)
-        return result
+        # print('result',result.shape)
+        # print('best hand guess',torch.min(result,dim=-1)[0])
+        # print('baseline',baseline)
+        return torch.min(result,dim=-1)[0].unsqueeze(-1)
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 
 class ProcessOrdinal(nn.Module):
@@ -334,7 +334,7 @@ class PreProcessLayer(nn.Module):
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
+        self.betsize_fc = nn.Linear(1,params['embedding_size']-1)
 
     def forward(self,x):
         B,M,C = x.size()
@@ -358,7 +358,7 @@ class PreProcessLayer(nn.Module):
         # h.size(B,M,128)
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h,emb_a,embeds),dim=-1)
+        combined = torch.cat((h.float(),emb_a,embeds),dim=-1)
         return combined
 
 ################################################
