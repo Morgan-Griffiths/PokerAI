@@ -175,6 +175,7 @@ class ProcessHandBoard(nn.Module):
         baseline = hardcode_handstrength(x)
         B,M,C = x.size()
         ranks,suits = unspool(x)
+        print(ranks,suits)
         # Shape of B,M,60,5
         hot_ranks = self.one_hot_ranks[ranks].to(self.device).float()
         hot_suits = self.one_hot_suits[suits].to(self.device).float()
