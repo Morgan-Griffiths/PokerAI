@@ -12,7 +12,7 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
-from models.model_utils import update_weights,hard_update,expand_conv2d
+from models.model_utils import copy_weights,hard_update,expand_conv2d
 from utils.utils import unpack_shared_dict,clean_folder
 
 from torch import optim
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
         if args.frozen:
             # Load pretrained hand recognizer
-            update_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
+            copy_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
         alphaPoker.summary
         alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
         lrscheduler = StepLR(alphaPoker_optimizer, step_size=1, gamma=0.1)
@@ -177,8 +177,8 @@ if __name__ == "__main__":
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         if args.frozen:
             # Load pretrained hand recognizer
-            update_weights(actor,network_params['actor_hand_recognizer_path'])
-            update_weights(critic,network_params['critic_hand_recognizer_path'])
+            copy_weights(actor,network_params['actor_hand_recognizer_path'])
+            copy_weights(critic,network_params['critic_hand_recognizer_path'])
             # Expand conv1d over conv2d
             # expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])

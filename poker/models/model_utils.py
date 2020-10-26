@@ -61,17 +61,16 @@ def expand_conv2d(network,path):
                 param.data.copy_(layer_weights['suit_conv.0.bias'].data)
                 param.requires_grad = False
 
-def update_weights(network,path):
+def copy_weights(network,path):
     if torch.cuda.is_available():
         layer_weights = torch.load(path)
     else:
         layer_weights = torch.load(path,map_location=torch.device('cpu'))
     for name, param in network.process_input.hand_board.named_parameters():
         if name in layer_weights:
-            print('update_weights',name)
+            print('copy_weights',name)
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
-    # return network
 
 def soft_update(local,target,tau=1e-1):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
