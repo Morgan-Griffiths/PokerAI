@@ -800,7 +800,6 @@ class HandRankClassificationFive(nn.Module):
         self.categorical_output = nn.Linear(4096,self.nA)
 
     def forward(self,x):
-        torch.set_printoptions(threshold=7500)
         # Input is (b,5,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
