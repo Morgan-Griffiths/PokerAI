@@ -201,6 +201,7 @@ class ProcessHandBoard(nn.Module):
         print('result',result.shape)
         print('best hand guess',torch.min(result,dim=-1)[0])
         print('baseline',baseline)
+        asdf
         return torch.min(result,dim=-1)[0].unsqueeze(-1)
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 
