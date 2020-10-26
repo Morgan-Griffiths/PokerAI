@@ -9,8 +9,6 @@ There are two requirement files, one for pip and one for conda.
 or if useing conda
 
 ```conda config --add channels conda-forge```
-```conda config --add channels pytorch```
-```conda config --set channel_priority strict```
 ```conda create --name <env> --file conda_requirements.txt```
 
 ## To build the Omaha Evaluator
