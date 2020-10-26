@@ -16,6 +16,10 @@ jobs:
           keys:
             - model_cache
       - run:
+          name: install aws
+          command: |
+            pip install awscli
+      - run:
           name: download models
           command: |
             aws s3 sync s3://pokerai/production checkpoints/production --no-sign-request
