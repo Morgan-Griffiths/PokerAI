@@ -62,13 +62,12 @@ def expand_conv2d(network,path):
                 param.requires_grad = False
 
 def update_weights(network,path):
-    print(path)
     if torch.cuda.is_available():
         layer_weights = torch.load(path)
     else:
         layer_weights = torch.load(path,map_location=torch.device('cpu'))
     for name, param in network.process_input.hand_board.named_parameters():
-        if name in layer_weights and name not in ['suit_conv.0.weight','rank_conv.0.weight']:
+        if name in layer_weights:
             print('update_weights',name)
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
