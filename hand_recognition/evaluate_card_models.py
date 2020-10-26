@@ -27,21 +27,18 @@ Full deck
 Omaha
 """
 
-def setup(rank, world_size):
-    # os.environ['MASTER_ADDR'] = 'localhost'
-    # os.environ['MASTER_PORT'] = '12355'
+def load_weights(net):
+    if torch.cuda.is_available():
+        net.load_state_dict(torch.load(examine_params['load_path']))
+    else: 
+        net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
 
-    # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
-
-def cleanup():
-    dist.destroy_process_group()
 
 def train_network(data_dict,agent_params,training_params):
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
-        net.load_state_dict(torch.load(training_params['save_path']))
+        load_weights(net)
     count_parameters(net)
     # if torch.cuda.device_count() > 1:
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -82,6 +79,9 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
             break
+        print('outputs',outputs.shape)
+        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)}')
+        print('targets',targets[:100])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -102,15 +102,15 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", validation sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 10:
-                break
+            # if i == 10:
+            break
+        print('\nguesses',torch.argmax(val_preds,dim=-1)[:100])
+        print('targets',targets[:100])
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
         net.train()
         print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
-        print('\nguesses',torch.argmax(outputs,dim=-1)[:100])
-        print('targets',targets[:100])
-        torch.save(net.state_dict(), training_params['save_path'])
+        # torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
     loss_data = [scores,val_scores]
@@ -167,6 +167,35 @@ def train_regression(dataset_params,agent_params,training_params):
     }
     train_network(data_dict,agent_params,training_params)
 
+def validate_network(dataset_params,params):
+    device = params['network_params']['gpu1']
+    examine_params = params['examine_params']
+    net = examine_params['network'](params['network_params'])
+    load_weights(net)
+    net.eval()
+
+    dataset = load_data(dataset_params['data_path'])
+    trainloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
+    # valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
+    for i, data in enumerate(trainloader, 1):
+        sys.stdout.write('\r')
+        # get the inputs; data is a list of [inputs, targets]
+        inputs, targets = data.values()
+        targets = targets.cuda() if torch.cuda.is_available() else targets
+        outputs = net(inputs)
+        bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
+        print(bool_mask.any())
+        if bool_mask.any():
+            print(outputs[bool_mask])
+            print(targets[bool_mask])
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
+        sys.stdout.flush()
+        sys.stdout.write(f", training sample {(i+1):.2f}")
+        sys.stdout.flush()
+        if i == 100:
+            break
+
+
 def check_network(dataset_params,params):
     messages = {
         dt.LearningCategories.REGRESSION:'Enter in a category [0,1,2] to pick the desired result [-1,0,1]',
@@ -195,10 +224,7 @@ def check_network(dataset_params,params):
     examine_params = params['examine_params']
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     net = examine_params['network'](params['network_params'])
-    if torch.cuda.is_available():
-        net.load_state_dict(torch.load(examine_params['load_path']))
-    else: 
-        net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
+    load_weights(net)
     net = net.to(device)
     net.eval()
 
@@ -247,8 +273,8 @@ if __name__ == "__main__":
                         default=dt.DataTypes.FIVECARD,type=str,
                         metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train on')
-    parser.add_argument('-M','--mode',
-                        metavar=f"[{dt.Modes.TRAIN}, {dt.Modes.EXAMINE}]",
+    parser.add_argument('-m','--mode',
+                        metavar=f"[{dt.Modes.TRAIN}, {dt.Modes.EXAMINE}, {dt.Modes.VALIDATE}]",
                         help='Pick whether you want to train or examine a network',
                         default='train',type=str)
     parser.add_argument('-r','--random',dest='randomize',
@@ -269,7 +295,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print('OPTIONS',args)
-    torch.set_printoptions(threshold=100)
 
     learning_category = dt.Globals.DatasetCategories[args.datatype]
     network = NetworkConfig.DataModels[args.datatype]
@@ -327,6 +352,8 @@ if __name__ == "__main__":
     tic = time.time()
     if args.mode == dt.Modes.EXAMINE:
         check_network(dataset_params,agent_params)
+    elif args.mode == dt.Modes.VALIDATE:
+        validate_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating {network_name} on {args.datatype}, {dataset_params["learning_category"]}')
         if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
