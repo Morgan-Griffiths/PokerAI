@@ -250,6 +250,7 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
+        print('Last check',dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         # generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories

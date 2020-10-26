@@ -182,12 +182,19 @@ if __name__ == "__main__":
             # Expand conv1d over conv2d
             # expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
-        actor.summary
-        critic.summary
+        # actor.summary
+        # critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(actor,target_actor)
         hard_update(critic,target_critic)
+        print(dict(actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])#['suit_conv.0.weight'].data[0])
+        # print(dict(critic.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
+        # print(dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
+        # print(dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
+        # for name, param in actor.process_input.hand_board.named_parameters():
+        #     print(name,param.data[:5])
+        #     break
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
         actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
