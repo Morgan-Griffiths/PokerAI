@@ -156,6 +156,6 @@ class Config(object):
             'transformer_out':128,
             'lstm_in':384,
             'lstm_out':128,
-            'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassificationFive'),
-            'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/HandRankClassificationFive')
+            'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights'),
+            'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights')
         }
