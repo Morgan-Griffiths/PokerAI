@@ -108,7 +108,7 @@ def return_handtype_data_shapes(dataset:dict):
 
 def generate_category_weights():
     Number_of_examples = {
-        0:10,
+        0:11,
         1:156,
         2:156,
         3:1277,
@@ -116,7 +116,7 @@ def generate_category_weights():
         5:858,
         6:858,
         7:2860,
-        8:1278
+        8:1277
     }
     straight_flush_weight = 0.0016
     quad_weight = 0.0240
