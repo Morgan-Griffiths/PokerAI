@@ -110,64 +110,11 @@ class ProcessHandBoard(nn.Module):
         # self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
-        self.initialize(critic)
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(4096,7463)
 
-    def initialize(self,critic):
-        if critic:
-            self.hidden_dims=(1024,512,512)
-            for i in range(len(self.hidden_dims)-1):
-                self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            # self.categorical_output = nn.Linear(512,1)
-            self.forward = self.forward_critic
-        else:
-            for i in range(len(self.hidden_dims)-1):
-                self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-            self.categorical_output = nn.Linear(4096,7463)
-            self.forward = self.forward_actor
-
-    def forward_critic(self,x):
-        """x: concatenated hand and board. alternating rank and suit."""
-        B,M,C = x.size()
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
-        hero_ranks = ranks[:,:,:self.hand_length]
-        villain_ranks = ranks[:,:,self.hand_length:self.hand_length*2]
-        board_ranks = ranks[:,:,self.hand_length*2:]
-        hero_suits = suits[:,:,:self.hand_length]
-        villain_suits = suits[:,:,self.hand_length:self.hand_length*2]
-        board_suits = suits[:,:,self.hand_length*2:]
-        hero_hand_ranks = torch.cat((hero_ranks,board_ranks),dim=-1)
-        hero_hand_suits = torch.cat((hero_suits,board_suits),dim=-1)
-        villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
-        villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
-        hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks].to(self.device)
-        hero_hot_suits = self.one_hot_suits[hero_hand_suits].to(self.device)
-        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks].to(self.device)
-        villain_hot_suits = self.one_hot_suits[villain_hand_suits].to(self.device)
-        activations = []
-        for i in range(M):
-            if torch.cuda.is_available():
-                hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float().cuda())
-                hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float().cuda())
-                villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float().cuda())
-                villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float().cuda())
-            else:
-                hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
-                hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
-                villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
-                villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
-            x1 = torch.cat((hero_r,hero_s),dim=-1).view(B,-1)
-            x2 = torch.cat((villain_r,villain_s),dim=-1).view(B,-1)
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                x1 = self.activation_fc(hidden_layer(x1))
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                x2 = self.activation_fc(hidden_layer(x2))
-            out = x1 - x2
-            activations.append(out)
-            # activations.append(torch.tanh(self.categorical_output(out.view(B,-1))))
-        return torch.stack(activations).view(B,M,-1)
-
-    def forward_actor(self,x):
+    def forward(self,x):
         """
         x: concatenated hand and board. alternating rank and suit.
         shape: B,M,18
