@@ -70,8 +70,8 @@ def save_valset(valX,valY,parent_dir,y_dtype='uint8'):
     val_dir = os.path.join(parent_dir,'val')
     if not os.path.isdir(val_dir):
         os.makedirs(val_dir)
-    np.save(f"{os.path.join(parent_dir,'val')}/valY",np.array(valY).astype('uint8'))
-    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype(y_dtype))
+    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'val')}/valY",np.array(valY).astype(y_dtype))
 
 def save_all(trainX,trainY,valX,valY,parent_dir,y_dtype='uint8'):
     """

@@ -73,8 +73,8 @@ class Globals(object):
         DataTypes.BLOCKERS :{0:'No Blocker',1:'Blocker'},
         DataTypes.FIVECARD : HAND_TYPE_DICT,
         DataTypes.NINECARD : HAND_TYPE_DICT,
-        DataTypes.HANDRANKSNINE : {i:i for i in range(7463)},
-        DataTypes.HANDRANKSFIVE : {i:i for i in range(7463)},
+        DataTypes.HANDRANKSNINE : {i:i for i in range(1,7463)},
+        DataTypes.HANDRANKSFIVE : {i:i for i in range(1,7463)},
         DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'}
@@ -83,8 +83,8 @@ class Globals(object):
         DataTypes.THIRTEENCARD:set(range(-1,2)),
         DataTypes.TENCARD:set(range(-1,2)),
         DataTypes.PARTIAL:set(range(-1,2)),
-        DataTypes.HANDRANKSFIVE:set(range(7463)),
-        DataTypes.HANDRANKSNINE:set(range(7463)),
+        DataTypes.HANDRANKSFIVE:set(range(1,7463)),
+        DataTypes.HANDRANKSNINE:set(range(1,7463)),
         DataTypes.NINECARD:set(range(9)),
         DataTypes.FIVECARD:set(range(9)),
         DataTypes.BLOCKERS:set(range(2)),
@@ -99,15 +99,15 @@ class Globals(object):
     # 166-10 Quads
     # 10-0 Str8 flush
     HAND_STRENGTH_SAMPLING = {
-        0:lambda : np.random.choice(np.arange(10)),
-        1:lambda : np.random.choice(np.arange(10,166)),
-        2:lambda : np.random.choice(np.arange(166,322)),
-        3:lambda : np.random.choice(np.arange(322,1599)),
-        4:lambda : np.random.choice(np.arange(1599,1609)),
-        5:lambda : np.random.choice(np.arange(1609,2467)),
-        6:lambda : np.random.choice(np.arange(2467,3325)),
-        7:lambda : np.random.choice(np.arange(3325,6185)),
-        8:lambda : np.random.choice(np.arange(6185,7463)),
+        0:lambda : np.random.choice(np.arange(1,11)),
+        1:lambda : np.random.choice(np.arange(11,167)),
+        2:lambda : np.random.choice(np.arange(167,323)),
+        3:lambda : np.random.choice(np.arange(323,1600)),
+        4:lambda : np.random.choice(np.arange(1600,1610)),
+        5:lambda : np.random.choice(np.arange(1610,2468)),
+        6:lambda : np.random.choice(np.arange(2468,3326)),
+        7:lambda : np.random.choice(np.arange(3326,6186)),
+        8:lambda : np.random.choice(np.arange(6186,7463)),
     }
     HAND_CATEGORY_EXAMPLES = {
                 0:10,
