@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   python: circleci/python@0.2.1
-
+  aws-cli: circleci/aws-cli@1.3.0
 jobs:
   build-and-test:
     docker:
@@ -15,10 +15,6 @@ jobs:
       - restore_cache:
           keys:
             - model_cache
-      - run:
-          name: install aws-cli
-          command: |
-            pip install aws-cli
       - run:
           name: download models
           command: |
