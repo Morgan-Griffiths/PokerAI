@@ -81,6 +81,7 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
+            break
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -194,7 +195,10 @@ def check_network(dataset_params,params):
     examine_params = params['examine_params']
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     net = examine_params['network'](params['network_params'])
-    net.load_state_dict(torch.load(examine_params['load_path']))
+    if torch.cuda.is_available():
+        net.load_state_dict(torch.load(examine_params['load_path']))
+    else: 
+        net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
     net = net.to(device)
     net.eval()
 

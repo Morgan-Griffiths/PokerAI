@@ -2,8 +2,8 @@ import numpy as np
 
 class Modes(object):
     TRAIN = 'train'
-    BUILD = 'build'
     EXAMINE = 'examine'
+    VALIDATE = 'validate'
 
 class DataTypes(object):
     THIRTEENCARD = 'thirteencard'
