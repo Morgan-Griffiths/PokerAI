@@ -193,8 +193,6 @@ def validate_network(dataset_params,params):
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
-        if i == 100:
-            break
 
 
 def check_network(dataset_params,params):
