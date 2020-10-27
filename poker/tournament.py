@@ -111,8 +111,8 @@ if __name__ == "__main__":
     training_params['epochs'] = args.epochs
     training_params['save_dir']:os.path.join(os.getcwd(),'checkpoints/training_run')
 
-    network_params                                = config.network_params
-    network_params['device']                      = device
+    network_params            = config.network_params
+    network_params['device']  = device
 
     nS = env.state_space
     nO = env.observation_space

@@ -114,7 +114,7 @@ class ProcessHandBoard(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.hand_out = nn.Linear(15360,256) #params['lstm_in'] // 3)
+        self.hand_out = nn.Linear(15360,255) #params['lstm_in'] // 3)
 
     def forward(self,x):
         """
@@ -145,12 +145,13 @@ class ProcessHandBoard(nn.Module):
             activations.append(torch.stack(combinations))
         # baseline = hardcode_handstrength(x)
         results = torch.stack(activations)
+        best_hands = torch.min(torch.argmax(torch.softmax(results,dim=-1),dim=-1),dim=-1)[0].unsqueeze(-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
             results = self.activation_fc(output_layer(results))
         # (B,M,60,512)
-        # return torch.min(result,dim=-1)[0].unsqueeze(-1)
-        return self.hand_out(results.view(B,M,-1))
+        o = self.hand_out(results.view(B,M,-1))
+        return torch.cat((o,best_hands.float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
