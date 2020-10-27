@@ -182,8 +182,8 @@ if __name__ == "__main__":
             # Expand conv1d over conv2d
             # expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
-        # actor.summary
-        # critic.summary
+        actor.summary
+        critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(actor,target_actor)

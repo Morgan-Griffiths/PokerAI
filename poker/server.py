@@ -4,6 +4,7 @@ import json
 import logging
 import pymongo
 import numpy as np
+from torch import set_grad_enabled
 from torch import load
 from torch import device as D
 from pymongo import MongoClient
@@ -65,7 +66,7 @@ class API(object):
     def load_model(self,path):
         if os.path.isfile(path):
             self.model.load_state_dict(load(path,map_location=D('cpu')))
-            self.model.eval()
+            set_grad_enabled(False)
         else:
             raise ValueError('File does not exist')
 
