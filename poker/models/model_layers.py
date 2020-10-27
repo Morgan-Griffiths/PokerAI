@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
 from models.model_utils import strip_padding,unspool,hardcode_handstrength
+from hashlib import md5
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -84,6 +85,18 @@ class NetworkFunctions(object):
 #              Processing Layers               #
 ################################################
 
+def compare_weights(net):
+    path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    print(net)
+    for name, param in net.named_parameters():
+        if name in layer_weights:
+            # print(param.data == layer_weights[name].data)
+            print(f'Layer {name},Equal {np.array_equal(param.data.numpy(),layer_weights[name].data.numpy())}')
+
 class ProcessHandBoard(nn.Module):
     def __init__(self,params,hand_length,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
@@ -108,7 +121,6 @@ class ProcessHandBoard(nn.Module):
         self.hand_out = nn.Linear(7463,128) #params['lstm_in'] // 3)
         # self.seq_out = nn.Linear(122880,256)
         self.hidden_layers = nn.ModuleList()
-        self.bn_layers = nn.ModuleList()
         for i in range(len(self.hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
         self.categorical_output = nn.Linear(4096,7463)
@@ -118,7 +130,7 @@ class ProcessHandBoard(nn.Module):
         x: concatenated hand and board. alternating rank and suit.
         shape: B,M,18
         """
-        baseline = hardcode_handstrength(x)
+        # compare_weights(self)
         B,M,C = x.size()
         print('x',x)
         ranks,suits = unspool(x)
@@ -132,6 +144,7 @@ class ProcessHandBoard(nn.Module):
         for i in range(B):
             combinations = []
             for j in range(M):
+                # compare_weights(self)
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
@@ -143,11 +156,12 @@ class ProcessHandBoard(nn.Module):
                 combinations.append(torch.argmax(torch.softmax(out,dim=-1),dim=-1))
                 # print(f'Maximum value {torch.max(torch.softmax(out,dim=-1))}, Location {torch.argmax(torch.softmax(out,dim=-1))}')
             activations.append(torch.stack(combinations))
+        
+        baseline = hardcode_handstrength(x)
+        # compare_weights(self)
         result = torch.stack(activations)
-        print('result',result.shape)
         print('best hand guess',torch.min(result,dim=-1)[0])
         print('baseline',baseline)
-        asdf
         return torch.min(result,dim=-1)[0].unsqueeze(-1)
         # return self.hand_out(torch.stack(activations).view(B,M,-1))
 

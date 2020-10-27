@@ -29,6 +29,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
     actor.eval()
     critic.eval()
     trajectories = defaultdict(lambda:[])
+    print('Last check',dict(actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
     for e in range(training_params['generate_epochs']):
         trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
         state,obs,done,action_mask,betsize_mask = env.reset()
@@ -46,6 +47,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
             trajectory[cur_player]['obs'].append(copy.copy(obs))
             trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
             trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
+        print('Last check',dict(actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
         while not done:
             actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
             if agent_loc[cur_player]:

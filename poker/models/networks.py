@@ -298,6 +298,17 @@ class OmahaBatchObsQCritic(Network):
             }
         return outputs
 
+def copy_weights(net,path):
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    for name, param in net.process_input.hand_board.named_parameters():
+        if name in layer_weights:
+            print('update_weights',name)
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+
 class OmahaActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
@@ -333,6 +344,7 @@ class OmahaActor(Network):
         """
         state: B,M,39
         """
+        # copy_weights(self,'/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights')
         x = torch.tensor(state,dtype=torch.float32).to(self.device)
         action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
         betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)

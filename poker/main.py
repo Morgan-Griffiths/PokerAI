@@ -13,6 +13,7 @@ from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import copy_weights,hard_update,expand_conv2d
+from models.model_layers import ProcessHandBoard,PreProcessLayer
 from utils.utils import unpack_shared_dict,clean_folder
 
 from torch import optim
@@ -182,19 +183,12 @@ if __name__ == "__main__":
             # Expand conv1d over conv2d
             # expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
-        # actor.summary
-        # critic.summary
+        actor.summary
+        critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(actor,target_actor)
         hard_update(critic,target_critic)
-        print(dict(actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])#['suit_conv.0.weight'].data[0])
-        # print(dict(critic.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
-        # print(dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
-        # print(dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
-        # for name, param in actor.process_input.hand_board.named_parameters():
-        #     print(name,param.data[:5])
-        #     break
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
         actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
@@ -204,13 +198,24 @@ if __name__ == "__main__":
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
         # training loop
-        actor.share_memory()
-        critic.share_memory()
+        # actor.share_memory()
+        # critic.share_memory()
         processes = []
         # for debugging
-        # generate_trajectories(env,actor,critic,training_params,id=0)
+        state,obs,done,action_mask,betsize_mask = env.reset()
+        # check handboard
+        print(state.shape)
+        # net = ProcessHandBoard(network_params,hand_length=4)
+        # handboard_input = torch.tensor(state[:,:,network_params['state_mapping']['hand_board']])
+        # print('handboard_input',handboard_input)
+        # net_out = net(handboard_input)
+        # check preprocess
+        # check actor
+        print('actor')
+        # actor(state,action_mask,betsize_mask)
+        generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
+        # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
         # for e in range(training_params['lr_steps']):
         #     for id in range(num_processes): # No. of processes
         #         p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,id))
@@ -222,8 +227,8 @@ if __name__ == "__main__":
         #     learning_params['critic_lrscheduler'].step()
         #     training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
-        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+        # torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        # torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
     else:
         raise ValueError(f'Network type {args.network_type} not supported')
