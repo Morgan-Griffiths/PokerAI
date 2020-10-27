@@ -74,7 +74,7 @@ def expand_conv2d(network,path):
                 param.requires_grad = False
 
 def copy_weights(network,path):
-    path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
+    # path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
     if torch.cuda.is_available():
         layer_weights = torch.load(path)
     else:
