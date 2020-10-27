@@ -86,8 +86,9 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(16,32,32),activation_fc=F.relu):
+    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(7463,512,256),activation_fc=F.relu):
         super().__init__()
+        self.output_dims = output_dims
         self.activation_fc = activation_fc
         self.hidden_dims = hidden_dims
         self.hand_length = hand_length
@@ -106,12 +107,14 @@ class ProcessHandBoard(nn.Module):
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
-        self.hand_reduction = nn.Linear(7463,128)
-        self.hand_out = nn.Linear(7680,128) #params['lstm_in'] // 3)
         self.hidden_layers = nn.ModuleList()
         for i in range(len(self.hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
         self.categorical_output = nn.Linear(4096,7463)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.hand_out = nn.Linear(15360,256) #params['lstm_in'] // 3)
 
     def forward(self,x):
         """
@@ -143,10 +146,11 @@ class ProcessHandBoard(nn.Module):
         # baseline = hardcode_handstrength(x)
         results = torch.stack(activations)
         # (B,M,60,7463)
-        reduced = self.activation_fc(self.hand_reduction(results))
-        # (B,M,60,128)
+        for output_layer in self.output_layers:
+            results = self.activation_fc(output_layer(results))
+        # (B,M,60,512)
         # return torch.min(result,dim=-1)[0].unsqueeze(-1)
-        return self.hand_out(reduced.view(B,M,-1))
+        return self.hand_out(results.view(B,M,-1))
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
