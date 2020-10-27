@@ -106,8 +106,8 @@ class ProcessHandBoard(nn.Module):
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
         )
-        self.hand_out = nn.Linear(7463,128) #params['lstm_in'] // 3)
-        # self.seq_out = nn.Linear(122880,256)
+        self.hand_reduction = nn.Linear(7463,128)
+        self.hand_out = nn.Linear(7680,128) #params['lstm_in'] // 3)
         self.hidden_layers = nn.ModuleList()
         for i in range(len(self.hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
@@ -137,13 +137,16 @@ class ProcessHandBoard(nn.Module):
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
                 out = self.categorical_output(out.view(60,-1))
-                # out = torch.argmax(torch.softmax(out,dim=-1))
-                combinations.append(torch.argmax(torch.softmax(out,dim=-1),dim=-1))
+                # combinations.append(torch.argmax(torch.softmax(out,dim=-1),dim=-1))
+                combinations.append(out)
             activations.append(torch.stack(combinations))
-        baseline = hardcode_handstrength(x)
-        result = torch.stack(activations)
-        return torch.min(result,dim=-1)[0].unsqueeze(-1)
-        # return self.hand_out(torch.stack(activations).view(B,M,-1))
+        # baseline = hardcode_handstrength(x)
+        results = torch.stack(activations)
+        # (B,M,60,7463)
+        reduced = self.activation_fc(self.hand_reduction(results))
+        # (B,M,60,128)
+        # return torch.min(result,dim=-1)[0].unsqueeze(-1)
+        return self.hand_out(reduced.view(B,M,-1))
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
@@ -275,7 +278,7 @@ class PreProcessLayer(nn.Module):
         # self.continuous = ProcessContinuous(params)
         # self.ordinal = ProcessOrdinal(params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
-        self.betsize_fc = nn.Linear(1,params['embedding_size']-1)
+        self.betsize_fc = nn.Linear(1,params['embedding_size'])
 
     def forward(self,x):
         B,M,C = x.size()
@@ -299,7 +302,8 @@ class PreProcessLayer(nn.Module):
         # h.size(B,M,128)
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h.float(),emb_a,embeds),dim=-1)
+        # print(h.size(),emb_a.size(),embeds.size())
+        combined = torch.cat((h,emb_a,embeds),dim=-1)
         return combined
 
 ################################################
