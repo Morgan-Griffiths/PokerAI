@@ -31,6 +31,18 @@ def swap_suits(cards):
     cards[:,1] = cards[:,1] - 4
     return cards
 
+def compare_weights(net):
+    path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    print(net)
+    for name, param in net.named_parameters():
+        if name in layer_weights:
+            # print(param.data == layer_weights[name].data)
+            print(f'Layer {name},Equal {np.array_equal(param.data.numpy(),layer_weights[name].data.numpy())}')
+
 def expand_conv2d(network,path):
     if torch.cuda.is_available():
         layer_weights = torch.load(path)
@@ -67,13 +79,11 @@ def copy_weights(network,path):
         layer_weights = torch.load(path)
     else:
         layer_weights = torch.load(path,map_location=torch.device('cpu'))
-    print('suit_conv.0.weight',layer_weights['suit_conv.0.weight'].data[0])
     for name, param in network.process_input.hand_board.named_parameters():
         if name in layer_weights:
-            # print('copying weights',name)
+            print('copying weights',name)
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
-    print(dict(network.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
 
 def soft_update(local,target,tau=1e-1):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
