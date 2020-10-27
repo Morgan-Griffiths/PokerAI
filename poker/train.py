@@ -47,7 +47,6 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
                 trajectory[cur_player]['obs'].append(copy.copy(obs))
                 trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
                 trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
-            print('Last check',dict(actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
             while not done:
                 actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
                 if agent_loc[cur_player]:
@@ -253,7 +252,6 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        print('Last check',dict(target_actor.process_input.hand_board.state_dict())['suit_conv.0.weight'][0])
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         # generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
