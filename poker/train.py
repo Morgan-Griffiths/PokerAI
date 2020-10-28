@@ -229,6 +229,8 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        learning_params['actor_lrscheduler'].step()
+        learning_params['critic_lrscheduler'].step()
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
