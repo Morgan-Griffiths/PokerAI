@@ -37,6 +37,27 @@ class NetworkFunctions(object):
         else: # Bet or raise
             actions[betsize_category + 3] = 1
         return torch.argmax(actions, dim=0).unsqueeze(0)
+    
+    def batch_unwrap_action(self,actions:torch.Tensor,previous_actions:torch.Tensor):
+        """
+        Unwraps flat action into action_category and betsize_category
+        Action is from network outputs - 0-5
+        previous_action is from env. 1-6
+        """
+        int_actions = torch.zeros_like(actions)
+        int_betsizes = torch.zeros_like(actions)
+        prev_ge_2 = torch.as_tensor((previous_actions > Action.FOLD)&(previous_actions < Action.UNOPENED))
+        prev_le_3 = torch.as_tensor((previous_actions < Action.CALL)|(previous_actions == Action.UNOPENED))
+        actions_le_2 = actions < 2
+        actions_ge_2 = actions > 2
+        actions_le_3 = actions < 3
+        int_actions[actions_le_2] = actions[actions_le_2]
+        int_betsizes[actions_le_2] = 0
+        int_betsizes[actions_ge_2] = actions[actions_ge_2] - 3
+        int_actions[(actions_ge_2)&(prev_ge_2)] = 4
+        int_actions[(actions_ge_2)&(prev_le_3)] = 3
+        int_actions[actions_le_3] = actions[actions_le_3]
+        return int_actions,int_betsizes
 
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """
@@ -53,7 +74,7 @@ class NetworkFunctions(object):
             actions[3] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1
-        else: # facing bet or raise
+        else: # facing bet or raise or call (preflop)
             actions[4] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1
@@ -128,7 +149,7 @@ class ProcessHandBoard(nn.Module):
         hot_suits = self.one_hot_suits[suits].to(self.device).float()
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
-        torch.set_printoptions(threshold=7500)
+        # torch.set_printoptions(threshold=7500)
         activations = []
         for i in range(B):
             combinations = []
@@ -298,9 +319,10 @@ class PreProcessLayer(nn.Module):
         emb_a = self.action_emb(last_a)
         last_b = x[:,:,self.state_mapping['last_betsize']]
         embedded_bets = []
-        for i in range(M):
-            embedded_bets.append(self.betsize_fc(last_b[:,i]))
-        embeds = torch.stack(embedded_bets)
+        for i in range(B):
+            for j in range(M):
+                embedded_bets.append(self.betsize_fc(last_b[i,j].unsqueeze(-1)))
+        embeds = torch.stack(embedded_bets).view(B,M,-1)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
         # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
