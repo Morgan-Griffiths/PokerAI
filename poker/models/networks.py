@@ -326,7 +326,7 @@ class OmahaActor(Network):
         self.state_mapping = params['state_mapping']
         self.action_emb = Embedder(Action.UNOPENED,64)
         self.betsize_emb = Embedder(self.nB,64)
-        self.noise = GaussianNoise(self.device)
+        self.noise = GaussianNoise()#self.device
         self.emb = 1248
         n_heads = 8
         depth = 2
