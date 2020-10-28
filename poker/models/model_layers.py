@@ -368,10 +368,11 @@ class GaussianNoise(nn.Module):
 
     def forward(self, x):
         if self.training and self.sigma != 0:
+            x = x.cpu()
             scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
             sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
             x = x + sampled_noise
-        return x 
+        return x.cuda()
 
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):
