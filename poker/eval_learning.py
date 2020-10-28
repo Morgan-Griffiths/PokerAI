@@ -58,7 +58,7 @@ def eval_batch_actor(actor,target_actor,target_critic,params):
         sys.stdout.flush()
     del data
 
-def eval_batch_actor_critic(critic,target_critic,params):
+def eval_batch_actor_critic(actor,critic,target_actor,target_critic,params):
     device = params['device']
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
@@ -72,7 +72,7 @@ def eval_batch_actor_critic(critic,target_critic,params):
         sys.stdout.write('\r')
         losses = []
         for j,inputs in enumerate(trainloader,1):
-            critic_loss = update_actor_critic_batch(inputs,actor,critic,target_critic,params)
+            critic_loss = update_actor_critic_batch(inputs,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
         sys.stdout.flush()
@@ -283,4 +283,4 @@ if __name__ == "__main__":
             eval_batch_critic(local_critic,target_critic,learning_params)
         else:
             # eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
-            eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
+            eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
