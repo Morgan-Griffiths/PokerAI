@@ -32,6 +32,47 @@ def update_critic_batch(data,local_critic,target_critic,params):
     print('reward',reward)
     return critic_loss.item()
 
+def update_actor_batch(data,local_critic,local_actor,target_critic,target_actor,params):
+    # get the inputs; data is a list of [inputs, targets]
+    device = params['device']
+    trajectory, target = data.values()
+    state = trajectory['state'].to(device)
+    obs = trajectory['obs'].to(device)
+    action = trajectory['action'].to(device)
+    reward = target['reward'].to(device)
+    betsize_mask = trajectory['betsize_mask'].to(device)
+    action_mask = trajectory['action_mask'].to(device)
+    # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+    # Actor update #
+    target_values = target_critic(obs)['value']
+    actor_out = local_actor(state,action_mask,betsize_mask)
+    actor_value_mask = return_value_mask(actor_out['action'])
+    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    params['actor_optimizer'].zero_grad()
+    policy_loss.backward()
+    # torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
+    params['actor_optimizer'].step()
+    soft_update(local_actor,target_actor)
+    post_actor_out = actor(state,action_mask,betsize_mask)
+    post_target_out = target_actor(state,action_mask,betsize_mask)
+    # Assert probabilities aren't changing more than x
+    actor_diff = actor_out['action_probs'].detach().numpy() - post_actor_out['action_probs'].detach().numpy()
+    target_diff = target_out['action_probs'].detach().numpy() - post_target_out['action_probs'].detach().numpy()
+    actor_diff_max = np.max(np.abs(actor_diff))
+    target_diff_max = np.max(np.abs(target_diff))
+    table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
+    table.add_row([target_values.detach(),action,reward,policy_loss.item()])
+    print(table)
+    table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
+    table.add_row([actor_out['action_probs'].detach(),post_actor_out['action_probs'].detach(),actor_diff_max])
+    print(table)
+    table = PrettyTable(["Target Actor Probs","Updated Target Probs","Max Target diff"])
+    table.add_row([target_out['action_probs'].detach(),post_target_out['action_probs'].detach(),target_diff_max])
+    print(table)
+    return policy_loss.item()
+
 def update_actor_critic_batch(data,local_critic,local_actor,target_critic,target_actor,params):
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']

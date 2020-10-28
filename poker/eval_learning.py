@@ -14,7 +14,7 @@ from poker_env.env import Poker
 from utils.data_loaders import return_trajectoryloader
 from train import generate_trajectories,dual_learning_update,combined_learning_update
 from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
-from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch
+from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask
 
 def eval_batch_critic(critic,target_critic,params):
@@ -28,18 +28,37 @@ def eval_batch_critic(critic,target_critic,params):
     data = db['game_data'].find(query,projection)
     trainloader = return_trajectoryloader(data)
     for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
         losses = []
         for j,data in enumerate(trainloader,1):
-            sys.stdout.write('\r')
             loss = update_critic_batch(data,critic,target_critic,params)
             losses.append(loss)
-            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
-            sys.stdout.flush()
-            sys.stdout.write(f", round {(j):.2f}")
-            sys.stdout.flush()
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+        sys.stdout.flush()
+        sys.stdout.write(f", round {(i):.2f}")
+        sys.stdout.flush()
         print(f'Training Round {i}, critic loss {sum(losses)}')
     del data
     print(losses)
+
+
+def eval_batch_actor(actor,target_actor,target_critic,params):
+    query = {'training_round':0}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = list(db['game_data'].find(query,projection))
+    print(f'Number of data points {len(data)}')
+    for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
+        for j,poker_round in enumerate(data,1):
+            update_actor_batch(poker_round,actor,target_actor,target_critic,params)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+        sys.stdout.flush()
+        sys.stdout.write(f", round {(j):.2f}")
+        sys.stdout.flush()
+        print(f'Training Round {j}')
+    del data
 
 def eval_critic(critic,params):
     query = {'training_round':0}
@@ -235,7 +254,8 @@ if __name__ == "__main__":
 
         # Eval learning models
         if args.eval == 'actor':
-            eval_actor(local_actor,target_actor,target_critic,learning_params)
+            # eval_actor(local_actor,target_actor,target_critic,learning_params)
+            eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
         elif args.eval == 'critic':
             # eval_critic(local_critic,learning_params)
             eval_batch_critic(local_critic,target_critic,learning_params)
