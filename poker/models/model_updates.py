@@ -178,8 +178,8 @@ def update_actor(poker_round,actor,target_actor,target_critic,params):
     post_actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
     post_target_out = target_actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
     # Assert probabilities aren't changing more than x
-    actor_diff = actor_out['action_probs'].detach().numpy() - post_actor_out['action_probs'].detach().numpy()
-    target_diff = target_out['action_probs'].detach().numpy() - post_target_out['action_probs'].detach().numpy()
+    actor_diff = actor_out['action_probs'].detach().cpu().numpy() - post_actor_out['action_probs'].detach().cpu().numpy()
+    target_diff = target_out['action_probs'].detach().cpu().numpy() - post_target_out['action_probs'].detach().cpu().numpy()
     actor_diff_max = np.max(np.abs(actor_diff))
     target_diff_max = np.max(np.abs(target_diff))
     table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
