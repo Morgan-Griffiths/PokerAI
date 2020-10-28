@@ -29,7 +29,7 @@ def eval_batch_critic(critic,target_critic,params):
     trainloader = return_trajectoryloader(data)
     for i in range(params['learning_rounds']):
         losses = []
-        for i,data in enumerate(trainloader,1):
+        for j,data in enumerate(trainloader,1):
             sys.stdout.write('\r')
             loss = update_critic_batch(data,critic,target_critic,params)
             losses.append(loss)
