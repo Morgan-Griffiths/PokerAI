@@ -13,7 +13,7 @@ import time
 import logging
 
 from models.networks import BetAgent
-from models.model_updates import update_actor_critic,update_combined,update_critic_batch
+from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
 from models.model_utils import scale_rewards,soft_update
 from tournament import tournament
@@ -208,10 +208,10 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
         policy_losses = []
         losses = []
         for i,data in enumerate(trainloader):
-            critic_loss = update_critic_batch(data,critic,target_critic,params)
+            critic_loss,policy_loss = update_actor_critic_batch(data,critic,actor,target_critic,target_actor,params)
             losses.append(critic_loss)
-            # policy_losses.append(policy_loss)
-        # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
+            policy_losses.append(policy_loss)
+        print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     mongo.close()
     return actor,critic,params
 
@@ -219,8 +219,8 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
-        # generate_trajectories(env,target_actor,target_critic,training_params,id)
+        # generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+        generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
@@ -233,7 +233,7 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
 
-def train(env,model,training_params,learning_params,id):
+def train_combined(env,model,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_trajectories(env,model,training_params,id)
@@ -252,8 +252,8 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        # generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
-        generate_trajectories(env,target_actor,target_critic,training_params,id)
+        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+        # generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
