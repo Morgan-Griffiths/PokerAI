@@ -100,7 +100,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     critic_loss.backward()
     # torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
     params['critic_optimizer'].step()
-    soft_update(local_critic,target_critic,tau=1e-1)
+    soft_update(local_critic,target_critic,gpu2,tau=1e-1)
     # Actor update #
     post_local_values = local_critic(obs)['value']
     post_target_values = target_critic(obs,to(gpu2))['value']
@@ -114,7 +114,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     policy_loss.backward()
     # torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
     params['actor_optimizer'].step()
-    soft_update(local_actor,target_actor)
+    soft_update(local_actor,target_actor,gpu2)
     # Check action probs and critic vals
     post_actor_out = local_actor(state,action_mask,betsize_mask)
     post_target_out = target_actor(state.to(gpu2),action_mask.to(gpu2),betsize_mask.to(gpu2))

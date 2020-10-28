@@ -89,9 +89,9 @@ def copy_weights(network,path):
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
 
-def soft_update(local,target,tau=1e-1):
+def soft_update(local,target,device,tau=1e-1):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
-        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
+        target_param.data.copy_(tau*local_param.data.to(device) + (1-tau)*target_param.data)
 
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
@@ -195,9 +195,9 @@ def hidden_init(layer):
     lim = 1. / np.sqrt(fan_in)
     return (-lim, lim)
 
-def hard_update(source,target,device):
+def hard_update(source,target):
     for target_param,param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data.to(device))
+        target_param.data.copy_(param.data))
 
 def norm_frequencies(action_soft,mask):
     # with torch.no_grad():
