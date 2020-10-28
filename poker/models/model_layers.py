@@ -145,12 +145,12 @@ class ProcessHandBoard(nn.Module):
         B,M,C = x.size()
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
-        if torch.cuda.is_available():
-            hot_ranks = self.one_hot_ranks[ranks].float().cuda()#.to(self.device)
-            hot_suits = self.one_hot_suits[suits].float().cuda()#.to(self.device)
-        else:
-            hot_ranks = self.one_hot_ranks[ranks].float()#.to(self.device)
-            hot_suits = self.one_hot_suits[suits].float()#.to(self.device)
+        # if torch.cuda.is_available():
+        #     hot_ranks = self.one_hot_ranks[ranks].float().cuda()#.to(self.device)
+        #     hot_suits = self.one_hot_suits[suits].float().cuda()#.to(self.device)
+        # else:
+        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
+        hot_suits = self.one_hot_suits[suits].float().to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         # torch.set_printoptions(threshold=7500)
@@ -319,12 +319,12 @@ class PreProcessLayer(nn.Module):
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
         # h.size(B,M,240)
-        if torch.cuda.is_available():
-            last_a = x[:,:,self.state_mapping['last_action']].long().cuda()
-            last_b = x[:,:,self.state_mapping['last_betsize']].cuda()
-        else:
-            last_a = x[:,:,self.state_mapping['last_action']].long()
-            last_b = x[:,:,self.state_mapping['last_betsize']]
+        # if torch.cuda.is_available():
+        #     last_a = x[:,:,self.state_mapping['last_action']].long().cuda()
+        #     last_b = x[:,:,self.state_mapping['last_betsize']].cuda()
+        # else:
+        last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
+        last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
 
         emb_a = self.action_emb(last_a)
         embedded_bets = []
@@ -364,15 +364,15 @@ class GaussianNoise(nn.Module):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0).float()#.to(device)
+        self.noise = torch.tensor(0).float().to(device)
 
     def forward(self, x):
         if self.training and self.sigma != 0:
-            x = x.cpu()
+            #x = x.cpu()
             scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
             sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
             x = x + sampled_noise
-        return x.cuda()
+        return x#.cuda()
 
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):

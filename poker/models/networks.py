@@ -326,7 +326,7 @@ class OmahaActor(Network):
         self.state_mapping = params['state_mapping']
         self.action_emb = Embedder(Action.UNOPENED,64)
         self.betsize_emb = Embedder(self.nB,64)
-        self.noise = GaussianNoise()#self.device
+        self.noise = GaussianNoise(self.device)
         self.emb = 1248
         n_heads = 8
         depth = 2
@@ -346,9 +346,9 @@ class OmahaActor(Network):
         """
         x = state
         if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
-            action_mask = torch.tensor(action_mask,dtype=torch.float)#.to(self.device)
-            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)#.to(self.device)
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
@@ -356,10 +356,10 @@ class OmahaActor(Network):
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
         else:
-            if torch.cuda.is_available():
-                padding = torch.zeros(B,n_padding,out.size(-1)).cuda()#.to(self.device)
-            else:
-                padding = torch.zeros(B,n_padding,out.size(-1))#.to(self.device)
+            # if torch.cuda.is_available():
+            #     padding = torch.zeros(B,n_padding,out.size(-1)).cuda()#.to(self.device)
+            # else:
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((padding,out),dim=1)
         self.lstm.flatten_parameters()
         lstm_out,hidden_states = self.lstm(h)
@@ -371,12 +371,12 @@ class OmahaActor(Network):
         # skip connection
         # category_logits += h
         action_soft = F.softmax(category_logits,dim=-1)
-        if torch.cuda.is_available():
-            action_probs = norm_frequencies(action_soft,mask.cuda())
-            previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).cuda()#.to(self.device)
-        else:
-            action_probs = norm_frequencies(action_soft,mask)
-            previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']])#.to(self.device)
+        # if torch.cuda.is_available():
+        #     action_probs = norm_frequencies(action_soft,mask.cuda())
+        #     previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).cuda()#.to(self.device)
+        # else:
+        action_probs = norm_frequencies(action_soft,mask)
+        previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
         m = Categorical(action_probs)
         action = m.sample()
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
