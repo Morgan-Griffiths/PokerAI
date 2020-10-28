@@ -197,7 +197,7 @@ def hidden_init(layer):
 
 def hard_update(source,target):
     for target_param,param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data))
+        target_param.data.copy_(param.data)
 
 def norm_frequencies(action_soft,mask):
     # with torch.no_grad():
