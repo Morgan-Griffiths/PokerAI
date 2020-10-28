@@ -178,17 +178,22 @@ if __name__ == "__main__":
         Evaluates learning methods on static data.
         """)
 
-    parser.add_argument('--network','-n',
+    parser.add_argument('--type','-t',
                         dest='network_type',
                         default='dual',
                         metavar="['combined','dual']",
                         type=str,
                         help='eval actor/critic or combined networks')
-    parser.add_argument('--eval','-e',
-                        dest='eval',
+    parser.add_argument('--network','-n',
+                        dest='network',
                         default='actor_critic',
                         metavar="['actor_critic','actor','critic]",
                         type=str)
+    parser.add_argument('--epochs','-e',
+                        dest='epochs',
+                        default=50,
+                        type=int,
+                        help='number of training epochs')
     parser.add_argument('--no-batch',
                         dest='batch',
                         action='store_false',
@@ -236,7 +241,7 @@ if __name__ == "__main__":
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'path': os.path.join(os.getcwd(),'checkpoints'),
-        'learning_rounds':100,
+        'learning_rounds':args.epochs,
         'device':device,
         'gpu1':gpu1,
         'gpu2':gpu2,
@@ -286,16 +291,16 @@ if __name__ == "__main__":
             with profiler.record_function("model_inference"):
                 # Eval learning models
                 if args.batch:
-                    if args.eval == 'actor':
+                    if args.network == 'actor':
                         eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
-                    elif args.eval == 'critic':
+                    elif args.network == 'critic':
                         eval_batch_critic(local_critic,target_critic,learning_params)
                     else:
                         eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
                 else:
-                    if args.eval == 'actor':
+                    if args.network == 'actor':
                         eval_actor(local_actor,target_actor,target_critic,learning_params)
-                    elif args.eval == 'critic':
+                    elif args.network == 'critic':
                         eval_critic(local_critic,learning_params)
                     else:
                         eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
