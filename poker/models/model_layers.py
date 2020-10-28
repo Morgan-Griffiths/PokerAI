@@ -145,8 +145,8 @@ class ProcessHandBoard(nn.Module):
         B,M,C = x.size()
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
-        hot_ranks = self.one_hot_ranks[ranks].to(self.device).float()
-        hot_suits = self.one_hot_suits[suits].to(self.device).float()
+        hot_ranks = self.one_hot_ranks[ranks].float()#.to(self.device)
+        hot_suits = self.one_hot_suits[suits].float()#.to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         # torch.set_printoptions(threshold=7500)

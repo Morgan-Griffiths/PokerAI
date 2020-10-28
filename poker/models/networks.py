@@ -346,9 +346,9 @@ class OmahaActor(Network):
         """
         x = state
         if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32).to(self.device)
-            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
-            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
+            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float)#.to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float)#.to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
@@ -356,7 +356,7 @@ class OmahaActor(Network):
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+            padding = torch.zeros(B,n_padding,out.size(-1))#.to(self.device)
             h = torch.cat((padding,out),dim=1)
         lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
@@ -370,7 +370,7 @@ class OmahaActor(Network):
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
-        previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
+        previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']])#.to(self.device)
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
         if B > 1:
             # batch training
@@ -455,7 +455,7 @@ class OmahaObsQCritic(Network):
     def forward(self,obs):
         x = obs
         if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32).to(self.device)
+            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
         out = self.process_input(x)
         # context = self.attention(out)
         q_input = self.transformer(out)
