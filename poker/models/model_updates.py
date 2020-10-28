@@ -9,24 +9,60 @@ def update_critic_batch(data,local_critic,target_critic,params):
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']
     trajectory, target = data.values()
-    state = trajectory['state'].to(device)
+    obs = trajectory['obs'].to(device)
     action = trajectory['action'].to(device)
     reward = target['reward'].to(device)
     betsize_mask = trajectory['betsize_mask'].to(device)
     action_mask = trajectory['action_mask'].to(device)
     # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     # Critic update
-    local_values = local_critic(state)['value']
+    local_values = local_critic(obs)['value']
     value_mask = return_value_mask(action)
     TD_error = local_values[value_mask] - reward
     critic_loss = (TD_error**2*0.5).mean()
     # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
-    critic_optimizer.zero_grad()
+    params['critic_optimizer'].zero_grad()
     critic_loss.backward()
     torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
-    critic_optimizer.step()
+    params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,tau=1e-1)
     return critic_loss.item()
+
+def update_actor_critic_batch(data,local_critic,local_actor,target_critic,target_actor,params):
+    # get the inputs; data is a list of [inputs, targets]
+    device = params['device']
+    trajectory, target = data.values()
+    state = trajectory['state'].to(device)
+    obs = trajectory['obs'].to(device)
+    action = trajectory['action'].to(device)
+    reward = target['reward'].to(device)
+    betsize_mask = trajectory['betsize_mask'].to(device)
+    action_mask = trajectory['action_mask'].to(device)
+    # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+    # Critic update
+    local_values = local_critic(obs)['value']
+    value_mask = return_value_mask(action)
+    TD_error = local_values[value_mask] - reward
+    critic_loss = (TD_error**2*0.5).mean()
+    # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    params['critic_optimizer'].zero_grad()
+    critic_loss.backward()
+    # torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
+    params['critic_optimizer'].step()
+    soft_update(local_critic,target_critic,tau=1e-1)
+    # Actor update #
+    target_values = target_critic(obs)['value']
+    actor_out = local_actor(state,action_mask,betsize_mask)
+    actor_value_mask = return_value_mask(actor_out['action'])
+    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    params['actor_optimizer'].zero_grad()
+    policy_loss.backward()
+    # torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
+    params['actor_optimizer'].step()
+    soft_update(local_actor,target_actor)
+    return critic_loss.item(),policy_loss.item()
 
 def update_actor(poker_round,actor,target_actor,target_critic,params):
     """With critic batch updates"""
