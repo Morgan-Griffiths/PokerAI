@@ -268,8 +268,8 @@ if __name__ == "__main__":
         local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         local_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         # Load pretrained hand recognizer
-        copy_weights(actor,network_params['actor_hand_recognizer_path'])
-        copy_weights(critic,network_params['critic_hand_recognizer_path'])
+        copy_weights(local_actor,network_params['actor_hand_recognizer_path'])
+        copy_weights(local_critic,network_params['critic_hand_recognizer_path'])
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,local_actor)
