@@ -46,6 +46,7 @@ def update_actor_batch(data,local_actor,target_actor,target_critic,params):
     # Actor update #
     target_values = target_critic(obs)['value']
     actor_out = local_actor(state,action_mask,betsize_mask)
+    target_out = target_actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
     expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
     advantages = (target_values[actor_value_mask] - expected_value).view(-1)
