@@ -33,7 +33,7 @@ def eval_batch_critic(critic,target_critic,params):
         for j,inputs in enumerate(trainloader,1):
             loss = update_critic_batch(inputs,critic,target_critic,params)
             losses.append(loss)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//params['learning_rounds']), (100*(j)//params['learning_rounds'])))
         sys.stdout.flush()
         sys.stdout.write(f", round {(i):.2f}")
         sys.stdout.flush()
@@ -75,7 +75,7 @@ def eval_batch_actor_critic(actor,critic,target_actor,target_critic,params):
         for j,inputs in enumerate(trainloader,1):
             critic_loss = update_actor_critic_batch(inputs,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i)//params['learning_rounds']), (100*(i)//params['learning_rounds'])))
         sys.stdout.flush()
         sys.stdout.write(f", round {(i):.2f}")
         sys.stdout.flush()
