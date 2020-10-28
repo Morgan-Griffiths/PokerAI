@@ -22,15 +22,16 @@ def eval_batch_critic(critic,target_critic,params):
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
     query = {'training_round':params['training_round']}
-    projection = {'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    projection = {'state':1,'obs':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
     data = db['game_data'].find(query,projection)
     trainloader = return_trajectoryloader(data)
     losses = []
-    for i,data in enumerate(trainloader,1):
-        loss = update_critic_batch(critic,target_critic,data,params)
-        losses.append(loss)
+    for _ in range(10):
+        for i,data in enumerate(trainloader,1):
+            loss = update_critic_batch(data,critic,target_critic,params)
+            losses.append(loss)
     print(losses)
 
 def eval_critic(critic,params):
@@ -229,7 +230,7 @@ if __name__ == "__main__":
         if args.eval == 'actor':
             eval_actor(local_actor,target_actor,target_critic,learning_params)
         elif args.eval == 'critic':
-            eval_critic(local_critic,learning_params)
-            # eval_batch_critic(local_critic,target_critic,learning_params)
+            # eval_critic(local_critic,learning_params)
+            eval_batch_critic(local_critic,target_critic,learning_params)
         else:
             eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
