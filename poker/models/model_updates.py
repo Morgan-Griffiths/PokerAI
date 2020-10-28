@@ -26,10 +26,11 @@ def update_critic_batch(data,local_critic,target_critic,params):
     torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
     params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,device,tau=1e-1)
-    print('action',action.size())
-    print('value_mask',value_mask)
-    print('local_values[value_mask]',local_values[value_mask])
-    print('reward',reward)
+    post_local_values = local_critic(obs)['value']
+    table = PrettyTable(["Critic Values","Updated Critic values","action","Reward","Loss"])
+    for i in range(target_values.size(0)):
+        table.add_row([local_values.detach()[i],post_local_values.detach()[i],action[i],reward[i],policy_loss.item()])
+    print(table)
     return critic_loss.item()
 
 def update_actor_batch(data,local_actor,target_actor,target_critic,params):
@@ -90,7 +91,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     # Critic update
     local_values = local_critic(obs)['value']
-    target_values = target_critic(obs)['value']
+    # target_values = target_critic(obs)['value']
     value_mask = return_value_mask(action)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
@@ -101,7 +102,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,device,tau=1e-1)
     # Actor update #
-    post_local_values = local_critic(obs)['value']
+    # post_local_values = local_critic(obs)['value']
     post_target_values = target_critic(obs)['value']
     actor_out = local_actor(state,action_mask,betsize_mask)
     target_out = target_actor(state,action_mask,betsize_mask)
@@ -115,33 +116,33 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     params['actor_optimizer'].step()
     soft_update(local_actor,target_actor,device)
     # Check action probs and critic vals
-    post_actor_out = local_actor(state,action_mask,betsize_mask)
-    post_target_out = target_actor(state,action_mask,betsize_mask)
-    # Assert probabilities aren't changing more than x
-    actor_diff = actor_out['action_probs'].detach().cpu().numpy() - post_actor_out['action_probs'].detach().cpu().numpy()
-    target_diff = target_out['action_probs'].detach().cpu().numpy() - post_target_out['action_probs'].detach().cpu().numpy()
-    actor_diff_max = np.max(np.abs(actor_diff))
-    target_diff_max = np.max(np.abs(target_diff))
-    table = PrettyTable(["Critic Values","Updated critic values","Critic Loss"])
-    for i in range(post_target_values.size(0)):
-        table.add_row([local_values.detach()[i].cpu(),post_local_values.detach()[i].cpu(),critic_loss.item()])
-    print(table)
-    table = PrettyTable(["Target Critic Values","Updated Target critic values","Action","Reward"])
-    for i in range(post_target_values.size(0)):
-        table.add_row([target_values.detach()[i].cpu(),post_target_values.detach()[i].cpu(),action[i],reward[i]])
-    print(table)
-    table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
-    for i in range(post_target_values.size(0)):
-        table.add_row([post_target_values.detach().cpu()[i],action[i],reward[i],policy_loss.item()])
-    print(table)
-    table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
-    for i in range(actor_out['action_probs'].detach().size(0)):
-        table.add_row([actor_out['action_probs'].detach().cpu()[i],post_actor_out['action_probs'].detach().cpu()[i],actor_diff_max])
-    print(table)
-    table = PrettyTable(["Target Actor Probs","Updated Target Probs","Max Target diff"])
-    for i in range(target_out['action_probs'].detach().size(0)):
-        table.add_row([target_out['action_probs'].detach().cpu()[i],post_target_out['action_probs'].detach().cpu()[i],target_diff_max])
-    print(table)
+    # post_actor_out = local_actor(state,action_mask,betsize_mask)
+    # post_target_out = target_actor(state,action_mask,betsize_mask)
+    # # Assert probabilities aren't changing more than x
+    # actor_diff = actor_out['action_probs'].detach().cpu().numpy() - post_actor_out['action_probs'].detach().cpu().numpy()
+    # target_diff = target_out['action_probs'].detach().cpu().numpy() - post_target_out['action_probs'].detach().cpu().numpy()
+    # actor_diff_max = np.max(np.abs(actor_diff))
+    # target_diff_max = np.max(np.abs(target_diff))
+    # table = PrettyTable(["Critic Values","Updated critic values","Critic Loss"])
+    # for i in range(post_target_values.size(0)):
+    #     table.add_row([local_values.detach()[i].cpu(),post_local_values.detach()[i].cpu(),critic_loss.item()])
+    # print(table)
+    # table = PrettyTable(["Target Critic Values","Updated Target critic values","Action","Reward"])
+    # for i in range(post_target_values.size(0)):
+    #     table.add_row([target_values.detach()[i].cpu(),post_target_values.detach()[i].cpu(),action[i],reward[i]])
+    # print(table)
+    # table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
+    # for i in range(post_target_values.size(0)):
+    #     table.add_row([post_target_values.detach().cpu()[i][action[i]],action[i],reward[i],policy_loss.item()])
+    # print(table)
+    # table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
+    # for i in range(actor_out['action_probs'].detach().size(0)):
+    #     table.add_row([actor_out['action_probs'].detach().cpu()[i],post_actor_out['action_probs'].detach().cpu()[i],actor_diff_max])
+    # print(table)
+    # table = PrettyTable(["Target Actor Probs","Updated Target Probs","Max Target diff"])
+    # for i in range(target_out['action_probs'].detach().size(0)):
+    #     table.add_row([target_out['action_probs'].detach().cpu()[i],post_target_out['action_probs'].detach().cpu()[i],target_diff_max])
+    # print(table)
     return critic_loss.item()
 
 def update_actor(poker_round,actor,target_actor,target_critic,params):

@@ -205,12 +205,10 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     db_data = mongo.get_data(query,projection)
     trainloader = return_trajectoryloader(db_data)
     for _ in range(params['learning_rounds']):
-        policy_losses = []
         losses = []
         for i,data in enumerate(trainloader):
-            critic_loss,policy_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
+            critic_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
-            policy_losses.append(policy_loss)
         # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     mongo.close()
     return actor,critic,params
