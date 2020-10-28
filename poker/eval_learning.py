@@ -189,7 +189,11 @@ if __name__ == "__main__":
                         default='actor_critic',
                         metavar="['actor_critic','actor','critic]",
                         type=str,
-                        help='In dual networks, whether to eval both or one at a time')
+    parser.add_argument('--batch',
+                        dest='batch',
+                        action='store_true',
+                        help='Test batch updates or not')
+    parser.set_defaults(batch=True)
 
     args = parser.parse_args()
 
@@ -276,12 +280,17 @@ if __name__ == "__main__":
         generate_trajectories(env,local_actor,local_critic,training_params,id=0)
 
         # Eval learning models
-        if args.eval == 'actor':
-            # eval_actor(local_actor,target_actor,target_critic,learning_params)
-            eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
-        elif args.eval == 'critic':
-            # eval_critic(local_critic,learning_params)
-            eval_batch_critic(local_critic,target_critic,learning_params)
+        if args.batch:
+            if args.eval == 'actor':
+                eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
+            elif args.eval == 'critic':
+                eval_batch_critic(local_critic,target_critic,learning_params)
+            else:
+                eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
         else:
-            # eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
-            eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
+            if args.eval == 'actor':
+                eval_actor(local_actor,target_actor,target_critic,learning_params)
+            elif args.eval == 'critic':
+                eval_critic(local_critic,learning_params)
+            else:
+                eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
