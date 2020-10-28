@@ -44,6 +44,8 @@ class NetworkFunctions(object):
         Action is from network outputs - 0-5
         previous_action is from env. 1-6
         """
+        actions = actions.cpu()
+        previous_actions = previous_actions.cpu()
         int_actions = torch.zeros_like(actions)
         int_betsizes = torch.zeros_like(actions)
         prev_ge_2 = torch.as_tensor((previous_actions > Action.FOLD)&(previous_actions < Action.UNOPENED))
