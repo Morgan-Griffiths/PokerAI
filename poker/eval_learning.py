@@ -271,8 +271,8 @@ if __name__ == "__main__":
             target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
 
-        hard_update(target_actor,local_actor)
-        hard_update(target_critic,local_critic)
+        hard_update(target_actor,local_actor,device)
+        hard_update(target_critic,local_critic,device)
         actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(local_critic.parameters(), lr=config.agent_params['critic_lr'])
         learning_params['actor_optimizer'] = actor_optimizer

@@ -195,9 +195,9 @@ def hidden_init(layer):
     lim = 1. / np.sqrt(fan_in)
     return (-lim, lim)
 
-def hard_update(source,target):
+def hard_update(source,target,device):
     for target_param,param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data)
+        target_param.data.copy_(param.data.to(device))
 
 def norm_frequencies(action_soft,mask):
     # with torch.no_grad():
