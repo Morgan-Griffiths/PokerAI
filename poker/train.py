@@ -208,7 +208,7 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
         policy_losses = []
         losses = []
         for i,data in enumerate(trainloader):
-            critic_loss,policy_loss = update_actor_critic_batch(data,critic,actor,target_critic,target_actor,params)
+            critic_loss,policy_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
             policy_losses.append(policy_loss)
         # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
