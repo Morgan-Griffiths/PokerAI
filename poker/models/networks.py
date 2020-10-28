@@ -361,6 +361,7 @@ class OmahaActor(Network):
             else:
                 padding = torch.zeros(B,n_padding,out.size(-1))#.to(self.device)
             h = torch.cat((padding,out),dim=1)
+        self.lstm.flatten_parameters()
         lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
         # self.attention(out)
