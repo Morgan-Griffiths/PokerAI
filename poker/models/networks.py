@@ -344,10 +344,11 @@ class OmahaActor(Network):
         """
         state: B,M,39
         """
-        # copy_weights(self,'/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights')
-        x = torch.tensor(state,dtype=torch.float32).to(self.device)
-        action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
-        betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
+        x = state
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         out = self.process_input(x)
         B,M,c = out.size()
@@ -356,12 +357,12 @@ class OmahaActor(Network):
             h = out[:,-self.maxlen:,:]
         else:
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-            h = torch.cat((out,padding),dim=1)
+            h = torch.cat((padding,out),dim=1)
         lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
         # self.attention(out)
         # blocks_out = self.blocks(lstm_out.view(-1))
-        t_logits = self.fc_final(norm.view(-1))
+        t_logits = self.fc_final(norm.view(B,-1))
         category_logits = self.noise(t_logits)
         # skip connection
         # category_logits += h
@@ -369,15 +370,25 @@ class OmahaActor(Network):
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
-
-        action_category,betsize_category = self.helper_functions.unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
-        outputs = {
-            'action':action.item(),
-            'action_category':action_category.item(),
-            'action_prob':m.log_prob(action),
-            'action_probs':action_probs,
-            'betsize':betsize_category.item()
-            }
+        action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+        if B > 1:
+            # batch training
+            outputs = {
+                'action':action,
+                'action_category':action_category,
+                'action_prob':m.log_prob(action),
+                'action_probs':action_probs,
+                'betsize':betsize_category
+                }
+        else:
+            # playing hand
+            outputs = {
+                'action':action.item(),
+                'action_category':action_category.item(),
+                'action_prob':m.log_prob(action),
+                'action_probs':action_probs,
+                'betsize':betsize_category.item()
+                }
         return outputs
     
 class OmahaQCritic(Network):
