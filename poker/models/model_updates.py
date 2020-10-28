@@ -122,15 +122,15 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_critic,target
     target_diff_max = np.max(np.abs(target_diff))
     table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
     for i in range(target_values.size(0)):
-        table.add_row([target_values.detach()[i],action[i],reward[i],policy_loss.item()])
+        table.add_row([target_values.detach().cpu()[i],action[i],reward[i],policy_loss.item()])
     print(table)
     table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
     for i in range(actor_out['action_probs'].detach().size(0)):
-        table.add_row([actor_out['action_probs'].detach()[i],post_actor_out['action_probs'].detach()[i],actor_diff_max])
+        table.add_row([actor_out['action_probs'].detach().cpu()[i],post_actor_out['action_probs'].detach().cpu()[i],actor_diff_max])
     print(table)
     table = PrettyTable(["Target Actor Probs","Updated Target Probs","Max Target diff"])
     for i in range(target_out['action_probs'].detach().size(0)):
-        table.add_row([target_out['action_probs'].detach()[i],post_target_out['action_probs'].detach()[i],target_diff_max])
+        table.add_row([target_out['action_probs'].detach().cpu()[i],post_target_out['action_probs'].detach().cpu()[i],target_diff_max])
     print(table)
     return critic_loss.item()
 
