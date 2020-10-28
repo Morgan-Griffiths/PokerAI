@@ -219,8 +219,8 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        # generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
-        generate_trajectories(env,target_actor,target_critic,training_params,id)
+        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+        # generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
