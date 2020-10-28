@@ -370,7 +370,8 @@ class OmahaActor(Network):
         action_probs = norm_frequencies(action_soft,mask)
         m = Categorical(action_probs)
         action = m.sample()
-        action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,state[:,-1,self.state_mapping['last_action']])
+        previous_action = state[:,-1,self.state_mapping['last_action']].to(self.device)
+        action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
         if B > 1:
             # batch training
             outputs = {
