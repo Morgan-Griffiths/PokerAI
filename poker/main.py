@@ -198,9 +198,6 @@ if __name__ == "__main__":
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
         # training loop
-        if torch.cuda.device_count() > 1:
-            actor = DataParallel(actor,device_ids=[0,1])
-            critic = DataParallel(critic,device_ids=[0,1])
         # actor.share_memory()
         # critic.share_memory()
         # processes = []
