@@ -200,10 +200,10 @@ if __name__ == "__main__":
         # training loop
 
         if torch.cuda.device_count() > 1:
-            actor = DataParallel(actor)
-            critic = DataParallel(critic)
-            target_critic = DataParallel(target_critic)
-            target_actor = DataParallel(target_actor)
+            actor = DataParallel(actor,device_ids=[0,1])
+            critic = DataParallel(critic,device_ids=[0,1])
+            target_critic = DataParallel(target_critic,device_ids=[0,1])
+            target_actor = DataParallel(target_actor,device_ids=[0,1])
         # actor.share_memory()
         # critic.share_memory()
         # processes = []
