@@ -36,7 +36,7 @@ def update_critic_batch(data,local_critic,target_critic,params):
     print(table)
     table = PrettyTable(["Critic Value","Updated value","Reward","action","Loss"])
     for i in range(local_values.size(0)):
-        table.add_row([local_values.detach()[i][action[i]],post_local_values.detach()[i][action[i]],action[i],reward[i],critic_loss.item()])
+        table.add_row([local_values.detach()[i][action[i]],post_local_values.detach()[i][action[i]],reward[i],action[i],critic_loss.item()])
     print(table)
     return critic_loss.item()
 
