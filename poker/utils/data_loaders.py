@@ -26,10 +26,10 @@ class trajectoryLoader(Dataset):
         rewards = []
         maxlen = 0
         for i,poker_round in enumerate(data):
-            states.append(torch.tensor(poker_round['state'],dtype=torch.float32))#.permute(1,0,2))
-            obs.append(torch.tensor(poker_round['obs'],dtype=torch.float32))#.permute(1,0,2))
+            states.append(torch.tensor(poker_round['state'],dtype=torch.float16))#.permute(1,0,2))
+            obs.append(torch.tensor(poker_round['obs'],dtype=torch.float16))#.permute(1,0,2))
             actions.append(torch.tensor(poker_round['action'],dtype=torch.long))
-            rewards.append(torch.tensor(poker_round['reward'],dtype=torch.float32))
+            rewards.append(torch.tensor(poker_round['reward'],dtype=torch.float16))
             betsize_masks.append(torch.tensor(poker_round['betsize_mask'],dtype=torch.long))
             action_masks.append(torch.tensor(poker_round['action_mask'],dtype=torch.long))
             maxlen = max(maxlen,torch.tensor(poker_round['state']).size(1))
