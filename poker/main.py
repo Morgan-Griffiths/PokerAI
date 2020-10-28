@@ -185,13 +185,8 @@ if __name__ == "__main__":
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
         critic.summary
-        if torch.cuda.device_count() > 1:
-            network_params['device'] = gpu2
-            target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-            target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        else:
-            target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-            target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(actor,target_actor)
         hard_update(critic,target_critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
@@ -203,7 +198,6 @@ if __name__ == "__main__":
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
         # training loop
-
         if torch.cuda.device_count() > 1:
             actor = DataParallel(actor,device_ids=[0,1])
             critic = DataParallel(critic,device_ids=[0,1])

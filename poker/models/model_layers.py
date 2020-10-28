@@ -44,8 +44,6 @@ class NetworkFunctions(object):
         Action is from network outputs - 0-5
         previous_action is from env. 1-6
         """
-        actions = actions.cpu()
-        previous_actions = previous_actions.cpu()
         int_actions = torch.zeros_like(actions)
         int_betsizes = torch.zeros_like(actions)
         prev_ge_2 = torch.as_tensor((previous_actions > Action.FOLD)&(previous_actions < Action.UNOPENED))
@@ -147,10 +145,6 @@ class ProcessHandBoard(nn.Module):
         B,M,C = x.size()
         ranks,suits = unspool(x)
         # Shape of B,M,60,5
-        # if torch.cuda.is_available():
-        #     hot_ranks = self.one_hot_ranks[ranks].float().cuda()#.to(self.device)
-        #     hot_suits = self.one_hot_suits[suits].float().cuda()#.to(self.device)
-        # else:
         hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
         hot_suits = self.one_hot_suits[suits].float().to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
@@ -321,10 +315,6 @@ class PreProcessLayer(nn.Module):
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
         # h.size(B,M,240)
-        # if torch.cuda.is_available():
-        #     last_a = x[:,:,self.state_mapping['last_action']].long().cuda()
-        #     last_b = x[:,:,self.state_mapping['last_betsize']].cuda()
-        # else:
         last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
         last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
 
