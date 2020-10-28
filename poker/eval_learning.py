@@ -1,7 +1,7 @@
-
 from torch import optim
 import torch.nn.functional as F
 import torch
+import torch.autograd.profiler as profiler
 import os
 from pymongo import MongoClient
 import numpy as np
@@ -281,19 +281,25 @@ if __name__ == "__main__":
 
         # Gen trajectories
         generate_trajectories(env,local_actor,local_critic,training_params,id=0)
-
-        # Eval learning models
-        if args.batch:
-            if args.eval == 'actor':
-                eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
-            elif args.eval == 'critic':
-                eval_batch_critic(local_critic,target_critic,learning_params)
-            else:
-                eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
-        else:
-            if args.eval == 'actor':
-                eval_actor(local_actor,target_actor,target_critic,learning_params)
-            elif args.eval == 'critic':
-                eval_critic(local_critic,learning_params)
-            else:
-                eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
+        with profiler.profile(record_shapes=True) as prof:
+        # with profiler.profile(profile_memory=True, record_shapes=True) as prof:
+            with profiler.record_function("model_inference"):
+                # Eval learning models
+                if args.batch:
+                    if args.eval == 'actor':
+                        eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
+                    elif args.eval == 'critic':
+                        eval_batch_critic(local_critic,target_critic,learning_params)
+                    else:
+                        eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
+                else:
+                    if args.eval == 'actor':
+                        eval_actor(local_actor,target_actor,target_critic,learning_params)
+                    elif args.eval == 'critic':
+                        eval_critic(local_critic,learning_params)
+                    else:
+                        eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
+        # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
+        print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+        # prof.export_chrome_trace("trace.json")

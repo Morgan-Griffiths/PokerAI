@@ -19,6 +19,7 @@ from models.model_utils import scale_rewards,soft_update
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
+import torch.autograd.profiler as profiler
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
