@@ -356,7 +356,10 @@ class OmahaActor(Network):
         if n_padding < 0:
             h = out[:,-self.maxlen:,:]
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1))#.to(self.device)
+            if torch.cuda.is_available():
+                padding = torch.zeros(B,n_padding,out.size(-1)).cuda()#.to(self.device)
+            else:
+                padding = torch.zeros(B,n_padding,out.size(-1))#.to(self.device)
             h = torch.cat((padding,out),dim=1)
         lstm_out,hidden_states = self.lstm(h)
         norm = self.batchnorm(lstm_out)
