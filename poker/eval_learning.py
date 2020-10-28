@@ -68,6 +68,7 @@ def eval_batch_actor_critic(actor,critic,target_actor,target_critic,params):
     db = client['poker']
     data = db['game_data'].find(query,projection)
     trainloader = return_trajectoryloader(data)
+    print(f'Num Samples {len(trainloader)}')
     for i in range(params['learning_rounds']):
         sys.stdout.write('\r')
         losses = []
