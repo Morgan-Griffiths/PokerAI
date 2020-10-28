@@ -55,7 +55,7 @@ def update_actor_batch(data,local_actor,target_actor,target_critic,params):
     # torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
     params['actor_optimizer'].step()
     soft_update(local_actor,target_actor)
-    post_actor_out = actor(state,action_mask,betsize_mask)
+    post_actor_out = local_actor(state,action_mask,betsize_mask)
     post_target_out = target_actor(state,action_mask,betsize_mask)
     # Assert probabilities aren't changing more than x
     actor_diff = actor_out['action_probs'].detach().numpy() - post_actor_out['action_probs'].detach().numpy()
