@@ -319,9 +319,14 @@ class PreProcessLayer(nn.Module):
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
         # h.size(B,M,240)
-        last_a = x[:,:,self.state_mapping['last_action']].long()
+        if torch.cuda.is_available():
+            last_a = x[:,:,self.state_mapping['last_action']].long().cuda()
+            last_b = x[:,:,self.state_mapping['last_betsize']].cuda()
+        else:
+            last_a = x[:,:,self.state_mapping['last_action']].long()
+            last_b = x[:,:,self.state_mapping['last_betsize']]
+
         emb_a = self.action_emb(last_a)
-        last_b = x[:,:,self.state_mapping['last_betsize']]
         embedded_bets = []
         for i in range(B):
             for j in range(M):
