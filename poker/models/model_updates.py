@@ -18,12 +18,7 @@ def update_critic_batch(data,local_critic,target_critic,params):
     # Critic update
     local_values = local_critic(obs)['value']
     value_mask = return_value_mask(action)
-    print('action',action.size())
-    print('value_mask',value_mask)
-    print('local_values[value_mask]',local_values[value_mask])
-    print('reward',reward)
     TD_error = local_values[value_mask] - reward
-    print('TD_error',TD_error)
     critic_loss = (TD_error**2*0.5).mean()
     # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     params['critic_optimizer'].zero_grad()
@@ -31,6 +26,11 @@ def update_critic_batch(data,local_critic,target_critic,params):
     torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
     params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,tau=1e-1)
+    print('action',action.size())
+    print('value_mask',value_mask)
+    print('local_values[value_mask]',local_values[value_mask])
+    print('reward',reward)
+    print('TD_error',TD_error)
     return critic_loss.item()
 
 def update_actor_critic_batch(data,local_critic,local_actor,target_critic,target_actor,params):

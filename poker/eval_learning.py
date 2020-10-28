@@ -27,11 +27,18 @@ def eval_batch_critic(critic,target_critic,params):
     db = client['poker']
     data = db['game_data'].find(query,projection)
     trainloader = return_trajectoryloader(data)
-    losses = []
-    for _ in range(10):
+    for i in range(params['learning_rounds']):
+        losses = []
         for i,data in enumerate(trainloader,1):
+            sys.stdout.write('\r')
             loss = update_critic_batch(data,critic,target_critic,params)
             losses.append(loss)
+            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+            sys.stdout.flush()
+            sys.stdout.write(f", round {(j):.2f}")
+            sys.stdout.flush()
+        print(f'Training Round {i}, critic loss {sum(losses)}')
+    del data
     print(losses)
 
 def eval_critic(critic,params):
