@@ -107,7 +107,7 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(7463,512,256),activation_fc=F.relu):
+    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(7463,512,128),activation_fc=F.relu):
         super().__init__()
         self.output_dims = output_dims
         self.activation_fc = activation_fc
@@ -135,7 +135,7 @@ class ProcessHandBoard(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.hand_out = nn.Linear(15360,255) #params['lstm_in'] // 3)
+        self.hand_out = nn.Linear(7680,255) #params['lstm_in'] // 3)
 
     def forward(self,x):
         """
