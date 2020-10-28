@@ -90,7 +90,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     # Critic update
     local_values = local_critic(obs)['value']
-    target_values = target_critic(obs)['value']
+    target_values = target_critic(obs.to('cuda:1'))['value']
     value_mask = return_value_mask(action)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
@@ -102,9 +102,9 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     soft_update(local_critic,target_critic,tau=1e-1)
     # Actor update #
     post_local_values = local_critic(obs)['value']
-    post_target_values = target_critic(obs)['value']
+    post_target_values = target_critic(obs,to('cuda:1'))['value']
     actor_out = local_actor(state,action_mask,betsize_mask)
-    target_out = target_actor(state,action_mask,betsize_mask)
+    target_out = target_actor(state.to('cuda:1'),action_mask.to('cuda:1'),betsize_mask.to('cuda:1'))
     actor_value_mask = return_value_mask(actor_out['action'])
     expected_value = (actor_out['action_probs'].view(-1) * post_target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
     advantages = (post_target_values[actor_value_mask] - expected_value).view(-1)
@@ -116,7 +116,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     soft_update(local_actor,target_actor)
     # Check action probs and critic vals
     post_actor_out = local_actor(state,action_mask,betsize_mask)
-    post_target_out = target_actor(state,action_mask,betsize_mask)
+    post_target_out = target_actor(state.to('cuda:1'),action_mask.to('cuda:1'),betsize_mask.to('cuda:1'))
     # Assert probabilities aren't changing more than x
     actor_diff = actor_out['action_probs'].detach().cpu().numpy() - post_actor_out['action_probs'].detach().cpu().numpy()
     target_diff = target_out['action_probs'].detach().cpu().numpy() - post_target_out['action_probs'].detach().cpu().numpy()
