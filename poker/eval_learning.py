@@ -188,10 +188,10 @@ if __name__ == "__main__":
                         dest='eval',
                         default='actor_critic',
                         metavar="['actor_critic','actor','critic]",
-                        type=str,
-    parser.add_argument('--batch',
+                        type=str)
+    parser.add_argument('--no-batch',
                         dest='batch',
-                        action='store_true',
+                        action='store_false',
                         help='Test batch updates or not')
     parser.set_defaults(batch=True)
 
