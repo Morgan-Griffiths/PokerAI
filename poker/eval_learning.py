@@ -15,7 +15,7 @@ from utils.data_loaders import return_trajectoryloader
 from train import generate_trajectories,dual_learning_update,combined_learning_update
 from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
 from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
-from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask
+from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
 
 def eval_batch_critic(critic,target_critic,params):
     device = params['device']
@@ -267,6 +267,9 @@ if __name__ == "__main__":
     else:
         local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         local_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        # Load pretrained hand recognizer
+        copy_weights(actor,network_params['actor_hand_recognizer_path'])
+        copy_weights(critic,network_params['critic_hand_recognizer_path'])
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,local_actor)
