@@ -41,7 +41,6 @@ def eval_batch_critic(critic,target_critic,params):
     del data
     print(losses)
 
-
 def eval_batch_actor(actor,target_actor,target_critic,params):
     query = {'training_round':0}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
@@ -58,6 +57,30 @@ def eval_batch_actor(actor,target_actor,target_critic,params):
         sys.stdout.write(f",Training round {(i):.2f}")
         sys.stdout.flush()
     del data
+
+def eval_batch_actor_critic(critic,target_critic,params):
+    device = params['device']
+    critic_optimizer = params['critic_optimizer']
+    actor_optimizer = params['actor_optimizer']
+    query = {'training_round':params['training_round']}
+    projection = {'state':1,'obs':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
+    trainloader = return_trajectoryloader(data)
+    for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
+        losses = []
+        for j,inputs in enumerate(trainloader,1):
+            critic_loss = update_actor_critic_batch(inputs,actor,critic,target_critic,params)
+            losses.append(critic_loss)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//len(data)), (100*(j)//len(data))))
+        sys.stdout.flush()
+        sys.stdout.write(f", round {(i):.2f}")
+        sys.stdout.flush()
+        print(f'Training Round {i}, critic loss {sum(losses)}')
+    del data
+    print(losses)
 
 def eval_critic(critic,params):
     query = {'training_round':0}
@@ -259,4 +282,5 @@ if __name__ == "__main__":
             # eval_critic(local_critic,learning_params)
             eval_batch_critic(local_critic,target_critic,learning_params)
         else:
+            # eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
             eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
