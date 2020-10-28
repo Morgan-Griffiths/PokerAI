@@ -90,6 +90,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_critic,target
     # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     # Critic update
     local_values = local_critic(obs)['value']
+    target_values = target_critic(obs)['value']
     value_mask = return_value_mask(action)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
@@ -100,12 +101,13 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_critic,target
     params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,tau=1e-1)
     # Actor update #
-    target_values = target_critic(obs)['value']
+    post_local_values = local_critic(obs)['value']
+    post_target_values = target_critic(obs)['value']
     actor_out = local_actor(state,action_mask,betsize_mask)
     target_out = target_actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
-    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    expected_value = (actor_out['action_probs'].view(-1) * post_target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (post_target_values[actor_value_mask] - expected_value).view(-1)
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
     params['actor_optimizer'].zero_grad()
     policy_loss.backward()
@@ -120,9 +122,17 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_critic,target
     target_diff = target_out['action_probs'].detach().cpu().numpy() - post_target_out['action_probs'].detach().cpu().numpy()
     actor_diff_max = np.max(np.abs(actor_diff))
     target_diff_max = np.max(np.abs(target_diff))
+    table = PrettyTable(["Critic Values","Updated critic values","Critic Loss"])
+    for i in range(post_target_values.size(0)):
+        table.add_row([local_values.detach()[i].cpu(),post_local_values.detach()[i].cpu(),critic_loss.item()])
+    print(table)
+    table = PrettyTable(["Target Critic Values","Updated Target critic values","Action","Reward"])
+    for i in range(post_target_values.size(0)):
+        table.add_row([target_values.detach()[i].cpu(),post_target_values.detach()[i].cpu(),action[i],reward[i]])
+    print(table)
     table = PrettyTable(["Critic Q Values","Action","Reward","Policy Loss"])
-    for i in range(target_values.size(0)):
-        table.add_row([target_values.detach().cpu()[i],action[i],reward[i],policy_loss.item()])
+    for i in range(post_target_values.size(0)):
+        table.add_row([post_target_values.detach().cpu()[i],action[i],reward[i],policy_loss.item()])
     print(table)
     table = PrettyTable(["Actor Probs","Updated Actor Probs","Max Actor diff"])
     for i in range(actor_out['action_probs'].detach().size(0)):
