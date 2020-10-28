@@ -261,9 +261,10 @@ if __name__ == "__main__":
         eval_combined_updates(alphaPoker,learning_params)
     else:
         local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         local_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        network_params['device'] = gpu2
+        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(gpu2)
+        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(gpu2)
         hard_update(target_actor,local_actor)
         hard_update(target_critic,local_critic)
         actor_optimizer = optim.Adam(local_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
