@@ -27,9 +27,13 @@ def update_critic_batch(data,local_critic,target_critic,params):
     params['critic_optimizer'].step()
     soft_update(local_critic,target_critic,device,tau=1e-1)
     post_local_values = local_critic(obs)['value']
-    table = PrettyTable(["Critic Values","Updated Critic values","action","Reward","Loss"])
+    table = PrettyTable(["Critic Values","Updated Critic values"])
     for i in range(local_values.size(0)):
-        table.add_row([local_values.detach()[i],post_local_values.detach()[i],action[i],reward[i],policy_loss.item()])
+        table.add_row([local_values.detach()[i],post_local_values.detach()[i]])
+    print(table)
+    table = PrettyTable(["Critic Value","Updated value","action","Reward","Loss"])
+    for i in range(local_values.size(0)):
+        table.add_row([local_values.detach()[i][action[i]],post_local_values.detach()[i][action[i]],action[i],reward[i],critic_loss.item()])
     print(table)
     return critic_loss.item()
 
