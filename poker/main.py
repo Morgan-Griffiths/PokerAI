@@ -185,7 +185,7 @@ if __name__ == "__main__":
             # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
         critic.summary
-        if torch.cuda.is_available():
+        if torch.cuda.device_count() > 1:
             network_params['device'] = gpu2
             target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
