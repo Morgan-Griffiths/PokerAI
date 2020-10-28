@@ -82,20 +82,20 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']
     trajectory, target = data.values()
-    state = trajectory['state'].to(device)
-    obs = trajectory['obs'].to(device)
-    action = trajectory['action'].to(device)
-    reward = target['reward'].to(device)
-    betsize_mask = trajectory['betsize_mask'].to(device)
-    action_mask = trajectory['action_mask'].to(device)
+    state = trajectory['state']
+    obs = trajectory['obs']
+    action = trajectory['action']
+    reward = target['reward']
+    betsize_mask = trajectory['betsize_mask']
+    action_mask = trajectory['action_mask']
     # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
     # Critic update
-    local_values = local_critic(obs)['value']
+    local_values = local_critic(obs.to(device))['value']
     # target_values = target_critic(obs)['value']
-    value_mask = return_value_mask(action)
+    value_mask = return_value_mask(action.to(device))
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    critic_loss = F.smooth_l1_loss(reward.to(device),local_values[value_mask].to(device),reduction='sum')
     params['critic_optimizer'].zero_grad()
     critic_loss.backward()
     # torch.nn.utils.clip_grad_norm_(local_critic.parameters(), params['gradient_clip'])
@@ -103,12 +103,12 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     soft_update(local_critic,target_critic,device,tau=1e-1)
     # Actor update #
     # post_local_values = local_critic(obs)['value']
-    post_target_values = target_critic(obs)['value']
-    actor_out = local_actor(state,action_mask,betsize_mask)
-    target_out = target_actor(state,action_mask,betsize_mask)
+    post_target_values = target_critic(obs.to(device))['value']
+    actor_out = local_actor(state.to(device),action_mask.to(device),betsize_mask.to(device))
+    # target_out = target_actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
     expected_value = (actor_out['action_probs'].view(-1) * post_target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    advantages = (post_target_values[actor_value_mask] - expected_value).view(-1)
+    advantages = (post_target_values[actor_value_mask.to(device)] - expected_value).view(-1)
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
     params['actor_optimizer'].zero_grad()
     policy_loss.backward()

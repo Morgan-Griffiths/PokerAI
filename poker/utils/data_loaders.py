@@ -10,7 +10,7 @@ def pad_seq(seqs,maxlen):
         padding_len = maxlen - seq.size(1)
         shape[1] = padding_len
         if padding_len > 0:
-            padding = torch.zeros(shape)
+            padding = torch.zeros(shape,dtype=torch.float32)
             new_seqs.append(torch.cat((padding,seq),dim=1))
         else:
             new_seqs.append(seq)
@@ -26,10 +26,10 @@ class trajectoryLoader(Dataset):
         rewards = []
         maxlen = 0
         for i,poker_round in enumerate(data):
-            states.append(torch.tensor(poker_round['state'],dtype=torch.float16))#.permute(1,0,2))
-            obs.append(torch.tensor(poker_round['obs'],dtype=torch.float16))#.permute(1,0,2))
+            states.append(torch.tensor(poker_round['state'],dtype=torch.float32))#.permute(1,0,2))
+            obs.append(torch.tensor(poker_round['obs'],dtype=torch.float32))#.permute(1,0,2))
             actions.append(torch.tensor(poker_round['action'],dtype=torch.long))
-            rewards.append(torch.tensor(poker_round['reward'],dtype=torch.float16))
+            rewards.append(torch.tensor(poker_round['reward'],dtype=torch.float32))
             betsize_masks.append(torch.tensor(poker_round['betsize_mask'],dtype=torch.long))
             action_masks.append(torch.tensor(poker_round['action_mask'],dtype=torch.long))
             maxlen = max(maxlen,torch.tensor(poker_round['state']).size(1))
