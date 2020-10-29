@@ -215,7 +215,7 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo.close()
     return actor,critic,params
 
-def train_batch(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
+def train_batch(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id):
     villain = BetAgent()
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
@@ -229,8 +229,8 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        learning_params['actor_lrscheduler'].step()
-        learning_params['critic_lrscheduler'].step()
+        # learning_params['actor_lrscheduler'].step()
+        # learning_params['critic_lrscheduler'].step()
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
@@ -251,14 +251,14 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id):
-    # villain = BetAgent()
-    nS = env.state_space
-    nA = env.action_space
-    nB = env.betsize_space
-    seed = 1235
-    villain = OmahaActor(seed,nS,nA,nB,network_params).to(learning_params['device'])
-    baseline_path = return_latest_baseline_path(training_params['baseline_path'])
-    load_weights(villain,baseline_path)
+    villain = BetAgent()
+    # nS = env.state_space
+    # nA = env.action_space
+    # nB = env.betsize_space
+    # seed = 1235
+    # villain = OmahaActor(seed,nS,nA,nB,network_params).to(learning_params['device'])
+    # baseline_path = return_latest_baseline_path(training_params['baseline_path'])
+    # load_weights(villain,baseline_path)
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)

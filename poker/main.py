@@ -222,7 +222,7 @@ if __name__ == "__main__":
         # train_batch(env,actor,critic,target_actor,target_critic,training_params,learning_params,id=0)
         for e in range(training_params['lr_steps']):
             for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id))
+                p = mp.Process(target=train_batch, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id))
                 p.start()
                 processes.append(p)
             for p in processes: 
