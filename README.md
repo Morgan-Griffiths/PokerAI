@@ -2,6 +2,10 @@
 
 A combination of poker environment simulator and a bitwise Omaha hand winner evaluator written in Rust. 
 
+## Bash scripts
+
+are meant to be executed from the /poker folder
+
 ## Requirements
 
 There are two requirement files, one for pip and one for conda.
