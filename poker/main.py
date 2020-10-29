@@ -64,6 +64,21 @@ if __name__ == "__main__":
                         default=0,
                         type=int,
                         help='Which gpu to use')
+    parser.add_argument('--resume',
+                        dest='resume',
+                        action='store_true',
+                        help='Resume training stored weights')
+    parser.add_argument('--actor-path','-ap',
+                        dest='model_paths',
+                        default=None,
+                        type=str,
+                        help='path to actor')
+    parser.add_argument('--critic-path','-ac',
+                        dest='model_paths',
+                        default=None,
+                        type=str,
+                        help='path to critic')
+    parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
     args = parser.parse_args()

@@ -38,13 +38,16 @@ def tournament(env,agent1,agent2,model_names,training_params):
             state,obs,done,action_mask,betsize_mask = env.reset()
             hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0]
             villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0]
+            actions_given_handstrengths['hero']['counts'].append(bin_by_handstrength(hero_handstrength))
+            actions_given_handstrengths['villain']['counts'].append(bin_by_handstrength(villain_handstrength))
             while not done:
                 actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                category = bin_by_handstrength(hero_handstrength)
                 if agent_loc[env.current_player] == model_names[0]:
-                    actions_given_handstrengths['hero'][category].append(actor_outputs['action_category'])
+                    hero_category = bin_by_handstrength(hero_handstrength)
+                    actions_given_handstrengths['hero'][hero_category].append(actor_outputs['action_category'])
                 else:
-                    actions_given_handstrengths['villain'][category].append(actor_outputs['action_category'])
+                    villain_category = bin_by_handstrength(villain_handstrength)
+                    actions_given_handstrengths['villain'][villain_category].append(actor_outputs['action_category'])
                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
             rewards = env.player_rewards()
             agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
@@ -207,9 +210,12 @@ if __name__ == "__main__":
         print(results)
         
         for model,data in stats.items():
-            table = PrettyTable(['Category','Check','Fold','Call','Bet','Raise'])
+            table = PrettyTable(['Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
+            counts = data['counts']
+            uniques,freqs = np.unique(counts,return_counts=True)
             print('model',model)
             for category in range(9):
+                category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
                 values = data[category]
                 if values:
                     raises = 0
@@ -230,7 +236,7 @@ if __name__ == "__main__":
                             bets += 1
                         else:
                             raises += 1
-                    table.add_row([category,checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals])
+                    table.add_row([category,checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals,category_occurances])
             print(table)
 
         print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
