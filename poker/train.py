@@ -15,7 +15,7 @@ import logging
 from models.networks import BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from models.model_utils import scale_rewards,soft_update
+from models.model_utils import scale_rewards,soft_update,copy_weights
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -249,8 +249,14 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,id):
-    villain = BetAgent()
+def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id):
+    # villain = BetAgent()
+    nS = env.state_space
+    nA = env.action_space
+    nB = env.betsize_space
+    seed = 1235
+    villain = OmahaActor(seed,nS,nA,nB,network_params).to(learning_params['device'])
+    copy_weights(villain,os.path.join(training_params['baseline_path'],'baseline1'))
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)

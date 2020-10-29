@@ -7,6 +7,7 @@ class Config(object):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
         self.maxlen = 10
+        self.baseline_path = os.path.join(os.getcwd(),'checkpoints/baseline')
         self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.production_critic = os.path.join(os.getcwd(),'checkpoints/production/OmahaCriticFinal')
         self.training_params = {

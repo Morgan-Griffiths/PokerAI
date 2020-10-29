@@ -17,6 +17,23 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
+def load_weights(net,path):
+    if torch.cuda.is_available():
+        net.load_state_dict(torch.load(path))
+    else: 
+        net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
+
+def copy_weights(net,path):
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    for name, param in net.process_input.hand_board.named_parameters():
+        if name in layer_weights:
+            print('update_weights',name)
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
+
 def swap_suits(cards):
     """
     Swap suits to remove most symmetries.

@@ -10,7 +10,7 @@ from prettytable import PrettyTable
 import models.network_config as ng
 from models.networks import OmahaActor,CombinedNet,BetAgent
 from models.network_config import NetworkConfig
-from models.model_utils import hardcode_handstrength
+from models.model_utils import hardcode_handstrength,load_weights
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
@@ -76,6 +76,12 @@ if __name__ == "__main__":
                         type=str,
                         metavar=f'[roundrobin,latest,baseline]',
                         help='What kind of tournament to run')
+    parser.add_argument('--baseline','-b',
+                        dest='baseline',
+                        default='hardcoded',
+                        type=str,
+                        metavar=f'[hardcoded,baseline]',
+                        help='which baseline to eval against')
 
     args = parser.parse_args()
     tic = time.time()
@@ -182,7 +188,21 @@ if __name__ == "__main__":
     else:
         print(f'Evaluating {model_name}, from {os.path.join(training_params["actor_path"],model_name)}')
         trained_model.load_state_dict(torch.load(os.path.join(training_params['actor_path'],model_name)))
-        baseline_evaluation = BetAgent()
+        if args.baseline == 'hardcoded':
+            baseline_evaluation = BetAgent()
+        else:
+            # Get latest baseline
+            baselines_paths = load_paths(config.baseline_path)
+            agents = {}
+            highest_number = 0
+            for path in baselines_paths:
+                name,number = path.split('baseline')
+                print(name,number)
+                agents[number] = name
+                highest_number = max(highest_number,number)
+            baseline_path = os.path.join(config.baseline_path,agents[highest_number])
+            baseline_evaluation = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            load_weights(baseline_evaluation,baseline_path)
         model_names = ['baseline_evaluation','trained_model']
         results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)

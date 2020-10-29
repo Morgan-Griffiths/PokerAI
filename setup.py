@@ -4,6 +4,7 @@ from pathlib import Path
 # Make dirs
 Path('poker/assets').mkdir(parents=True, exist_ok=True)
 Path('poker/checkpoints/frozen_layers').mkdir(parents=True, exist_ok=True)
+Path('poker/checkpoints/baselines').mkdir(parents=True, exist_ok=True)
 Path('poker/checkpoints/training_run/actor').mkdir(parents=True, exist_ok=True)
 Path('poker/checkpoints/training_run/critic').mkdir(parents=True, exist_ok=True)
 Path('poker/checkpoints/production').mkdir(parents=True, exist_ok=True)

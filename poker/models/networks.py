@@ -9,7 +9,7 @@ from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
 from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
-from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
+from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding,copy_weights
 
 class BetAgent(object):
     def __init__(self):
@@ -297,17 +297,6 @@ class OmahaBatchObsQCritic(Network):
             'value':q.squeeze(0)
             }
         return outputs
-
-def copy_weights(net,path):
-    if torch.cuda.is_available():
-        layer_weights = torch.load(path)
-    else:
-        layer_weights = torch.load(path,map_location=torch.device('cpu'))
-    for name, param in net.process_input.hand_board.named_parameters():
-        if name in layer_weights:
-            print('update_weights',name)
-            param.data.copy_(layer_weights[name].data)
-            param.requires_grad = False
 
 class OmahaActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
