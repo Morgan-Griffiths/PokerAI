@@ -8,6 +8,16 @@ def grep(pat, txt):
     r = re.search(pat, txt)
     return r.group(0) if r else 1e+10
 
+def return_latest_baseline_path(path):
+    baselines_paths = load_paths(path)
+    agents = {}
+    highest_number = 0
+    for name,b_path in baselines_paths.items():
+        number = int(name.split('baseline')[-1])
+        agents[number] = b_path
+        highest_number = max(highest_number,number)
+    return agents[highest_number]
+
 def load_paths(folder):
     print(folder,'folder')
     weight_paths = {}

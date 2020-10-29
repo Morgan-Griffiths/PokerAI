@@ -14,7 +14,7 @@ from models.model_utils import hardcode_handstrength,load_weights
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
-from utils.utils import load_paths,grep
+from utils.utils import load_paths,grep,return_latest_baseline_path
 
 def tournament(env,agent1,agent2,model_names,training_params):
     agent_performance = {
@@ -31,7 +31,6 @@ def tournament(env,agent1,agent2,model_names,training_params):
                 agent_positions = {'SB':agent2,'BB':agent1}
                 agent_loc = {'SB':model_names[1],'BB':model_names[0]}
             state,obs,done,action_mask,betsize_mask = env.reset()
-            print('new hand')
             print('hero handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0])
             print('villain handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0])
             while not done:
@@ -191,18 +190,11 @@ if __name__ == "__main__":
         if args.baseline == 'hardcoded':
             baseline_evaluation = BetAgent()
         else:
-            # Get latest baseline
-            baselines_paths = load_paths(config.baseline_path)
-            agents = {}
-            highest_number = 0
-            for path in baselines_paths:
-                name,number = path.split('baseline')
-                print(name,number)
-                agents[number] = name
-                highest_number = max(highest_number,number)
-            baseline_path = os.path.join(config.baseline_path,agents[highest_number])
             baseline_evaluation = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            baseline_path = return_latest_baseline_path(config.baseline_path)
+            print('baseline_path',baseline_path)
             load_weights(baseline_evaluation,baseline_path)
+            # Get latest baseline
         model_names = ['baseline_evaluation','trained_model']
         results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)

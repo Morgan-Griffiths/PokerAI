@@ -12,10 +12,11 @@ import copy
 import time
 import logging
 
-from models.networks import BetAgent
+from models.networks import BetAgent,OmahaActor
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from models.model_utils import scale_rewards,soft_update,copy_weights
+from utils.utils import return_latest_baseline_path
+from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -256,7 +257,8 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
     nB = env.betsize_space
     seed = 1235
     villain = OmahaActor(seed,nS,nA,nB,network_params).to(learning_params['device'])
-    copy_weights(villain,os.path.join(training_params['baseline_path'],'baseline1'))
+    baseline_path = return_latest_baseline_path(training_params['baseline_path'])
+    load_weights(villain,baseline_path)
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)

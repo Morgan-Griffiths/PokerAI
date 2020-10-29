@@ -218,7 +218,7 @@ if __name__ == "__main__":
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
-        print(f'Saved model weights to {os.path.join(path,"OmahaActorFinal")} and {os.path.join(path,"OmahaCriticFinal")}')
+        print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     else:
         raise ValueError(f'Network type {args.network_type} not supported')
     toc = time.time()
