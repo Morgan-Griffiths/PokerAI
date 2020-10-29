@@ -332,7 +332,7 @@ class OmahaActor(Network):
         depth = 2
         # self.attention = EncoderAttention(params['lstm_in'],params['lstm_out'])
         self.lstm = nn.LSTM(params['lstm_in'],params['lstm_out'],bidirectional=True)
-        # self.batchnorm = nn.BatchNorm1d(self.maxlen)
+        self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
