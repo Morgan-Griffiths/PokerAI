@@ -205,7 +205,33 @@ if __name__ == "__main__":
         model_names = ['baseline_evaluation','trained_model']
         results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
-        print(stats)
+        
+        for model,data in stats.items():
+            table = PrettyTable(['Category','Check','Fold','Call','Bet','Raise'])
+            print('model',model)
+            for category in range(9):
+                values = data[category]
+                if values:
+                    raises = 0
+                    folds = 0
+                    calls = 0
+                    checks = 0
+                    bets = 0
+                    total_vals = 0
+                    for val in values:
+                        total_vals += 1
+                        if val == 0:
+                            checks += 1
+                        elif val == 1:
+                            folds += 1
+                        elif val == 2:
+                            calls += 1
+                        elif val == 3:
+                            bets += 1
+                        else:
+                            raises += 1
+                    table.add_row([category,checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals])
+            print(table)
 
         print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
         print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
