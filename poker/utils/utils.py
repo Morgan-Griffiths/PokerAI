@@ -4,6 +4,25 @@ import pickle
 from torch import where,zeros_like
 import re
 
+def bin_by_handstrength(strength):
+    if strength > 6185:
+        return 8
+    if strength > 3325:
+        return 7
+    if strength > 2467:
+        return 6
+    if strength > 1609:
+        return 5
+    if strength > 1599:
+        return 4
+    if strength > 322:
+        return 3
+    if strength > 166:
+        return 2
+    if strength > 10:
+        return 1
+    return 0
+
 def grep(pat, txt): 
     r = re.search(pat, txt)
     return r.group(0) if r else 1e+10
@@ -19,7 +38,6 @@ def return_latest_baseline_path(path):
     return agents[highest_number]
 
 def load_paths(folder):
-    print(folder,'folder')
     weight_paths = {}
     for weight_file in os.listdir(folder):
         if weight_file != '.DS_Store' and not os.path.isdir(os.path.join(folder,weight_file)):

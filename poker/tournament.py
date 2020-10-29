@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import time
 from itertools import combinations
+from collections import defaultdict
 from prettytable import PrettyTable
 
 import models.network_config as ng
@@ -14,9 +15,13 @@ from models.model_utils import hardcode_handstrength,load_weights
 import poker_env.datatypes as pdt
 from poker_env.config import Config
 from poker_env.env import Poker
-from utils.utils import load_paths,grep,return_latest_baseline_path
+from utils.utils import load_paths,grep,return_latest_baseline_path,bin_by_handstrength
 
 def tournament(env,agent1,agent2,model_names,training_params):
+    actions_given_handstrengths = {
+        'hero':defaultdict(lambda:[]),
+        'villain':defaultdict(lambda:[]),
+    }
     agent_performance = {
         model_names[0]: {'SB':0,'BB':0},
         model_names[1]: {'SB':0,'BB':0}
@@ -31,22 +36,24 @@ def tournament(env,agent1,agent2,model_names,training_params):
                 agent_positions = {'SB':agent2,'BB':agent1}
                 agent_loc = {'SB':model_names[1],'BB':model_names[0]}
             state,obs,done,action_mask,betsize_mask = env.reset()
-            print('hero handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0])
-            print('villain handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0])
+            hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0]
+            villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0]
             while not done:
                 actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                print('actor_outputs',actor_outputs['action_probs'])
+                category = bin_by_handstrength(hero_handstrength)
+                if agent_loc[env.current_player] == model_names[0]:
+                    actions_given_handstrengths['hero'][category].append(actor_outputs['action_category'])
+                else:
+                    actions_given_handstrengths['villain'][category].append(actor_outputs['action_category'])
                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-
             rewards = env.player_rewards()
-            print('rewards',rewards)
             agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
             agent_performance[agent_loc['BB']]['BB'] += rewards['BB']
             sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
             sys.stdout.flush()
             sys.stdout.write(", epoch %d"% (e+1))
             sys.stdout.flush()
-    return agent_performance
+    return agent_performance,actions_given_handstrengths
 
 if __name__ == "__main__":
     import argparse
@@ -196,8 +203,9 @@ if __name__ == "__main__":
             load_weights(baseline_evaluation,baseline_path)
             # Get latest baseline
         model_names = ['baseline_evaluation','trained_model']
-        results = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
+        results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
+        print(stats)
 
         print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
         print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")
