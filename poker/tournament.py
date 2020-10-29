@@ -36,7 +36,6 @@ def tournament(env,agent1,agent2,model_names,training_params):
             print('villain handstrength',hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0])
             while not done:
                 actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                print('action_mask',action_mask)
                 print('actor_outputs',actor_outputs['action_probs'])
                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
 
