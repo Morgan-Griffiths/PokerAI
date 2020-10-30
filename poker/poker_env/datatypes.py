@@ -276,11 +276,11 @@ class BaseOmaha(object):
 class OmahaHI(object):
     def __init__(self):
         K = BaseOmaha()
-        self.starting_street = Street.RIVER
+        self.starting_street = Street.TURN
         self.rule_params = K.rule_params
         self.state_params = K.state_params
-        self.state_params['stacksize'] = 5.
-        self.state_params['pot']= 2.
+        self.state_params['stacksize'] = 10.
+        self.state_params['pot']= 1.
         self.rule_params['betsizes'] = np.array([0.5,1.])
 
 class OmahaHILO(object):
