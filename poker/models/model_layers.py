@@ -175,16 +175,27 @@ class ProcessHandBoard(nn.Module):
         return torch.cat((o,best_hands.float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
-    def __init__(self,params):
+    def __init__(self,critic,params):
         super().__init__()
         self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Action.UNOPENED+1,padding_idx=0)
         # self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
         # self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
+        if critic:
+            self.forward = self.forward_critic
+        else:
+            self.forward = self.forward_actor
 
-    def forward(self,x):
-        print('street',x[:,:,2])
-        print('last action',x[:,:,6])
+    def forward_actor(self,x):
+        # order = self.order_emb(torch.arange(2))
+        street = self.street_emb(x[:,:,1].long())
+        # hero_position = self.position_emb(x[:,1].long()) + order[0]
+        # vil_position = self.position_emb(x[:,2].long()) + order[1]
+        previous_action = self.action_emb(x[:,:,6].long())
+        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
+        return street
+
+    def forward_critic(self,x):
         # order = self.order_emb(torch.arange(2))
         street = self.street_emb(x[:,:,2].long())
         # hero_position = self.position_emb(x[:,1].long()) + order[0]
@@ -303,9 +314,9 @@ class PreProcessLayer(nn.Module):
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
         self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
-        # self.ordinal = ProcessOrdinal(params)
+        self.ordinal = ProcessOrdinal(critic,params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
+        self.betsize_fc = nn.Linear(1,params['embedding_size']//2)
 
     def forward(self,x):
         B,M,C = x.size()
@@ -313,10 +324,10 @@ class PreProcessLayer(nn.Module):
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
-            # c = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
+            c = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
-            # c = self.ordinal(x[:,:,self.state_mapping['ordinal']])
+            c = self.ordinal(x[:,:,self.state_mapping['ordinal']])
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
         last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
@@ -333,7 +344,7 @@ class PreProcessLayer(nn.Module):
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
         # print(h.size(),emb_a.size(),embeds.size(),c.size())
-        combined = torch.cat((h,emb_a,embeds),dim=-1)
+        combined = torch.cat((h,emb_a,embeds,c),dim=-1)
         return combined
 
 ################################################
