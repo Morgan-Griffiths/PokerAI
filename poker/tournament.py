@@ -36,18 +36,19 @@ def tournament(env,agent1,agent2,model_names,training_params):
                 agent_positions = {'SB':agent2,'BB':agent1}
                 agent_loc = {'SB':model_names[1],'BB':model_names[0]}
             state,obs,done,action_mask,betsize_mask = env.reset()
-            hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['hand_board']]))[0][0][0]
-            villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,:,env.obs_mapping['villain_board']]))[0][0][0]
-            actions_given_handstrengths['hero']['counts'].append(bin_by_handstrength(hero_handstrength))
-            actions_given_handstrengths['villain']['counts'].append(bin_by_handstrength(villain_handstrength))
             while not done:
                 actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                if agent_loc[env.current_player] == model_names[0]:
-                    hero_category = bin_by_handstrength(hero_handstrength)
-                    actions_given_handstrengths['hero'][hero_category].append(actor_outputs['action_category'])
-                else:
-                    villain_category = bin_by_handstrength(villain_handstrength)
-                    actions_given_handstrengths['villain'][villain_category].append(actor_outputs['action_category'])
+                if state[:,-1,env.state_mapping['street']] == pdt.Street.RIVER:
+                    hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
+                    villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
+                    actions_given_handstrengths['hero']['counts'].append(bin_by_handstrength(hero_handstrength))
+                    actions_given_handstrengths['villain']['counts'].append(bin_by_handstrength(villain_handstrength))
+                    if agent_loc[env.current_player] == model_names[0]:
+                        hero_category = bin_by_handstrength(hero_handstrength)
+                        actions_given_handstrengths['hero'][hero_category].append(actor_outputs['action_category'])
+                    else:
+                        villain_category = bin_by_handstrength(villain_handstrength)
+                        actions_given_handstrengths['villain'][villain_category].append(actor_outputs['action_category'])
                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
             rewards = env.player_rewards()
             agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
