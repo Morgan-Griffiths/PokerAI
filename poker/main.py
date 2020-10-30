@@ -15,6 +15,7 @@ from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import copy_weights,hard_update,expand_conv2d
 from utils.utils import unpack_shared_dict,clean_folder
+from tournament import tournament
 
 from torch import optim
 
@@ -64,6 +65,10 @@ if __name__ == "__main__":
                         default=0,
                         type=int,
                         help='Which gpu to use')
+    parser.add_argument('--single',
+                        dest='single',
+                        action='store_true',
+                        help='Single threaded')
     parser.add_argument('--resume',
                         dest='resume',
                         action='store_true',
@@ -78,6 +83,7 @@ if __name__ == "__main__":
                         default=None,
                         type=str,
                         help='path to critic')
+    parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
@@ -172,20 +178,22 @@ if __name__ == "__main__":
         learning_params['model_optimizer'] = alphaPoker_optimizer
         learning_params['lrscheduler'] = lrscheduler
         alphaPoker.share_memory()
-        processes = []
         # for debugging
         # generate_trajectories(env,alphaPoker,training_params,id=0)
         # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
-        # train(env,alphaPoker,training_params,learning_params,id=0)
-        for e in range(training_params['lr_steps']):
-            for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_combined, args=(env,alphaPoker,training_params,learning_params,id))
-                p.start()
-                processes.append(p)
-            for p in processes: 
-                p.join()
-            learning_params['lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
+        if args.single:
+            train(env,alphaPoker,training_params,learning_params,id=0)
+        else:
+            processes = []
+            for e in range(training_params['lr_steps']):
+                for id in range(num_processes): # No. of processes
+                    p = mp.Process(target=train_combined, args=(env,alphaPoker,training_params,learning_params,id))
+                    p.start()
+                    processes.append(p)
+                for p in processes: 
+                    p.join()
+                learning_params['lrscheduler'].step()
+                training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
         print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
@@ -214,22 +222,25 @@ if __name__ == "__main__":
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
         # training loop
-        actor.share_memory()
-        critic.share_memory()
-        processes = []
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id=0)
-        for e in range(training_params['lr_steps']):
-            for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id))
-                p.start()
-                processes.append(p)
-            for p in processes: 
-                p.join()
-            learning_params['actor_lrscheduler'].step()
-            learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
+        if args.single:
+            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id=0)
+        else:
+            actor.share_memory()
+            critic.share_memory()
+            processes = []
+            for e in range(training_params['lr_steps']):
+                for id in range(num_processes): # No. of processes
+                    p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id))
+                    p.start()
+                    processes.append(p)
+                for p in processes: 
+                    p.join()
+                learning_params['actor_lrscheduler'].step()
+                learning_params['critic_lrscheduler'].step()
+                training_params['training_round'] = (e+1) * training_params['training_epochs']
+                # validate vs baseline
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
