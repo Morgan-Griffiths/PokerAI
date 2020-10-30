@@ -198,10 +198,10 @@ class ProcessOrdinal(nn.Module):
 
     def forward_critic(self,x):
         # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,2].long())
+        street = self.street_emb(x[:,:,2].long().to(self.device))
         # hero_position = self.position_emb(x[:,1].long()) + order[0]
         # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long())
+        previous_action = self.action_emb(x[:,:,6].long().to(self.device))
         ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
         return street
 
