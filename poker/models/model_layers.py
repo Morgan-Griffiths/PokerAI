@@ -177,20 +177,21 @@ class ProcessHandBoard(nn.Module):
 class ProcessOrdinal(nn.Module):
     def __init__(self,params):
         super().__init__()
-        self.mapping = params['mapping']
-        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Street.RIVER,padding_idx=0)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
-        self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
+        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Action.UNOPENED+1,padding_idx=0)
+        # self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
+        # self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
 
     def forward(self,x):
-        order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,0].long())
-        hero_position = self.position_emb(x[:,1].long()) + order[0]
-        vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,3].long())
-        ordinal_output = torch.cat((street,hero_position,vil_position,previous_action),dim=-1)
-        return ordinal_output
+        print('street',x[:,:,2])
+        print('last action',x[:,:,6])
+        # order = self.order_emb(torch.arange(2))
+        street = self.street_emb(x[:,:,2].long())
+        # hero_position = self.position_emb(x[:,1].long()) + order[0]
+        # vil_position = self.position_emb(x[:,2].long()) + order[1]
+        previous_action = self.action_emb(x[:,:,6].long())
+        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
+        return street
 
 class ProcessContinuous(nn.Module):
     def __init__(self,params):
@@ -312,8 +313,10 @@ class PreProcessLayer(nn.Module):
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
+            # c = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
+            # c = self.ordinal(x[:,:,self.state_mapping['ordinal']])
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
         last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
@@ -326,11 +329,10 @@ class PreProcessLayer(nn.Module):
         embeds = torch.stack(embedded_bets).view(B,M,-1)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
-        # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
-        # print(h.size(),emb_a.size(),embeds.size())
+        # print(h.size(),emb_a.size(),embeds.size(),c.size())
         combined = torch.cat((h,emb_a,embeds),dim=-1)
         return combined
 
