@@ -177,6 +177,7 @@ class ProcessHandBoard(nn.Module):
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params):
         super().__init__()
+        self.device = params['device']
         self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Action.UNOPENED+1,padding_idx=0)
         # self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
@@ -188,10 +189,10 @@ class ProcessOrdinal(nn.Module):
 
     def forward_actor(self,x):
         # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,1].long())
+        street = self.street_emb(x[:,:,1].long().to(self.device))
         # hero_position = self.position_emb(x[:,1].long()) + order[0]
         # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long())
+        previous_action = self.action_emb(x[:,:,6].long().to(self.device))
         ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
         return street
 
