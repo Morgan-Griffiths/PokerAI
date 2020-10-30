@@ -71,6 +71,7 @@ class StreetStrs:
     TURN = 'turn'
     FLOP = 'flop'
     PREFLOP = 'preflop'
+    ALL = [PREFLOP,FLOP,TURN,RIVER]
 
 class Street:
     PADDING = 0
