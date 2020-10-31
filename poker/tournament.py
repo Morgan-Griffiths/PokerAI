@@ -243,6 +243,7 @@ if __name__ == "__main__":
         results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
         for model,data in stats.items():
+            print(model)
             table = PrettyTable(['Street','Hand Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
             for street in tuple(data.keys()):
                 values = data[street]
