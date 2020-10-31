@@ -304,6 +304,7 @@ if __name__ == "__main__":
     network = NetworkConfig.DataModels[args.datatype]
     network_name = NetworkConfig.DataModels[args.datatype].__name__
     network_path = os.path.join('checkpoints',learning_category,network_name)
+    print(f'Loading model {network_path}')
 
     examine_params = {
         'network':network,
