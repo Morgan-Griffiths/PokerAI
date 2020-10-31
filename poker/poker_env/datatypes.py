@@ -330,11 +330,11 @@ class Globals:
         11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.])
     }
     STREET_DICT = {
-        0:Street.PADDING,
-        1:Street.PREFLOP,
-        2:Street.FLOP,
-        3:Street.TURN,
-        4:Street.RIVER
+        0:StreetStrs.PADDING,
+        1:StreetStrs.PREFLOP,
+        2:StreetStrs.FLOP,
+        3:StreetStrs.TURN,
+        4:StreetStrs.RIVER
     }
     REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     # Takes street as key
