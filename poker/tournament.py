@@ -18,37 +18,49 @@ from poker_env.env import Poker
 from utils.utils import load_paths,grep,return_latest_baseline_path,bin_by_handstrength
 
 def tournament(env,agent1,agent2,model_names,training_params):
-    actions_given_handstrengths = {
-        'hero':defaultdict(lambda:[]),
-        'villain':defaultdict(lambda:[]),
-    }
+    hero = model_names[1]
+    villain = model_names[0]
+    hero_river = defaultdict(lambda:[])
+    villain_river = defaultdict(lambda:[])
+    hero_dict = defaultdict(lambda:{'actions':[]})
+    villain_dict = defaultdict(lambda:{'actions':[]})
+    hero_dict['river'] = hero_river
+    villain_dict['river'] = villain_river
+    model_dict = {hero:hero_dict,villain:villain_dict}
     agent_performance = {
-        model_names[0]: {'SB':0,'BB':0},
-        model_names[1]: {'SB':0,'BB':0}
+        villain: {'SB':0,'BB':0},
+        hero: {'SB':0,'BB':0}
     }
     with torch.no_grad():
         for e in range(training_params['epochs']):
             sys.stdout.write('\r')
             if e % 2 == 0:
                 agent_positions = {'SB':agent1,'BB':agent2}
-                agent_loc = {'SB':model_names[0],'BB':model_names[1]}
+                agent_loc = {'SB':villain,'BB':hero}
             else:
                 agent_positions = {'SB':agent2,'BB':agent1}
-                agent_loc = {'SB':model_names[1],'BB':model_names[0]}
+                agent_loc = {'SB':hero,'BB':villain}
             state,obs,done,action_mask,betsize_mask = env.reset()
             while not done:
                 actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                if state[:,-1,env.state_mapping['street']] == pdt.Street.RIVER:
-                    hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
-                    villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
-                    actions_given_handstrengths['hero']['counts'].append(bin_by_handstrength(hero_handstrength))
-                    actions_given_handstrengths['villain']['counts'].append(bin_by_handstrength(villain_handstrength))
-                    if agent_loc[env.current_player] == model_names[0]:
+                street = pdt.Globals.STREET_DICT[state[:,-1,env.state_mapping['street']][0]]
+                if street == pdt.StreetStrs.RIVER:
+                    if agent_loc[env.current_player] == hero:
+                        hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
+                        villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
+                        model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
+                        model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
                         hero_category = bin_by_handstrength(hero_handstrength)
-                        actions_given_handstrengths['hero'][hero_category].append(actor_outputs['action_category'])
+                        model_dict[hero][street][hero_category].append(actor_outputs['action_category'])
                     else:
+                        villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
+                        hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
+                        model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
+                        model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
                         villain_category = bin_by_handstrength(villain_handstrength)
-                        actions_given_handstrengths['villain'][villain_category].append(actor_outputs['action_category'])
+                        model_dict[villain][street][villain_category].append(actor_outputs['action_category'])
+                else:
+                    model_dict[agent_loc[env.current_player]][street]['actions'].append(actor_outputs['action_category'])
                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
             rewards = env.player_rewards()
             agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
@@ -57,7 +69,28 @@ def tournament(env,agent1,agent2,model_names,training_params):
             sys.stdout.flush()
             sys.stdout.write(", epoch %d"% (e+1))
             sys.stdout.flush()
-    return agent_performance,actions_given_handstrengths
+    return agent_performance,model_dict
+
+def count_actions(values):
+    raises = 0
+    folds = 0
+    calls = 0
+    checks = 0
+    bets = 0
+    total_vals = 0
+    for val in values:
+        total_vals += 1
+        if val == 0:
+            checks += 1
+        elif val == 1:
+            folds += 1
+        elif val == 2:
+            calls += 1
+        elif val == 3:
+            bets += 1
+        else:
+            raises += 1
+    return [checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals,total_vals]
 
 if __name__ == "__main__":
     import argparse
@@ -209,35 +242,28 @@ if __name__ == "__main__":
         model_names = ['baseline_evaluation','trained_model']
         results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
+        print(stats.keys())
+        print(stats)
         
         for model,data in stats.items():
-            table = PrettyTable(['Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
-            counts = data['counts']
-            uniques,freqs = np.unique(counts,return_counts=True)
-            print('model',model)
-            for category in range(9):
-                category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
-                values = data[category]
-                if values:
-                    raises = 0
-                    folds = 0
-                    calls = 0
-                    checks = 0
-                    bets = 0
-                    total_vals = 0
-                    for val in values:
-                        total_vals += 1
-                        if val == 0:
-                            checks += 1
-                        elif val == 1:
-                            folds += 1
-                        elif val == 2:
-                            calls += 1
-                        elif val == 3:
-                            bets += 1
-                        else:
-                            raises += 1
-                    table.add_row([category,checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals,category_occurances])
+            table = PrettyTable(['Street','Hand Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
+            for street in tuple(data.keys()):
+                values = data[street]
+                print('model',model)
+                print('street',street)
+                print('values',values)
+                if street == pdt.StreetStrs.RIVER:
+                    counts = values['counts']
+                    uniques,freqs = np.unique(counts,return_counts=True)
+                    for category in range(9):
+                        category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
+                        values = data[category]
+                        checks,folds,calls,bets,raises,total_vals = count_actions(values)
+                        if values:
+                            table.add_row([street,category,checks,folds,calls,bets,raises,category_occurances])
+                else:
+                    checks,folds,calls,bets,raises,total_vals = count_actions(values['actions'])
+                    table.add_row([street,-1,checks,folds,calls,bets,raises,total_vals])
             print(table)
 
         print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
