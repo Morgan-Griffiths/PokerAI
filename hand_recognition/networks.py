@@ -783,15 +783,55 @@ class HandRankClassificationFive(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=1, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 32, kernel_size=1, stride=1),
+            nn.BatchNorm1d(32),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=5, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 32, kernel_size=5, stride=1),
+            nn.BatchNorm1d(32),
             nn.ReLU(inplace=True),
         )
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            # self.bn_layers.append(nn.BatchNorm1d(64))
+        self.categorical_output = nn.Linear(1024,self.nA)
+
+    def forward(self,x):
+        # Input is (b,5,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+        # hot_ranks is (b,5,15)
+        # hot_ranks is (b,5,5)
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # x (b, 64, 16)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(hidden_layer(x))
+        return self.categorical_output(x.view(M,-1))
+
+
+class HandRankClassificationFC(nn.Module):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,64)
+        self.suits_emb = nn.Embedding(dt.SUITS.HIGH+1,64)
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
@@ -800,6 +840,9 @@ class HandRankClassificationFive(nn.Module):
         self.categorical_output = nn.Linear(4096,self.nA)
 
     def forward(self,x):
+        """
+        Emb and process hand, emb and process hand.
+        """
         # Input is (b,5,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
