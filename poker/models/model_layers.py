@@ -107,7 +107,7 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(7463,512,128),activation_fc=F.relu):
+    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(15360,512,127),activation_fc=F.relu):
         super().__init__()
         self.output_dims = output_dims
         self.activation_fc = activation_fc
@@ -119,23 +119,23 @@ class ProcessHandBoard(nn.Module):
         self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=1, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 128, kernel_size=5, stride=1),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(5, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
         for i in range(len(self.hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(4096,7463)
+        self.categorical_output = nn.Linear(512,7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.hand_out = nn.Linear(7680,255) #params['lstm_in'] // 3)
+        self.hand_out = nn.Linear(128,256) #params['lstm_in'] // 3)
 
     def forward(self,x):
         """
@@ -150,29 +150,36 @@ class ProcessHandBoard(nn.Module):
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
         # torch.set_printoptions(threshold=7500)
+        raw_activations = []
         activations = []
         for i in range(B):
+            raw_combinations = []
             combinations = []
             for j in range(M):
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
+                raw_combinations.append(out)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
                 out = self.categorical_output(out.view(60,-1))
-                # combinations.append(torch.argmax(torch.softmax(out,dim=-1),dim=-1))
+                # combinations.append(torch.argmax(out,dim=-1))
                 combinations.append(out)
             activations.append(torch.stack(combinations))
-        # baseline = hardcode_handstrength(x)
+            raw_activations.append(torch.stack(raw_combinations))
+        baseline = hardcode_handstrength(x)
         results = torch.stack(activations)
-        best_hands = torch.min(torch.argmax(torch.softmax(results,dim=-1),dim=-1),dim=-1)[0].unsqueeze(-1)
+        best_hand = torch.min(torch.argmax(results,dim=-1),dim=-1)[0].unsqueeze(-1)
+        print(best_hand)
+        print(baseline)
+        raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
-            results = self.activation_fc(output_layer(results))
+            raw_results = self.activation_fc(output_layer(raw_results))
         # (B,M,60,512)
-        o = self.hand_out(results.view(B,M,-1))
-        return torch.cat((o,best_hands.float()),dim=-1)
+        # o = self.hand_out(raw_results.view(B,M,-1))
+        return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params):
@@ -189,19 +196,19 @@ class ProcessOrdinal(nn.Module):
 
     def forward_actor(self,x):
         # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,1].long().to(self.device))
+        street = self.street_emb(x[:,:,1].long())
         # hero_position = self.position_emb(x[:,1].long()) + order[0]
         # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long().to(self.device))
+        previous_action = self.action_emb(x[:,:,6].long())
         ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
         return street
 
     def forward_critic(self,x):
         # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,2].long().to(self.device))
+        street = self.street_emb(x[:,:,2].long())
         # hero_position = self.position_emb(x[:,1].long()) + order[0]
         # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long().to(self.device))
+        previous_action = self.action_emb(x[:,:,6].long())
         ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
         return street
 
@@ -325,10 +332,10 @@ class PreProcessLayer(nn.Module):
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
-            c = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
+            c = self.ordinal(x[:,:,self.obs_mapping['ordinal']].to(self.device))
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
-            c = self.ordinal(x[:,:,self.state_mapping['ordinal']])
+            c = self.ordinal(x[:,:,self.state_mapping['ordinal']].to(self.device))
         # h.size(B,M,240)
         last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
         last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)

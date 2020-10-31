@@ -154,9 +154,9 @@ class Config(object):
             'state_mapping':self.state_mapping,
             'obs_mapping':self.obs_mapping,
             'embedding_size':128,
-            'transformer_in':480,
+            'transformer_in':352,
             'transformer_out':128,
-            'lstm_in':480,
+            'lstm_in':352,
             'lstm_out':128,
             'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights'),
             'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights')
