@@ -6,6 +6,7 @@ import os
 from pymongo import MongoClient
 import numpy as np
 import sys
+import time
 
 from db import MongoDB
 from poker_env.config import Config
@@ -285,7 +286,13 @@ if __name__ == "__main__":
         learning_params['critic_optimizer'] = critic_optimizer
 
         # Gen trajectories
-        generate_trajectories(env,local_actor,local_critic,training_params,id=0)
+        print('eval generate trajectory step')
+        tic = time.time()
+        with profiler.profile(record_shapes=True) as prof:
+            generate_trajectories(env,local_actor,local_critic,training_params,id=0)
+        print(f'Code took {(time.time() - tic)} seconds')
+        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        print('eval learning step')
         with profiler.profile(record_shapes=True) as prof:
         # with profiler.profile(profile_memory=True, record_shapes=True) as prof:
             with profiler.record_function("model_inference"):
@@ -304,7 +311,8 @@ if __name__ == "__main__":
                         eval_critic(local_critic,learning_params)
                     else:
                         eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
-        # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-        print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
-        print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+        print(f'Code took {(time.time() - tic)} seconds')
+        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        # print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
+        # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
         # prof.export_chrome_trace("trace.json")
