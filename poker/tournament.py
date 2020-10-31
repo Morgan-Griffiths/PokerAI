@@ -242,16 +242,10 @@ if __name__ == "__main__":
         model_names = ['baseline_evaluation','trained_model']
         results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
-        print(stats.keys())
-        print(stats)
-        
         for model,data in stats.items():
             table = PrettyTable(['Street','Hand Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
             for street in tuple(data.keys()):
                 values = data[street]
-                print('model',model)
-                print('street',street)
-                print('values',values)
                 if street == pdt.StreetStrs.RIVER:
                     counts = values['counts']
                     uniques,freqs = np.unique(counts,return_counts=True)
