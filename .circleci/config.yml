@@ -11,7 +11,7 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
+      # - python/load-cache
       - restore_cache:
           keys:
             - model_cache
@@ -42,7 +42,7 @@ jobs:
           command: |
             cd rusteval
             cargo build --release
-      - python/save-cache
+      # - python/save-cache
       - run:
           name: test-kuhn
           command: |
