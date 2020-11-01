@@ -1,10 +1,27 @@
 from torch import Tensor as T
 import numpy as np
 
+"""For Visualize.py"""
+
+class VisualCategories:
+    BETSIZE='betsize'
+    ACTION='action'
+    REWARD='reward'
+    ALL=[BETSIZE,ACTION,REWARD]
+
+class VisualActionTypes:
+    FREQUENCY='frequency'
+    PROBABILITY='probability'
+    ALL=[FREQUENCY,PROBABILITY]
+
+class VisualHandTypes:
+    HAND='hand'
+    HANDSTRENGTH='handstrength'
+    ALL=[HAND,HANDSTRENGTH]
+
 """
 High is noninclusive
 """
-
 
 class RANKS(object):
     HIGH = 15
@@ -54,6 +71,7 @@ class StreetStrs:
     TURN = 'turn'
     FLOP = 'flop'
     PREFLOP = 'preflop'
+    ALL = [PREFLOP,FLOP,TURN,RIVER]
 
 class Street:
     PADDING = 0
@@ -123,7 +141,7 @@ class BaseHoldem(object):
         self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 2
         self.state_params['n_players'] = 2
-        self.state_params['stacksize'] = 10
+        self.state_params['stacksize'] = 5.
         self.state_params['pot'] = 2
         self.state_params['game_turn'] = 0
         self.rule_params = {
@@ -199,7 +217,7 @@ class BaseOmaha(object):
         self.state_params['suits'] = list(range(SUITS.LOW,SUITS.HIGH))
         self.state_params['cards_per_player'] = 4
         self.state_params['n_players'] = 2
-        self.state_params['stacksize'] = 10
+        self.state_params['stacksize'] = 5.
         self.state_params['pot'] = 2
         self.state_params['game_turn'] = 0
         self.rule_params = {
@@ -259,11 +277,11 @@ class BaseOmaha(object):
 class OmahaHI(object):
     def __init__(self):
         K = BaseOmaha()
-        self.starting_street = Street.RIVER
+        self.starting_street = Street.TURN
         self.rule_params = K.rule_params
         self.state_params = K.state_params
-        self.state_params['stacksize'] = 5.
-        self.state_params['pot']= 2.
+        self.state_params['stacksize'] = 10.
+        self.state_params['pot']= 1.
         self.rule_params['betsizes'] = np.array([0.5,1.])
 
 class OmahaHILO(object):
@@ -312,11 +330,11 @@ class Globals:
         11: T([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.])
     }
     STREET_DICT = {
-        0:Street.PADDING,
-        1:Street.PREFLOP,
-        2:Street.FLOP,
-        3:Street.TURN,
-        4:Street.RIVER
+        0:StreetStrs.PADDING,
+        1:StreetStrs.PREFLOP,
+        2:StreetStrs.FLOP,
+        3:StreetStrs.TURN,
+        4:StreetStrs.RIVER
     }
     REVERSE_STREET_DICT = {v:k for k,v in STREET_DICT.items()}
     # Takes street as key

@@ -7,6 +7,25 @@ def return_uniques(values):
     uniques, count = np.unique(values, return_counts=True)
     return uniques, count
 
+class memDatasetLoader(Dataset):
+    def __init__(self, X,y,category='classification'):
+        self.X = X
+        self.y = y
+        self.category = category
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        if self.category == 'classification':
+            sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).long()}
+        else:
+            sample = {'item': torch.tensor(self.X[idx]), 'label': torch.tensor(self.y[idx]).float()}
+
+        return sample
+
 class datasetLoader(Dataset):
     """Boolean Logic dataset."""
 
@@ -30,17 +49,17 @@ class datasetLoader(Dataset):
 
         return sample
 
-def return_trainloader(X,y):
-    data = datasetLoader(X,y)
+def return_trainloader(X,y,category):
+    data = memDatasetLoader(X,y,category)
     params = {
-        'batch_size':2048,
+        'batch_size':4096,
         'shuffle': True,
-        'num_workers':2
+        'num_workers':8
     }
     trainloader = DataLoader(data, **params)
     return trainloader
 
-def return_dataloaders(X,y,multigpu=False):
+def return_dataloaders(X,y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=1)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=1)
     print(f'Dataset binary label balance: train: {return_uniques(y_train)[1]}, val: {return_uniques(y_val)[1]}, test: {return_uniques(y_test)[1]}')

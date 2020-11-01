@@ -1,13 +1,35 @@
 import numpy as np
 import copy
+from datatypes import SUITS,RANKS
 
 SUIT_DICT = {
-    0:'s',
-    1:'h',
-    2:'d',
-    3:'c'
+    1:'s',
+    2:'h',
+    3:'d',
+    4:'c'
 }
 REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
+
+
+def swap_suits(cards):
+  """
+  Swap suits to remove most symmetries.
+
+  Modifies cards in place
+
+  Fails to remove some in the case where there is a lower-ranked
+  pair or triple that shares a suit with a higher-ranked card.
+  TODO: handle [2,3], [2,4], [6,3], [7,4] deterministically
+  """
+  cards_need_swap = cards
+  new_suit = 5
+  while cards_need_swap.shape[0] > 0:
+    suit = cards_need_swap[0,1]
+    cards[cards[:,1] == suit, 1] = new_suit
+    new_suit += 1
+    cards_need_swap = cards[cards[:,1] < 5]
+  cards[:,1] = cards[:,1] - 4
+  return cards
 
 def convert_numpy_to_rust(vectors):
     cards = []
@@ -15,6 +37,7 @@ def convert_numpy_to_rust(vectors):
         np_suit = np.floor(np.divide(vector,13)).astype(int)
         rank = np.subtract(vector,np.multiply(np_suit,13))
         rank = np.add(rank,2)
+        np_suit = np.add(np_suit,1)
         suit = SUIT_DICT[np_suit]
         cards.append([rank,suit])
     return cards
@@ -25,6 +48,7 @@ def convert_numpy_to_2d(vectors):
         np_suit = np.floor(np.divide(vector,13)).astype(int)
         rank = np.subtract(vector,np.multiply(np_suit,13))
         rank = np.add(rank,2)
+        np_suit = np.add(np_suit,1)
         cards.append([rank,np_suit])
     return cards
 
@@ -55,18 +79,19 @@ def suits_to_num(cards):
 def to_52_vector(vector):
     rank = np.transpose(vector)[:][0]
     suit = np.transpose(vector)[1][:]
-    rank = np.subtract(rank,2)
+    rank = np.subtract(rank,RANKS.LOW)
+    suit = np.subtract(suit,SUITS.LOW)
     return np.add(rank,np.multiply(suit,13))
 
 #takes (1,4) vector of numbers between 0-51 and turns into 2d vector of numbers between 0-13 and 1-4
 #returns list
 def to_2d(vector):
     if type(vector) == np.ndarray or type(vector) == list:
-    #    print()
         suit = np.floor(np.divide(vector,13))
         suit = suit.astype(int)
         rank = np.subtract(vector,np.multiply(suit,13))
-        rank = np.add(rank,2)
+        rank = np.add(rank,RANKS.LOW)
+        suit = np.add(suit,SUITS.LOW)
         combined = np.concatenate([rank,suit])
         length = int(len(combined) / 2)
         hand_length = len(vector)
@@ -75,7 +100,8 @@ def to_2d(vector):
         suit = np.floor(np.divide(vector,13))
         suit = suit.astype(int)
         rank = np.subtract(vector,np.multiply(suit,13))
-        rank = np.add(rank,2)
+        rank = np.add(rank,RANKS.LOW)
+        suit = np.add(suit,SUITS.LOW)
         hand = [[rank,suit]]
         print(hand,'hand')
     #print(hand,'combined')

@@ -8,8 +8,8 @@ from poker_env.datatypes import Action
 from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import Embedder,GaussianNoise,PreProcessHistory,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
-from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding
+from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
+from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding,copy_weights
 
 class BetAgent(object):
     def __init__(self):
@@ -197,7 +197,8 @@ class HoldemQCritic(Network):
 #                Omaha Networks                #
 ################################################
 
-class OmahaActor(Network):
+
+class OmahaBatchActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
         self.activation = activation
@@ -220,6 +221,7 @@ class OmahaActor(Network):
         n_heads = 8
         depth = 2
         self.lstm = nn.LSTM(1280, 128,bidirectional=True)
+        self.batchnorm = nn.BatchNorm1d(self.maxlen)
         # self.blocks = nn.Sequential(
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
@@ -242,8 +244,9 @@ class OmahaActor(Network):
             padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
             h = torch.cat((out,padding),dim=1)
         lstm_out,_ = self.lstm(h)
+        norm = self.batchnorm(lstm_out)
         # blocks_out = self.blocks(lstm_out.view(-1))
-        t_logits = self.fc_final(lstm_out.view(-1))
+        t_logits = self.fc_final(norm.view(-1))
         category_logits = self.noise(t_logits)
         
         action_soft = F.softmax(category_logits,dim=-1)
@@ -259,6 +262,127 @@ class OmahaActor(Network):
             'action_probs':action_probs,
             'betsize':betsize_category.item()
             }
+        return outputs
+        
+class OmahaBatchObsQCritic(Network):
+    def __init__(self,seed,nO,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nO = nO
+        self.nA = nA
+        self.combined_output = nA - 2 + nB
+        self.process_input = PreProcessLayer(params,critic=True)
+        self.maxlen = params['maxlen']
+        self.mapping = params['state_mapping']
+        self.device = params['device']
+        # self.emb = params['embedding_size']
+        # self.lstm = nn.LSTM(1280, 128)
+        emb = params['transformer_in']
+        n_heads = 8
+        depth = 2
+        self.transformer = CTransformer(emb,n_heads,depth,self.maxlen,params['transformer_out'])
+        self.dropout = nn.Dropout(0.5)
+        self.value_output = nn.Linear(params['transformer_out'],1)
+        self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
+
+    def forward(self,obs):
+        x = torch.tensor(obs,dtype=torch.float32).to(self.device)
+        out = self.process_input(x)
+        q_input = self.transformer(out)
+        a = self.advantage_output(q_input)
+        v = self.value_output(q_input)
+        v = v.expand_as(a)
+        q = v + a - a.mean(-1,keepdim=True).expand_as(a)
+        outputs = {
+            'value':q.squeeze(0)
+            }
+        return outputs
+
+class OmahaActor(Network):
+    def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
+        super().__init__()
+        self.activation = activation
+        self.nS = nS
+        self.nA = nA
+        self.nB = nB
+        self.combined_output = nA - 2 + nB
+        self.helper_functions = NetworkFunctions(self.nA,self.nB)
+        self.maxlen = params['maxlen']
+        self.device = params['device']
+        self.process_input = PreProcessLayer(params)
+        
+        # self.seed = torch.manual_seed(seed)
+        self.state_mapping = params['state_mapping']
+        self.action_emb = Embedder(Action.UNOPENED,64)
+        self.betsize_emb = Embedder(self.nB,64)
+        self.noise = GaussianNoise(self.device)
+        self.emb = 1248
+        n_heads = 8
+        depth = 2
+        # self.attention = EncoderAttention(params['lstm_in'],params['lstm_out'])
+        self.lstm = nn.LSTM(params['lstm_in'],params['lstm_out'],bidirectional=True)
+        self.batchnorm = nn.BatchNorm1d(self.maxlen)
+        # self.blocks = nn.Sequential(
+        #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
+        #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
+        # )
+        self.fc_final = nn.Linear(2560,self.combined_output)
+        self.dropout = nn.Dropout(0.5)
+        
+    def forward(self,state,action_mask,betsize_mask):
+        """
+        state: B,M,39
+        """
+        x = state
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
+        mask = combined_masks(action_mask,betsize_mask)
+        out = self.process_input(x)
+        B,M,c = out.size()
+        n_padding = self.maxlen - M
+        if n_padding < 0:
+            h = out[:,-self.maxlen:,:]
+        else:
+            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+            h = torch.cat((padding,out),dim=1)
+        lstm_out,hidden_states = self.lstm(h)
+        norm = self.batchnorm(lstm_out)
+        # self.attention(out)
+        # blocks_out = self.blocks(lstm_out.view(-1))
+        t_logits = self.fc_final(norm.view(B,-1))
+        category_logits = self.noise(t_logits)
+        # skip connection
+        # category_logits += h
+        action_soft = F.softmax(category_logits,dim=-1)
+        # if torch.cuda.is_available():
+        #     action_probs = norm_frequencies(action_soft,mask.cuda())
+        #     previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).cuda()#.to(self.device)
+        # else:
+        action_probs = norm_frequencies(action_soft,mask)
+        previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
+        m = Categorical(action_probs)
+        action = m.sample()
+        action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
+        if B > 1:
+            # batch training
+            outputs = {
+                'action':action,
+                'action_category':action_category,
+                'action_prob':m.log_prob(action),
+                'action_probs':action_probs,
+                'betsize':betsize_category
+                }
+        else:
+            # playing hand
+            outputs = {
+                'action':action.item(),
+                'action_category':action_category.item(),
+                'action_prob':m.log_prob(action),
+                'action_probs':action_probs,
+                'betsize':betsize_category.item()
+                }
         return outputs
     
 class OmahaQCritic(Network):
@@ -289,7 +413,6 @@ class OmahaQCritic(Network):
         # n_padding = max(self.maxlen - M,0)
         # padding = torch.zeros(B,n_padding,out.size(-1))
         # h = torch.cat((out,padding),dim=1)
-
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)
@@ -307,6 +430,7 @@ class OmahaObsQCritic(Network):
         self.nO = nO
         self.nA = nA
         self.combined_output = nA - 2 + nB
+        # self.attention = VectorAttention(params['transformer_in'])
         self.process_input = PreProcessLayer(params,critic=True)
         self.maxlen = params['maxlen']
         self.mapping = params['state_mapping']
@@ -322,8 +446,11 @@ class OmahaObsQCritic(Network):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,obs):
-        x = torch.tensor(obs,dtype=torch.float32).to(self.device)
+        x = obs
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
         out = self.process_input(x)
+        # context = self.attention(out)
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
         v = self.value_output(q_input)

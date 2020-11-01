@@ -4,7 +4,9 @@ import json
 import logging
 import pymongo
 import numpy as np
+from torch import set_grad_enabled
 from torch import load
+from torch import device as D
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Flask, jsonify, request
@@ -31,10 +33,10 @@ class API(object):
             'betsizes': self.game_object.rule_params['betsizes'],
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
-            'pot':0,
-            'stacksize': 100,#self.game_object.state_params['stacksize'],
+            'pot':1,
+            'stacksize': 5,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': pdt.Street.PREFLOP, #self.game_object.starting_street,
+            'starting_street': pdt.Street.RIVER, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -53,18 +55,18 @@ class API(object):
 
     def instantiate_network_params(self):
         device = 'cpu'
-        network_params = copy.deepcopy(self.env_params)
+        network_params = copy.deepcopy(self.config.network_params)
         network_params['maxlen'] = 10
         network_params['embedding_size'] = 128
-        network_params['transformer_in'] = 1280
+        network_params['transformer_in'] = 256
         network_params['transformer_out'] = 128
         network_params['device'] = device
         return network_params
 
     def load_model(self,path):
         if os.path.isfile(path):
-            self.model.load_state_dict(load(path))
-            self.model.eval()
+            self.model.load_state_dict(load(path,map_location=D('cpu')))
+            set_grad_enabled(False)
         else:
             raise ValueError('File does not exist')
 
@@ -127,6 +129,21 @@ class API(object):
                     }
                     self.db['game_data'].insert_one(state_json)
 
+    def return_model_outputs(self):
+        query = {
+            'player':self.player['name']
+        }
+        player_data = self.db['game_data'].find(query).sort('_id',-1)
+        action_probs = []
+        for result in player_data:
+            action_probs.append(result['action_probs'])
+            break
+        model_outputs = {
+            'action_probs':action_probs,
+            'q_values':action_probs
+        }
+        return model_outputs
+
     def return_player_stats(self):
         """Returns dict of current player stats against the bot."""
         query = {
@@ -168,23 +185,23 @@ class API(object):
             'hero_position'             :pdt.Globals.POSITION_MAPPING[hero.position],
             'hero_cards'                :flatten(hero.hand),
             'hero_street_total'         :hero.street_total,
-            'pot'                       :state[:,-1][:,self.env.state_mapping['pot']][0],
+            'pot'                       :float(state[:,-1][:,self.env.state_mapping['pot']][0]),
             'board_cards'               :state[:,-1][:,self.env.state_mapping['board']][0].tolist(),
             'villain_stack'             :villain.stack,
             'villain_position'          :pdt.Globals.POSITION_MAPPING[villain.position],
             'villain_cards'             :flatten(villain.hand),
             'villain_street_total'      :villain.street_total,
-            'last_action'               :state[:,-1][:,self.env.state_mapping['last_action']][0],
-            'last_betsize'              :state[:,-1][:,self.env.state_mapping['last_betsize']][0],
-            'last_position'             :state[:,-1][:,self.env.state_mapping['last_position']][0],
-            'last_aggressive_action'    :state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0],
-            'last_aggressive_betsize'   :state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0],
-            'last_aggressive_position'  :state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0],
+            'last_action'               :int(state[:,-1][:,self.env.state_mapping['last_action']][0]),
+            'last_betsize'              :float(state[:,-1][:,self.env.state_mapping['last_betsize']][0]),
+            'last_position'             :int(state[:,-1][:,self.env.state_mapping['last_position']][0]),
+            'last_aggressive_action'    :int(state[:,-1][:,self.env.state_mapping['last_aggressive_action']][0]),
+            'last_aggressive_betsize'   :float(state[:,-1][:,self.env.state_mapping['last_aggressive_betsize']][0]),
+            'last_aggressive_position'  :int(state[:,-1][:,self.env.state_mapping['last_aggressive_position']][0]),
             'done'                      :done,
             'action_mask'               :action_mask.tolist(),
             'betsize_mask'              :betsize_mask.tolist(),
-            'street'                    :state[:,-1][:,self.env.state_mapping['street']][0],
-            'blind'                     :state[:,-1][:,self.env.state_mapping['blind']][0]
+            'street'                    :int(state[:,-1][:,self.env.state_mapping['street']][0]),
+            'blind'                     :bool(state[:,-1][:,self.env.state_mapping['blind']][0])
         }
         outcome_object = {
             'player1_reward'   :hero.stack - self.env.starting_stack,
@@ -291,6 +308,10 @@ def player():
 @app.route('/api/player/stats')
 def player_stats():
     return json.dumps(api.return_player_stats())
+
+@app.route('/api/model/outputs')
+def model_outputs():
+    return json.dumps(api.return_model_outputs())
 
 @app.route('/api/model/load',methods=['POST'])
 def load_model():

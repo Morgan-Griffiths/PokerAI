@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
-from models.model_utils import strip_padding
+from models.model_utils import strip_padding,unspool,hardcode_handstrength
+from hashlib import md5
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -36,6 +37,27 @@ class NetworkFunctions(object):
         else: # Bet or raise
             actions[betsize_category + 3] = 1
         return torch.argmax(actions, dim=0).unsqueeze(0)
+    
+    def batch_unwrap_action(self,actions:torch.Tensor,previous_actions:torch.Tensor):
+        """
+        Unwraps flat action into action_category and betsize_category
+        Action is from network outputs - 0-5
+        previous_action is from env. 1-6
+        """
+        int_actions = torch.zeros_like(actions)
+        int_betsizes = torch.zeros_like(actions)
+        prev_ge_2 = torch.as_tensor((previous_actions > Action.FOLD)&(previous_actions < Action.UNOPENED))
+        prev_le_3 = torch.as_tensor((previous_actions < Action.CALL)|(previous_actions == Action.UNOPENED))
+        actions_le_2 = actions < 2
+        actions_ge_2 = actions > 2
+        actions_le_3 = actions < 3
+        int_actions[actions_le_2] = actions[actions_le_2]
+        int_betsizes[actions_le_2] = 0
+        int_betsizes[actions_ge_2] = actions[actions_ge_2] - 3
+        int_actions[(actions_ge_2)&(prev_ge_2)] = 4
+        int_actions[(actions_ge_2)&(prev_le_3)] = 3
+        int_actions[actions_le_3] = actions[actions_le_3]
+        return int_actions,int_betsizes
 
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """
@@ -52,7 +74,7 @@ class NetworkFunctions(object):
             actions[3] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1
-        else: # facing bet or raise
+        else: # facing bet or raise or call (preflop)
             actions[4] = 1
             bet_category = action - 3
             betsizes[bet_category] = 1
@@ -62,7 +84,6 @@ class NetworkFunctions(object):
 
     # def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
     #     """Unwraps flat action into action_category and betsize_category"""
-    #     # print(action,previous_action)
     #     actions_output = torch.zeros(action.size(0),self.nA)
     #     betsizes = torch.zeros(action.size(0),self.nB)
     #     # actions[action[action < 3]] = 1
@@ -86,101 +107,109 @@ class NetworkFunctions(object):
 ################################################
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,critic=False,hidden_dims=(15,32,32)):
+    def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(15360,512,127),activation_fc=F.relu):
         super().__init__()
-        self.critic = critic
+        self.output_dims = output_dims
+        self.activation_fc = activation_fc
+        self.hidden_dims = hidden_dims
         self.hand_length = hand_length
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,RANKS.HIGH))
+        self.maxlen = params['maxlen']
+        self.device = params['device']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5+hand_length, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5+hand_length, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
-        self.bn_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
-        self.maxlen = params['maxlen']
-        self.device = params['device']
-        self.initialize(critic)
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(512,7463)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.hand_out = nn.Linear(128,256) #params['lstm_in'] // 3)
 
-    def initialize(self,critic):
+    def forward(self,x):
+        """
+        x: concatenated hand and board. alternating rank and suit.
+        shape: B,M,18
+        """
+        B,M,C = x.size()
+        ranks,suits = unspool(x)
+        # Shape of B,M,60,5
+        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
+        hot_suits = self.one_hot_suits[suits].float().to(self.device)
+        # hot_ranks torch.Size([1, 2, 60, 5, 15])
+        # hot_suits torch.Size([1, 2, 60, 5, 5])
+        # torch.set_printoptions(threshold=7500)
+        raw_activations = []
+        activations = []
+        for i in range(B):
+            raw_combinations = []
+            combinations = []
+            for j in range(M):
+                s = self.suit_conv(hot_suits[i,j,:,:,:])
+                r = self.rank_conv(hot_ranks[i,j,:,:,:])
+                out = torch.cat((r,s),dim=-1)
+                raw_combinations.append(out)
+                # out: (b,64,16)
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
+                out = self.categorical_output(out.view(60,-1))
+                combinations.append(torch.argmax(out,dim=-1))
+            activations.append(torch.stack(combinations))
+            raw_activations.append(torch.stack(raw_combinations))
+        # baseline = hardcode_handstrength(x)
+        results = torch.stack(activations)
+        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # print(best_hand)
+        # print(baseline)
+        raw_results = torch.stack(raw_activations).view(B,M,-1)
+        # (B,M,60,7463)
+        for output_layer in self.output_layers:
+            raw_results = self.activation_fc(output_layer(raw_results))
+        # (B,M,60,512)
+        # o = self.hand_out(raw_results.view(B,M,-1))
+        return torch.cat((raw_results,best_hand.float()),dim=-1)
+
+class ProcessOrdinal(nn.Module):
+    def __init__(self,critic,params):
+        super().__init__()
+        self.device = params['device']
+        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Action.UNOPENED+1,padding_idx=0)
+        # self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
+        # self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
         if critic:
             self.forward = self.forward_critic
         else:
             self.forward = self.forward_actor
 
-    def forward_critic(self,x):
-        """x: concatenated hand and board. alternating rank and suit."""
-        B,M,C = x.size()
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
-        hero_ranks = ranks[:,:,:self.hand_length]
-        villain_ranks = ranks[:,:,self.hand_length:self.hand_length*2]
-        board_ranks = ranks[:,:,self.hand_length*2:]
-        hero_suits = suits[:,:,:self.hand_length]
-        villain_suits = suits[:,:,self.hand_length:self.hand_length*2]
-        board_suits = suits[:,:,self.hand_length*2:]
-        hero_hand_ranks = torch.cat((hero_ranks,board_ranks),dim=-1)
-        hero_hand_suits = torch.cat((hero_suits,board_suits),dim=-1)
-        villain_hand_ranks = torch.cat((villain_ranks,board_ranks),dim=-1)
-        villain_hand_suits = torch.cat((villain_suits,board_suits),dim=-1)
-        hero_hot_ranks = self.one_hot_ranks[hero_hand_ranks].to(self.device)
-        hero_hot_suits = self.one_hot_suits[hero_hand_suits].to(self.device)
-        villain_hot_ranks = self.one_hot_ranks[villain_hand_ranks].to(self.device)
-        villain_hot_suits = self.one_hot_suits[villain_hand_suits].to(self.device)
-        hero_activations = []
-        villain_activations = []
-        for i in range(M):
-            hero_s = self.suit_conv(hero_hot_suits[:,i,:,:].float())
-            hero_r = self.rank_conv(hero_hot_ranks[:,i,:,:].float())
-            hero_activations.append(torch.cat((hero_r,hero_s),dim=-1))
-            villain_s = self.suit_conv(villain_hot_suits[:,i,:,:].float())
-            villain_r = self.rank_conv(villain_hot_ranks[:,i,:,:].float())
-            villain_activations.append(torch.cat((villain_r,villain_s),dim=-1))
-        hero = torch.stack(hero_activations).view(B,M,-1)
-        villain = torch.stack(villain_activations).view(B,M,-1)
-        return hero - villain
-
     def forward_actor(self,x):
-        """x: concatenated hand and board. alternating rank and suit."""
-        B,M,C = x.size()
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
-        hot_ranks = self.one_hot_ranks[ranks].to(self.device)
-        hot_suits = self.one_hot_suits[suits].to(self.device)
-        activations = []
-        for i in range(M):
-            s = self.suit_conv(hot_suits[:,i,:,:].float())
-            r = self.rank_conv(hot_ranks[:,i,:,:].float())
-            activations.append(torch.cat((r,s),dim=-1))
-        return torch.stack(activations).view(B,M,-1)
+        # order = self.order_emb(torch.arange(2))
+        street = self.street_emb(x[:,:,1].long())
+        # hero_position = self.position_emb(x[:,1].long()) + order[0]
+        # vil_position = self.position_emb(x[:,2].long()) + order[1]
+        previous_action = self.action_emb(x[:,:,6].long())
+        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
+        return street
 
-class ProcessOrdinal(nn.Module):
-    def __init__(self,params):
-        super().__init__()
-        self.mapping = params['mapping']
-        self.street_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Street.RIVER,padding_idx=0)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
-        self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
-
-    def forward(self,x):
-        order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,0].long())
-        hero_position = self.position_emb(x[:,1].long()) + order[0]
-        vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,3].long())
-        ordinal_output = torch.cat((street,hero_position,vil_position,previous_action),dim=-1)
-        return ordinal_output
+    def forward_critic(self,x):
+        # order = self.order_emb(torch.arange(2))
+        street = self.street_emb(x[:,:,2].long())
+        # hero_position = self.position_emb(x[:,1].long()) + order[0]
+        # vil_position = self.position_emb(x[:,2].long()) + order[1]
+        previous_action = self.action_emb(x[:,:,6].long())
+        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
+        return street
 
 class ProcessContinuous(nn.Module):
     def __init__(self,params):
@@ -261,7 +290,26 @@ class PreProcessPokerInputs(nn.Module):
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
-    
+class EncoderAttention(nn.Module):
+    def __init__(self,in_size,lstm_out):
+        super().__init__()
+        self.context_nn = nn.Linear(lstm_out,in_size)
+        
+    def forward(self,x,hidden_states):
+        context = self.context_nn(hidden_states)
+        scores = F.softmax(context,dim=-1)
+        return scores * x
+
+class VectorAttention(nn.Module):
+    def __init__(self,in_size):
+        super().__init__()
+        self.context_nn = nn.Linear(in_size,in_size)
+        
+    def forward(self,x):
+        context = self.context_nn(x)
+        scores = F.softmax(context,dim=-1)
+        return scores * x
+
 class PreProcessLayer(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
@@ -271,94 +319,39 @@ class PreProcessLayer(nn.Module):
         self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length,critic)
+        self.hand_board = ProcessHandBoard(params,hand_length)
         # self.continuous = ProcessContinuous(params)
-        # self.ordinal = ProcessOrdinal(params)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
+        self.ordinal = ProcessOrdinal(critic,params)
+        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
+        self.betsize_fc = nn.Linear(1,params['embedding_size']//2)
 
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
-            h = self.hand_board(x[:,:,self.obs_mapping['hands_and_board']].long())
+            h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
+            h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
+            h = h1 - h2
+            c = self.ordinal(x[:,:,self.obs_mapping['ordinal']].to(self.device))
         else:
-            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].long())
+            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
+            c = self.ordinal(x[:,:,self.state_mapping['ordinal']].to(self.device))
         # h.size(B,M,240)
-        last_a = x[:,:,self.state_mapping['last_action']].long()
-        bets = []
-        # for i in range()
-        last_b = x[:,:,self.state_mapping['last_betsize']]
-        # print(last_a.size(),last_b.size())
+        last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
+        last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
+
         emb_a = self.action_emb(last_a)
         embedded_bets = []
-        for i in range(M):
-            embedded_bets.append(self.betsize_fc(last_b[:,i]))
-        embeds = torch.stack(embedded_bets)
-        # print('embeds',embeds.size())
-        # print('emb_a',emb_a.size())
+        for i in range(B):
+            for j in range(M):
+                embedded_bets.append(self.betsize_fc(last_b[i,j].unsqueeze(-1)))
+        embeds = torch.stack(embedded_bets).view(B,M,-1)
         # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
         # o.size(B,M,5)
-        # c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
         # h.size(B,M,128)
         if embeds.dim() == 2:
             embeds = embeds.unsqueeze(0)
-        combined = torch.cat((h,emb_a,embeds),dim=-1)
-        # print(h.size(),emb_a.size(),embeds.size())
-        # print(combined.size())
-        return combined
-
-class PreProcessHistory(nn.Module):
-    def __init__(self,params,critic=False):
-        super().__init__()
-        self.mapping = params['mapping']
-        self.hand_emb = Embedder(5,255)
-        self.action_emb = Embedder(6,256)
-        self.betsize_fc = nn.Linear(1,256)
-        self.maxlen = 10
-        self.initialize(critic)
-
-    def initialize(self,critic):
-        if critic:
-            # self.one_hot_kuhn = torch.nn.functional.one_hot(torch.arange(0,4))
-            # self.one_hot_actions = torch.nn.functional.one_hot(torch.arange(0,6))
-            # self.conv = nn.Sequential(
-            #     nn.Conv1d(2, 32, kernel_size=3, stride=1),
-            #     nn.BatchNorm1d(32),
-            #     nn.ReLU(inplace=True)
-            # )
-            self.forward = self.forward_critic
-        else:
-            self.forward = self.forward_actor
-
-    def forward_critic(self,x):
-        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
-        M,C = stripped_x.size()
-        hand = stripped_x[:,self.mapping['state']['rank']].long()
-        h = self.hand_emb(hand)
-        last_action = stripped_x[:,self.mapping['state']['previous_action']].long()
-        last_action_emb = self.action_emb(last_action)
-        # o.size(B,M,5)
-        last_betsize = stripped_x[:,self.mapping['state']['previous_betsize']].float()
-        if last_betsize.dim() == 1:
-            last_betsize = last_betsize.unsqueeze(1)
-        # h.size(B,M,128)
-        combined = torch.cat([h,last_action_emb,last_betsize],dim=-1)
-        return combined
-
-    def forward_actor(self,x):
-        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
-        hand = stripped_x[:,self.mapping['state']['rank']].long()
-        hand = self.hand_emb(hand)
-        # h.size(B,M,240)
-        last_action = stripped_x[:,self.mapping['state']['previous_action']].long()
-        last_action_emb = self.action_emb(last_action)
-        # o.size(B,M,5)
-        previous_betsize = stripped_x[:,self.mapping['state']['previous_betsize']].float()
-        if previous_betsize.dim() == 1:
-            previous_betsize = previous_betsize.unsqueeze(1)
-        # h.size(B,M,128)
-        # b1 = self.betsize_fc(previous_betsize)
-        combined = torch.cat([hand,last_action_emb,previous_betsize],dim=-1)
+        # print(h.size(),emb_a.size(),embeds.size(),c.size())
+        combined = torch.cat((h,emb_a,embeds,c),dim=-1)
         return combined
 
 ################################################
@@ -387,10 +380,11 @@ class GaussianNoise(nn.Module):
 
     def forward(self, x):
         if self.training and self.sigma != 0:
+            #x = x.cpu()
             scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
             sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
             x = x + sampled_noise
-        return x 
+        return x#.cuda()
 
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):

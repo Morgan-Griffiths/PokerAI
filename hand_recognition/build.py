@@ -6,7 +6,8 @@ from random import shuffle
 import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits
+from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards,sort_hand
 
 class CardDataset(object):
     def __init__(self,params):
@@ -32,6 +33,8 @@ class CardDataset(object):
         elif params['datatype'] == dt.DataTypes.PARTIAL:
             trainX,trainY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['train']])
             valX,valY = self.build_partial(params[dt.Globals.INPUT_SET_DICT['val']])
+        else:
+            raise ValueError(f"Datatype {params['datatype']} not understood")
         trainX,trainY,valX,valY = CardDataset.to_torch([trainX,trainY,valX,valY])
         print(f'trainX: {trainX.shape}, trainY {trainY.shape}, valX {valX.shape}, valY {valY.shape}')
         return trainX,trainY,valX,valY
@@ -124,6 +127,8 @@ class CardDataset(object):
                         y.append(category)
             else:
                 raise ValueError(f"{params['datatype']} datatype not understood")
+            X = np.stack(X)
+            y = np.stack(y)
             save_data(X,xpath)
             save_data(y,ypath)
 
@@ -139,6 +144,8 @@ class CardDataset(object):
         extra_cards_2d = to_2d(extra_cards_52)
         hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
         board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
         en_hand = [encode(c) for c in hand]
         en_board = [encode(c) for c in board]
         hand_strength = hand_rank(en_hand,en_board)
@@ -148,11 +155,13 @@ class CardDataset(object):
             extra_cards_2d = to_2d(extra_cards_52)
             hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
             board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
             en_hand = [encode(c) for c in hand]
             en_board = [encode(c) for c in board]
             hand_strength = hand_rank(en_hand,en_board)
             hand_type = CardDataset.find_strength(hand_strength)
-        return hand,board
+        return hand,board,hand_strength
 
     def build_blockers(self,iterations):
         """
@@ -195,7 +204,7 @@ class CardDataset(object):
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(iterations // 9):
-                hero_hand,board = self.create_ninecard_handtypes(category)
+                hero_hand,board,_ = self.create_ninecard_handtypes(category)
                 ninecards = np.concatenate([hero_hand,board],axis=0)
                 flat_card_vector = to_52_vector(ninecards)
                 available_cards = list(set(self.deck) - set(flat_card_vector))
@@ -224,8 +233,69 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
+    def build_hand_ranks_five(self,reduce_suits=True,valset=False):
+        """
+        rank 5 card hands
+        input 5 cards
+        target = {0-7462}
+        """
+        switcher = {
+            0: straight_flushes,
+            1: quads,
+            2: full_houses,
+            3: flushes,
+            4: straights,
+            5: trips,
+            6: two_pairs,
+            7: one_pairs,
+            8: high_cards
+        }
+        # if you want to make up for the samples
+        repeats = {
+            0:10,
+            1:4,
+            2:10,
+            3:4,
+            4:1,
+            5:1,
+            6:1,
+            7:1,
+            8:1
+        }
+        X = []
+        y = []
+        for category in dt.Globals.HAND_TYPE_DICT.keys():
+            if valset:
+                five_hands = switcher[category]()
+                for hand in five_hands:
+                    sorted_hand = np.transpose(sort_hand(hand))
+                    en_hand = [encode(c) for c in sorted_hand]
+                    X.append(sorted_hand)
+                    y.append(rank(en_hand))
+            else:
+                for _ in range(repeats[category]):
+                    five_hands = switcher[category]()
+                    for hand in five_hands:
+                        hero_hands = hero_5_cards(hand)
+                        for h in hero_hands:
+                            en_hand = [encode(c) for c in h]
+                            X.append(np.transpose(sort_hand(np.transpose(h))))
+                            y.append(rank(en_hand))
+            # hero = hand[:2]
+            # board = hand[2:]
+            # hero = hero[np.argsort(hero[:,1]),:]
+            # board = board[np.argsort(board[:,1]),:]
+            # hero = hero[np.argsort(hero[:,0]),:]
+            # board = board[np.argsort(board[:,0]),:]
+            # hand = np.concatenate([hero,board])
+            # if reduce_suits:
+            #     hand = swap_suits(hand)
+            # hand = hand[np.argsort(hand[:,0]),:] # lost blocker info
+        X = np.stack(X)
+        y = np.stack(y)
+        return X,y
 
-    def build_hand_ranks(self,multiplier):
+    def build_hand_ranks_nine(self,multiplier):
         """
         rank 5 card hands
         input 5 cards
@@ -246,10 +316,11 @@ class CardDataset(object):
         y = []
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(Number_of_examples[category] * multiplier):
-                hand = self.create_handtypes(category)
-                en_hand = [encode(c) for c in hand]
-                X.append(hand)
-                y.append(rank(en_hand))
+                hand,board,hand_strength = self.create_ninecard_handtypes(category)
+                X.append(np.concatenate([hand,board],axis=0))
+                y.append(hand_strength)
+        X = np.stack(X)
+        y = np.stack(y)
         return X,y
         
     def create_handtypes(self,category,randomize=True):
@@ -280,7 +351,7 @@ class CardDataset(object):
         quads = np.full(4,np.random.choice(self.rank_types))
         other_rank = np.random.choice(list(set(self.rank_types).difference(set(quads))))
         ranks = np.hstack((quads,other_rank))
-        suits = np.arange(4)
+        suits = np.arange(dt.SUITS.LOW,dt.SUITS.HIGH)
         other_suit = np.random.choice(self.suit_types)
         suits = np.hstack((suits,other_suit))
         hand = np.stack((ranks,suits))

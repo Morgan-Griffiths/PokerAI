@@ -1,20 +1,88 @@
-
 from torch import optim
 import torch.nn.functional as F
 import torch
+import torch.autograd.profiler as profiler
 import os
 from pymongo import MongoClient
 import numpy as np
 import sys
+import time
 
 from db import MongoDB
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
+from utils.data_loaders import return_trajectoryloader
 from train import generate_trajectories,dual_learning_update,combined_learning_update
-from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic
-from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor
-from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask
+from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
+from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
+from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
+
+def eval_batch_critic(critic,target_critic,params):
+    device = params['device']
+    critic_optimizer = params['critic_optimizer']
+    actor_optimizer = params['actor_optimizer']
+    query = {'training_round':params['training_round']}
+    projection = {'state':1,'obs':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
+    trainloader = return_trajectoryloader(data)
+    for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
+        losses = []
+        for j,inputs in enumerate(trainloader,1):
+            loss = update_critic_batch(inputs,critic,target_critic,params)
+            losses.append(loss)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(j)//params['learning_rounds']), (100*(j)//params['learning_rounds'])))
+        sys.stdout.flush()
+        sys.stdout.write(f", round {(i):.2f}")
+        sys.stdout.flush()
+        print(f'Training Round {i}, critic loss {sum(losses)}')
+    del data
+    print(losses)
+
+def eval_batch_actor(actor,target_actor,target_critic,params):
+    query = {'training_round':0}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
+    trainloader = return_trajectoryloader(data)
+    for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
+        for inputs in trainloader:
+            update_actor_batch(inputs,actor,target_actor,target_critic,params)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i)//params['learning_rounds']), (100*(i)//params['learning_rounds'])))
+        sys.stdout.flush()
+        sys.stdout.write(f",Training round {(i):.2f}")
+        sys.stdout.flush()
+    del data
+
+def eval_batch_actor_critic(actor,critic,target_actor,target_critic,params):
+    device = params['device']
+    critic_optimizer = params['critic_optimizer']
+    actor_optimizer = params['actor_optimizer']
+    query = {'training_round':params['training_round']}
+    projection = {'state':1,'obs':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
+    trainloader = return_trajectoryloader(data)
+    print(f'Num Samples {len(trainloader)}')
+    for i in range(params['learning_rounds']):
+        sys.stdout.write('\r')
+        losses = []
+        for j,inputs in enumerate(trainloader,1):
+            critic_loss = update_actor_critic_batch(inputs,actor,critic,target_actor,target_critic,params)
+            losses.append(critic_loss)
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i)//params['learning_rounds']), (100*(i)//params['learning_rounds'])))
+        sys.stdout.flush()
+        sys.stdout.write(f", round {(i):.2f}")
+        sys.stdout.flush()
+        print(f'Training Round {i}, critic loss {sum(losses)}')
+    del data
+    print(losses)
 
 def eval_critic(critic,params):
     query = {'training_round':0}
@@ -111,18 +179,27 @@ if __name__ == "__main__":
         Evaluates learning methods on static data.
         """)
 
-    parser.add_argument('--network','-n',
+    parser.add_argument('--type','-t',
                         dest='network_type',
                         default='dual',
                         metavar="['combined','dual']",
                         type=str,
                         help='eval actor/critic or combined networks')
-    parser.add_argument('--eval','-e',
-                        dest='eval',
+    parser.add_argument('--network','-n',
+                        dest='network',
                         default='actor_critic',
                         metavar="['actor_critic','actor','critic]",
-                        type=str,
-                        help='In dual networks, whether to eval both or one at a time')
+                        type=str)
+    parser.add_argument('--epochs','-e',
+                        dest='epochs',
+                        default=50,
+                        type=int,
+                        help='number of training epochs')
+    parser.add_argument('--no-batch',
+                        dest='batch',
+                        action='store_false',
+                        help='Test batch updates or not')
+    parser.set_defaults(batch=True)
 
     args = parser.parse_args()
 
@@ -152,30 +229,20 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpu1 = 'cuda:0'
     gpu2 = 'cuda:1'
-
-    network_params = {
-        'game':pdt.GameTypes.OMAHAHI,
-        'maxlen':config.maxlen,
-        'state_mapping':config.state_mapping,
-        'obs_mapping':config.obs_mapping,
-        'embedding_size':128,
-        'transformer_in':1280,
-        'transformer_out':128,
-        'device':device,
-        'frozen_layer_path':'../hand_recognition/checkpoints/regression/PartialHandRegression'
-    }
+    network_params = config.network_params
+    network_params['device'] = device
     training_params = {
         'training_epochs':50,
         'generate_epochs':10,
         'training_round':0,
-        'game':'Omaha',
+        'game':pdt.GameTypes.OMAHAHI,
         'id':0
     }
     learning_params = {
         'training_round':0,
         'gradient_clip':config.agent_params['CLIP_NORM'],
         'path': os.path.join(os.getcwd(),'checkpoints'),
-        'learning_rounds':100,
+        'learning_rounds':args.epochs,
         'device':device,
         'gpu1':gpu1,
         'gpu2':gpu2,
@@ -205,8 +272,11 @@ if __name__ == "__main__":
         eval_combined_updates(alphaPoker,learning_params)
     else:
         local_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         local_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+        # Load pretrained hand recognizer
+        copy_weights(local_actor,network_params['actor_hand_recognizer_path'])
+        copy_weights(local_critic,network_params['critic_hand_recognizer_path'])
+        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
         hard_update(target_actor,local_actor)
         hard_update(target_critic,local_critic)
@@ -216,12 +286,33 @@ if __name__ == "__main__":
         learning_params['critic_optimizer'] = critic_optimizer
 
         # Gen trajectories
-        generate_trajectories(env,local_actor,training_params,id=0)
-
-        # Eval learning models
-        if args.eval == 'actor':
-            eval_actor(local_actor,target_actor,target_critic,learning_params)
-        elif args.eval == 'critic':
-            eval_critic(local_critic,learning_params)
-        else:
-            eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
+        print('eval generate trajectory step')
+        tic = time.time()
+        with profiler.profile(record_shapes=True) as prof:
+            generate_trajectories(env,local_actor,local_critic,training_params,id=0)
+        print(f'Code took {(time.time() - tic)} seconds')
+        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        print('eval learning step')
+        with profiler.profile(record_shapes=True) as prof:
+        # with profiler.profile(profile_memory=True, record_shapes=True) as prof:
+            with profiler.record_function("model_inference"):
+                # Eval learning models
+                if args.batch:
+                    if args.network == 'actor':
+                        eval_batch_actor(local_actor,target_actor,target_critic,learning_params)
+                    elif args.network == 'critic':
+                        eval_batch_critic(local_critic,target_critic,learning_params)
+                    else:
+                        eval_batch_actor_critic(local_actor,local_critic,target_actor,target_critic,learning_params)
+                else:
+                    if args.network == 'actor':
+                        eval_actor(local_actor,target_actor,target_critic,learning_params)
+                    elif args.network == 'critic':
+                        eval_critic(local_critic,learning_params)
+                    else:
+                        eval_network_updates(local_actor,local_critic,target_actor,target_critic,learning_params)
+        print(f'Code took {(time.time() - tic)} seconds')
+        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        # print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
+        # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+        # prof.export_chrome_trace("trace.json")

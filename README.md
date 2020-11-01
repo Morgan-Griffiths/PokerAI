@@ -2,11 +2,16 @@
 
 A combination of poker environment simulator and a bitwise Omaha hand winner evaluator written in Rust. 
 
+## Bash scripts
+
+are meant to be executed from the /poker folder
+
 ## Requirements
 
 There are two requirement files, one for pip and one for conda.
-```pip install pip_requirements.txt```
-or 
+```pip install requirements.txt```
+or if using conda
+```conda config --add channels conda-forge```
 ```conda create --name <env> --file conda_requirements.txt```
 
 ## To build the Omaha Evaluator

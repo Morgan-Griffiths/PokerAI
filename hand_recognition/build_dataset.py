@@ -1,8 +1,8 @@
 import os
-
+import time
 import datatypes as dt
 from build import CardDataset
-from data_utils import load_data,save_all
+from data_utils import load_data,save_all,save_trainset,save_valset
 
 if __name__ == "__main__":
     import argparse
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-d','--datatype',
                         default='handtype',type=str,
-                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKS}]",
+                        metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train or build')
     parser.add_argument('-O','--datapath',
                         help='Local path to save data',
@@ -67,20 +67,28 @@ if __name__ == "__main__":
     #     handtype = input('Enter in int 0-8 to pick handtype')
     #     hand = dataset.create_handtypes(int(handtype))
     #     print(f'Hand {hand}, Category {handtype}')
-
+    tic = time.time()
     dataset = CardDataset(dataset_params)
-    if dataset_params['datatype'] == dt.DataTypes.HANDRANKS:
-        trainX,trainY = dataset.build_hand_ranks(100)
-        valX,valY = dataset.build_hand_ranks(10)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+    if dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
+        trainX,trainY = dataset.build_hand_ranks_nine(200)
+        valX,valY = dataset.build_hand_ranks_nine(20)
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+    elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSFIVE:
+        trainX,trainY = dataset.build_hand_ranks_five()
+        save_trainset(trainX,trainY,dataset_params['save_dir'],y_dtype='int32')
+        del trainX
+        del trainY
+        valX,valY = dataset.build_hand_ranks_five(valset=True)
+        save_valset(valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION:
         dataset.build_hand_classes(dataset_params)
     elif learning_category == dt.LearningCategories.REGRESSION:
         trainX,trainY,valX,valY = dataset.generate_dataset(dataset_params)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int8')
     elif learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
         trainX,trainY = dataset.build_blockers(dataset_params['train_set_size'])
         valX,valY = dataset.build_blockers(dataset_params['val_set_size'])
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'])
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='uint8')
     else:
         raise ValueError(f'{args.datatype} datatype not understood')
+    print(f'dataset took {(time.time() - tic) / 60} Minutes')

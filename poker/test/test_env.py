@@ -78,13 +78,16 @@ class TestEnv(unittest.TestCase):
     def setUp(self):
         game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
         config = Config()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.network_params = config.network_params 
+        self.network_params['device'] = device
         self.env_params = {
             'game':pdt.GameTypes.OMAHAHI,
             'betsizes': game_object.rule_params['betsizes'],
             'bet_type': game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':1,
-            'stacksize': game_object.state_params['stacksize'],
+            'stacksize': 5.,
             'cards_per_player': game_object.state_params['cards_per_player'],
             'starting_street': game_object.starting_street,
             'global_mapping':config.global_mapping,
@@ -131,23 +134,27 @@ class TestEnv(unittest.TestCase):
         assert np.array_equal(betsize_mask,np.array([1.,1.]))
         assert len(env.players.players['SB'].hand) == self.env_params['cards_per_player']
         assert len(env.players.players['BB'].hand) == self.env_params['cards_per_player']
-        assert len(env.deck) == 52 - (self.env_params['cards_per_player'] * self.env_params['n_players'] + pdt.Globals.INITIALIZE_BOARD_CARDS[self.env_params['starting_street']]) 
+        assert len(env.deck) == 52 - (self.env_params['cards_per_player'] * self.env_params['n_players'] + pdt.Globals.INITIALIZE_BOARD_CARDS[params['starting_street']]) 
 
     def testCheckCheck(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         state,obs,done,mask,betsize_mask = env.step(ACTION_CHECK)
         assert state.ndim == 3
         assert obs.ndim == 3
         assert state.shape == (1,2,STATE_SHAPE)
         assert obs.shape == (1,2,OBS_SHAPE)
-        assert state[:,1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,1][:,env.state_mapping['street']] == params['starting_street']
         assert state[:,1][:,env.state_mapping['hero_position']] == pdt.Position.SB
         assert state[:,1][:,env.state_mapping['player2_position']] == pdt.Position.BB
         assert state[:,1][:,env.state_mapping['last_position']] == pdt.Position.BB
         assert state[:,1][:,env.state_mapping['last_action']] == pdt.Action.CHECK
-        assert state[:,1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
-        assert state[:,1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize']
+        assert state[:,1][:,env.state_mapping['hero_stacksize']] == params['stacksize']
+        assert state[:,1][:,env.state_mapping['player2_stacksize']] == params['stacksize']
         assert state[:,1][:,env.state_mapping['amount_to_call']] == 0
         assert state[:,1][:,env.state_mapping['pot_odds']] == 0
         assert done == False
@@ -160,7 +167,11 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 5
 
     def testCheckBetFold(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         state,obs,done,mask,betsize_mask = env.step(ACTION_CHECK)
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
@@ -173,13 +184,13 @@ class TestEnv(unittest.TestCase):
         assert env.players['SB'].street_total == 1
         assert env.players['BB'].street_total == 0
         assert env.pot == 2
-        assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,-1][:,env.state_mapping['street']] == pdt.Street.RIVER
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.BET
         assert state[:,-1][:,env.state_mapping['last_betsize']] == 1
-        assert state[:,-1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
-        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize'] - 1
+        assert state[:,-1][:,env.state_mapping['hero_stacksize']] == params['stacksize']
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == params['stacksize'] - 1
         assert state[:,-1][:,env.state_mapping['amount_to_call']] == 1
         self.assertAlmostEqual(state[:,-1][:,env.state_mapping['pot_odds']][0],0.333,places=2)
         assert done == False
@@ -232,7 +243,7 @@ class TestEnv(unittest.TestCase):
         assert env.players['SB'].street_total == 4
         assert env.players['BB'].street_total == 1
         assert env.pot == 6
-        assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,-1][:,env.state_mapping['street']] ==  pdt.Street.RIVER
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.RAISE
@@ -269,7 +280,11 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 0
 
     def testTies(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         # Modify board and hands
         env.board = [14,0,13,1,12,2,2,2,2,3]
@@ -562,11 +577,7 @@ class TestEnv(unittest.TestCase):
         nB = env.betsize_space
         nS = env.state_space
         seed = 152
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        params['device'] = device
-        params['maxlen'] = 10
-        params['embedding_size'] = 128
-        actor = OmahaActor(seed,nS,nA,nB,params)
+        actor = OmahaActor(seed,nS,nA,nB,self.network_params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = actor(state,mask,betsize_mask)
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
@@ -580,36 +591,29 @@ class TestEnv(unittest.TestCase):
         nA = env.action_space
         nB = env.betsize_space
         nS = env.state_space
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         seed = 152
-        params['maxlen'] = 10
-        params['embedding_size'] = 128
-        params['transformer_in'] = 1280
-        params['transformer_out'] = 128
-        params['transformer_out'] = 128
-        params['device'] = device
-        critic = OmahaObsQCritic(seed,nS,nA,nB,params)
+        critic = OmahaObsQCritic(seed,nS,nA,nB,self.network_params)
         state,obs,done,mask,betsize_mask = env.reset()
         output = critic(obs)
         assert isinstance(output['value'],torch.Tensor)
 
-    def testCombined(self):
-        params = copy.deepcopy(self.env_params)
-        env = Poker(params)
-        nA = env.action_space
-        nB = env.betsize_space
-        nS = env.state_space
-        seed = 152
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        params['device'] = device
-        params['maxlen'] = 10
-        params['embedding_size'] = 128
-        params['transformer_in'] = 1280
-        params['transformer_out'] = 128
-        net = CombinedNet(seed,nS,nA,nB,params)
-        state,obs,done,mask,betsize_mask = env.reset()
-        output = net(state,mask,betsize_mask)
-        assert isinstance(output['value'],torch.Tensor)
+    # def testCombined(self):
+    #     params = copy.deepcopy(self.env_params)
+    #     env = Poker(params)
+    #     nA = env.action_space
+    #     nB = env.betsize_space
+    #     nS = env.state_space
+    #     seed = 152
+    #     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #     params['device'] = device
+    #     params['maxlen'] = 10
+    #     params['embedding_size'] = 128
+    #     params['transformer_in'] = 7718
+    #     params['transformer_out'] = 128
+    #     net = CombinedNet(seed,nS,nA,nB,params)
+    #     state,obs,done,mask,betsize_mask = env.reset()
+    #     output = net(state,mask,betsize_mask)
+    #     assert isinstance(output['value'],torch.Tensor)
 
     def testMasks(self):
         params = copy.deepcopy(self.env_params)
@@ -796,7 +800,7 @@ def envTestSuite():
     suite.addTest(TestEnv('testAllin'))
     suite.addTest(TestEnv('testActor'))
     suite.addTest(TestEnv('testCritic'))
-    suite.addTest(TestEnv('testCombined'))
+    # suite.addTest(TestEnv('testCombined'))
     suite.addTest(TestEnv('testMasks'))
     suite.addTest(TestEnv('testEnvCategoryMapping'))
     suite.addTest(TestEnv('testStreetInitialization'))

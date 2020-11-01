@@ -2,13 +2,27 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import datatypes as dt
+from prettytable import PrettyTable
+
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: 
+            continue
+        param = parameter.numel()
+        table.add_row([name, param])
+        total_params+=param
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 ################################################
 #           13 card winner prediction          #
 ################################################
 
 class ThirteenCard(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -60,11 +74,12 @@ class ThirteenCard(nn.Module):
         
 # Emb + fc
 class ThirteenCardV2(nn.Module):
-    def __init__(self,params,hidden_dims=(15,64,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(1024,512,512),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.gpu1 = params['gpu1']
+        self.gpu2 = params['gpu2']
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
@@ -81,21 +96,19 @@ class ThirteenCardV2(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
-
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
-        self.dropout = nn.Dropout(0.5)
-        self.categorical_output = nn.Linear(2048,self.nA)
+            # self.bn_layers.append(nn.BatchNorm1d(hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(512,self.nA)
 
     def forward(self,x):
         # Input is (b,13,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
-
+        
         hot_ranks = self.one_hot_ranks[ranks]
         # (b,13,13)
         hot_suits = self.one_hot_suits[suits]
@@ -104,19 +117,26 @@ class ThirteenCardV2(nn.Module):
         hero_board_suits = hot_suits[:,torch.tensor([0,1,2,3,8,9,10,11,12])]
         vil_board_ranks = hot_ranks[:,4:]
         vil_board_suits = hot_suits[:,4:]
-        s = self.rank_conv(hero_board_ranks.float())
-        r = self.suit_conv(hero_board_suits.float())
-        x1 = torch.cat((r,s),dim=-1)
-        # should be (b,64,88)
-        s2 = self.rank_conv(vil_board_ranks.float())
-        r2 = self.suit_conv(vil_board_suits.float())
-        x2 = torch.cat((r2,s2),dim=-1)
+
+        if torch.cuda.is_available():
+            r = self.rank_conv(hero_board_ranks.float().cuda())
+            s = self.suit_conv(hero_board_suits.float().cuda())
+            r2 = self.rank_conv(vil_board_ranks.float().cuda())
+            s2 = self.suit_conv(vil_board_suits.float().cuda())
+        else:
+            r = self.rank_conv(hero_board_ranks.float())
+            s = self.suit_conv(hero_board_suits.float())
+            r2 = self.rank_conv(vil_board_ranks.float())
+            s2 = self.suit_conv(vil_board_suits.float())
+        x1 = torch.cat((r,s),dim=-1).view(M,-1)
+        x2 = torch.cat((r2,s2),dim=-1).view(M,-1)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x1 = self.activation_fc(hidden_layer(x1))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x2 = self.activation_fc(hidden_layer(x2))
 
         x = x1 - x2
-        for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
         x = x.view(M,-1)
-        x = self.dropout(x)
         return torch.tanh(self.categorical_output(x))
 
 # Conv + multiheaded attention
@@ -171,7 +191,7 @@ class ThirteenCardV3(nn.Module):
 ################################################
 
 class HandClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super(HandClassification,self).__init__()
         self.params = params
         self.nA = params['nA']
@@ -211,8 +231,12 @@ class HandClassification(nn.Module):
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
 
-        s = self.suit_conv(hot_suits.float())
-        r = self.rank_conv(hot_ranks.float())
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
 
@@ -233,7 +257,7 @@ class HandClassificationV2(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,32)
+        self.suit_emb = Embedder(5,32)
         self.pos_emb = nn.Embedding(9, 32)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -278,7 +302,7 @@ class HandClassificationV3(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
+        self.suit_emb = Embedder(5,12)
         # Output shape is (1,64,9,4,4)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -321,7 +345,7 @@ class HandClassificationV4(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         # Input is (1,13,2) -> (1,13,64)
         self.rank_emb = Embedder(15,32)
-        self.suit_emb = Embedder(4,12)
+        self.suit_emb = Embedder(5,12)
         # Output shape is (1,64,9,4,4)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -366,7 +390,6 @@ class FiveCardClassification(nn.Module):
 
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-
         # Input is (b,5,2) -> (b,5,4)
         self.suit_conv = nn.Conv1d(5, 64, kernel_size=1, stride=1)
         self.suit_bn = nn.BatchNorm1d(64)
@@ -376,7 +399,7 @@ class FiveCardClassification(nn.Module):
         self.rank_bn = nn.BatchNorm1d(64)
         # Output shape is (b,64,9) or (b,64,11) 
         self.rank_output = nn.Linear(11,32)
-        self.suit_output = nn.Linear(4,12)
+        self.suit_output = nn.Linear(5,12)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
@@ -643,7 +666,7 @@ class TenCardClassificationV3(nn.Module):
 ################################################
 
 class BlockerClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -698,12 +721,11 @@ class BlockerClassification(nn.Module):
 #           Hand Rank categorization           #
 ################################################
 
-class HandRankClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+class HandRankClassificationNine(nn.Module):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         
@@ -712,50 +734,141 @@ class HandRankClassification(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=1, stride=1),
+            nn.Conv1d(9, 64, kernel_size=1, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 64, kernel_size=5, stride=1),
+            nn.Conv1d(9, 64, kernel_size=5, stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
-
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            self.bn_layers.append(nn.BatchNorm1d(64))
-        self.dropout = nn.Dropout(0.5)
+            # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(2048,self.nA)
+
+    def forward(self,x):
+        # Input is (b,9,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # should be (b,64,88)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(hidden_layer(x))
+        x = x.view(M,-1)
+        return self.categorical_output(x)
+
+class HandRankClassificationFive(nn.Module):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(5, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(5, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            # self.bn_layers.append(nn.BatchNorm1d(64))
+        self.categorical_output = nn.Linear(512,self.nA)
 
     def forward(self,x):
         # Input is (b,5,2)
         M,c,h = x.size()
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
-
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
-
-        s = self.suit_conv(hot_suits.float())
-        r = self.rank_conv(hot_ranks.float())
+        # hot_ranks is (b,5,15)
+        # hot_ranks is (b,5,5)
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
         x = torch.cat((r,s),dim=-1)
-        # should be (b,64,88)
-
+        # x (b, 64, 16)
         for i,hidden_layer in enumerate(self.hidden_layers):
-            x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
-        x = x.view(M,-1)
-        x = self.dropout(x)
-        return self.categorical_output(x)
+            x = self.activation_fc(hidden_layer(x))
+        return self.categorical_output(x.view(M,-1))
+
+
+class HandRankClassificationFC(nn.Module):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,64)
+        self.suits_emb = nn.Embedding(dt.SUITS.HIGH+1,64)
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            # self.bn_layers.append(nn.BatchNorm1d(64))
+        self.categorical_output = nn.Linear(4096,self.nA)
+
+    def forward(self,x):
+        """
+        Emb and process hand, emb and process hand.
+        """
+        # Input is (b,5,2)
+        M,c,h = x.size()
+        ranks = x[:,:,0].long()
+        suits = x[:,:,1].long()
+        hot_ranks = self.one_hot_ranks[ranks]
+        hot_suits = self.one_hot_suits[suits]
+        # hot_ranks is (b,5,15)
+        # hot_ranks is (b,5,5)
+        if torch.cuda.is_available():
+            s = self.suit_conv(hot_suits.float().cuda())
+            r = self.rank_conv(hot_ranks.float().cuda())
+        else:
+            s = self.suit_conv(hot_suits.float())
+            r = self.rank_conv(hot_ranks.float())
+        x = torch.cat((r,s),dim=-1)
+        # x (b, 64, 16)
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = self.activation_fc(hidden_layer(x))
+        return self.categorical_output(x.view(M,-1))
 
 ################################################
 #            Partial hand regression           #
 ################################################
 
 class PartialHandRegression(nn.Module):
-    def __init__(self,params,hidden_dims=(15,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -803,5 +916,4 @@ class PartialHandRegression(nn.Module):
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(self.bn_layers[i](hidden_layer(x)))
         x = x.view(M,-1)
-        x = self.dropout(x)
         return self.categorical_output(x)

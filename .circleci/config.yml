@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   python: circleci/python@0.2.1
-
+  aws-cli: circleci/aws-cli@1.3.0
 jobs:
   build-and-test:
     docker:
@@ -11,21 +11,38 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
+      # - python/load-cache
+      - restore_cache:
+          keys:
+            - model_cache
+      - run:
+          name: install aws
+          command: |
+            pip install awscli
+      - run:
+          name: download models
+          command: |
+            aws s3 sync s3://pokerai/production poker/checkpoints/production --no-sign-request
+            aws s3 sync s3://pokerai/frozen poker/checkpoints/frozen --no-sign-request
       - run:
           name: install-deps
           command: |
-            pip install -r pip_requirements.txt
+            pip install -r requirements.txt
       - run:
           name: install-rust
           command: |
             sudo apt install cargo
+      - save_cache:
+          key: model_cache
+          paths:
+            - checkpoints/production
+            - checkpoints/frozen
       - run:
           name: build-rust
           command: |
             cd rusteval
             cargo build --release
-      - python/save-cache
+      # - python/save-cache
       - run:
           name: test-kuhn
           command: |

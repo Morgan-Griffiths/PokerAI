@@ -1,4 +1,3 @@
-from poker_env.spaces import Array,BoundedArray
 import copy
 import numpy as np
 from random import shuffle
@@ -416,26 +415,18 @@ class Poker(object):
     @property
     def action_space(self):
         return 5
-    # return specs.DiscreteArray(
-    #     dtype=int, num_values=len(_ACTIONS), name="action")
     
     @property
     def state_space(self):
         return 31 + self.n_players * 4
-        # return BoundedArray(shape=self._board.shape, dtype=self._board.dtype,
-        #                       name="state", minimum=0, maximum=1)
     
     @property
     def betsize_space(self):
         return len(self.betsizes)
-        # return BoundedArray(shape=self._board.shape, dtype=self._board.dtype,
-        #                       name="betsize", minimum=0, maximum=1)
     
     @property
     def observation_space(self):
         return 21 + self.n_players * 4 + self.n_players * 10
-        # return BoundedArray(shape=self._board.shape, dtype=self._board.dtype,
-        #                       name="observation", minimum=0, maximum=1)
 
     @property
     def global_space(self):
