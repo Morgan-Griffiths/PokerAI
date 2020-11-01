@@ -12,9 +12,9 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      # - restore_cache:
-      #     keys:
-      #       - model_cache
+      - restore_cache:
+          keys:
+            - model_cache
       - run:
           name: install aws
           command: |
