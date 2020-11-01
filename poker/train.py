@@ -16,7 +16,7 @@ from models.networks import OmahaActor,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
 from utils.utils import return_latest_baseline_path,return_next_baseline_path
-from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights,load_villain
+from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -274,7 +274,7 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        if (e+1) % training_params['save_every'] == 0 if id == 0:
+        if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
             # validate vs baseline

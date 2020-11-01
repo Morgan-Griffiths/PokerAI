@@ -85,7 +85,7 @@ if __name__ == "__main__":
                         help='path to critic')
     parser.add_argument('--koth',
                         dest='koth',
-                        action='store_true'
+                        action='store_true',
                         help='Train by King of the hill')
     parser.set_defaults(koth=False)
     parser.set_defaults(single=False)
