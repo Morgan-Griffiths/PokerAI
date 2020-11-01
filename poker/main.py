@@ -83,6 +83,11 @@ if __name__ == "__main__":
                         default=None,
                         type=str,
                         help='path to critic')
+    parser.add_argument('--koth',
+                        dest='koth',
+                        action='store_true'
+                        help='Train by King of the hill')
+    parser.set_defaults(koth=False)
     parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
@@ -153,7 +158,8 @@ if __name__ == "__main__":
         'max_reward':env_params['pot']+env_params['stacksize']
     }
     validation_params = {
-        'epochs':5000
+        'epochs':5000,
+        'koth':args.koth
     }
     path = training_params['save_dir']
     directory = os.path.dirname(path)

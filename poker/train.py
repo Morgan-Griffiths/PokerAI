@@ -258,11 +258,14 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
-    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+    if validation_params['koth']:
+        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
-        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
-        # generate_trajectories(env,target_actor,target_critic,training_params,id)
+        if validation_params['koth']:
+            generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+        else:
+            generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
@@ -275,12 +278,13 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
             # validate vs baseline
-            results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-            model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
-            # if it beats it by 60%
-            if model_result  > (validation_params['epochs'] * .60):
-                # save weights as new baseline, otherwise keep training.
-                new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                torch.save(actor.state_dict(), new_baseline_path)
-                # load new villain
-                villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+            if validation_params['koth']:
+                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
+                # if it beats it by 60%
+                if model_result  > (validation_params['epochs'] * .60):
+                    # save weights as new baseline, otherwise keep training.
+                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                    torch.save(actor.state_dict(), new_baseline_path)
+                    # load new villain
+                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
