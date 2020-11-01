@@ -22,8 +22,8 @@ jobs:
       - run:
           name: download models
           command: |
-            aws s3 sync s3://pokerai/production checkpoints/production --no-sign-request
-            aws s3 sync s3://pokerai/frozen checkpoints/frozen --no-sign-request
+            aws s3 sync s3://pokerai/production poker/checkpoints/production --no-sign-request
+            aws s3 sync s3://pokerai/frozen poker/checkpoints/frozen --no-sign-request
       - run:
           name: install-deps
           command: |
