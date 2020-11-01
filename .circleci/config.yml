@@ -12,9 +12,9 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      # - restore_cache:
-      #     keys:
-      #       - model_cache
+      - restore_cache:
+          keys:
+            - model_cache
       - run:
           name: install aws
           command: |
@@ -27,7 +27,7 @@ jobs:
       - run:
           name: install-deps
           command: |
-            pip install -r pip_requirements.txt
+            pip install -r requirements.txt
       - run:
           name: install-rust
           command: |
