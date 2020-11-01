@@ -2,18 +2,20 @@ from torch import optim
 import torch.nn.functional as F
 import torch
 import torch.autograd.profiler as profiler
+from torch.optim.lr_scheduler import MultiStepLR,StepLR
 import os
 from pymongo import MongoClient
 import numpy as np
 import sys
 import time
+import cProfile
 
 from db import MongoDB
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from utils.data_loaders import return_trajectoryloader
-from train import generate_trajectories,dual_learning_update,combined_learning_update
+from train import generate_trajectories,dual_learning_update,train_dual
 from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
 from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
@@ -52,23 +54,27 @@ if __name__ == "__main__":
     network_params = config.network_params
     network_params['device'] = device
     training_params = {
-        'training_epochs':50,
-        'generate_epochs':10,
+        'training_epochs':1,
+        'generate_epochs':11,
         'training_round':0,
         'game':pdt.GameTypes.OMAHAHI,
         'id':0
     }
-    # learning_params = {
-    #     'training_round':0,
-    #     'gradient_clip':config.agent_params['CLIP_NORM'],
-    #     'path': os.path.join(os.getcwd(),'checkpoints'),
-    #     'learning_rounds':args.epochs,
-    #     'device':device,
-    #     'gpu1':gpu1,
-    #     'gpu2':gpu2,
-    #     'min_reward':-env_params['stacksize'],
-    #     'max_reward':env_params['pot']+env_params['stacksize']
-    # }
+    learning_params = {
+        'training_round':0,
+        'gradient_clip':config.agent_params['CLIP_NORM'],
+        'path': os.path.join(os.getcwd(),'checkpoints'),
+        'learning_rounds':1,
+        'device':device,
+        'gpu1':gpu1,
+        'gpu2':gpu2,
+        'min_reward':-env_params['stacksize'],
+        'max_reward':env_params['pot']+env_params['stacksize']
+    }
+    validation_params = {
+        'epochs':5000,
+        'koth':False
+    }
 
     print(f'Environment Parameters: Starting street: {env_params["starting_street"]},\
         Stacksize: {env_params["stacksize"]},\
@@ -79,18 +85,30 @@ if __name__ == "__main__":
 
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    target_critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+    actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
+    critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
+    learning_params['actor_optimizer'] = actor_optimizer
+    learning_params['critic_optimizer'] = critic_optimizer
+    learning_params['actor_lrscheduler'] = actor_lrscheduler
+    learning_params['critic_lrscheduler'] = critic_lrscheduler
     # Clean mongo
     # mongo = MongoDB()
     # mongo.clean_db()
     # mongo.close()
     # Check env steps
-
     # test generate
     tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
-        generate_trajectories(env,actor,critic,training_params,id=0)
+        cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
+        # dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        # generate_trajectories(env,actor,critic,training_params,id=0)
     print(f'Computation took {time.time() - tic} seconds')
     print(prof)
+
 
     # test env
     # tic = time.time()
