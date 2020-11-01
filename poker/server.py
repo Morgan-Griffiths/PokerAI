@@ -59,9 +59,6 @@ class API(object):
         device = 'cpu'
         network_params = copy.deepcopy(self.config.network_params)
         network_params['maxlen'] = 10
-        network_params['embedding_size'] = 128
-        network_params['transformer_in'] = 256
-        network_params['transformer_out'] = 128
         network_params['device'] = device
         return network_params
 
@@ -109,11 +106,13 @@ class API(object):
                 action_masks = poker_round['action_masks']
                 rewards = poker_round['rewards']
                 betsizes = poker_round['betsize']
+                values = poker_round['value']
                 assert(isinstance(rewards,list))
                 assert(isinstance(actions,list))
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
                 assert(isinstance(states,list))
+                assert(isinstance(values,list))
                 for step,state in enumerate(states):
                     state_json = {
                         'game':self.env.game,
@@ -127,7 +126,8 @@ class API(object):
                         'betsize_mask':betsize_masks[step].tolist(),
                         'action_mask':action_masks[step].tolist(),
                         'betsize':betsizes[step],
-                        'reward':rewards[step]
+                        'reward':rewards[step],
+                        'value':values[step].tolist()
                     }
                     self.db['game_data'].insert_one(state_json)
 
@@ -224,20 +224,21 @@ class API(object):
         self.trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         self.trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
 
-    def store_actions(self,actor_outputs,critic_outputs):
+    def store_actions(self,actor_outputs):
         cur_player = self.env.current_player
         self.trajectory[cur_player]['actions'].append(actor_outputs['action'])
         self.trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
         self.trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
         self.trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
         self.trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
-        self.trajectory[cur_player]['value'].append(critic_outputs['value'])
+        self.trajectory[cur_player]['value'].append(actor_outputs['value'])
 
     def query_bot(self,state,obs,action_mask,betsize_mask,done):
         while self.env.current_player != self.player['position'] and not done:
             actor_outputs = self.actor(state,action_mask,betsize_mask)
             critic_outputs = self.critic(obs)
-            self.store_actions(actor_outputs,critic_outputs)
+            actor_outputs['value'] = critic_outputs['value']
+            self.store_actions(actor_outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(actor_outputs)
             if not done:
                 self.store_state(state,obs,action_mask,betsize_mask)
@@ -269,7 +270,8 @@ class API(object):
             'action_category':action_type,
             'betsize':betsize_category,
             'action_prob':np.array([0]),
-            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2)
+            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2),
+            'value':np.zeros(self.env.action_space + self.env.betsize_space - 2)
         }
         self.store_actions(player_outputs)
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
