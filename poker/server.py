@@ -15,7 +15,7 @@ from flask_cors import CORS
 from poker_env.env import Poker,flatten
 import poker_env.datatypes as pdt
 from poker_env.config import Config
-from models.networks import OmahaActor
+from models.networks import OmahaActor,OmahaObsQCritic
 
 """
 API for connecting the Poker Env with Alex's frontend client for baseline testing the trained bot.
@@ -34,9 +34,9 @@ class API(object):
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
             'pot':1,
-            'stacksize': 5,#self.game_object.state_params['stacksize'],
+            'stacksize': 10,#self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': pdt.Street.RIVER, #self.game_object.starting_street,
+            'starting_street': pdt.Street.FLOP, #self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -44,28 +44,27 @@ class API(object):
         }
         self.env = Poker(self.env_params)
         self.network_params = self.instantiate_network_params()
-        self.model = OmahaActor(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
-        self.load_model(self.config.production_actor)
+        self.actor = OmahaActor(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
+        self.critic = OmahaObsQCritic(self.seed,self.env.state_space,self.env.action_space,self.env.betsize_space,self.network_params)
+        self.load_model(self.actor,self.config.production_actor)
+        self.load_model(self.critic,self.config.production_critic)
         self.player = {'name':None,'position':'BB'}
         self.reset_trajectories()
         
     def reset_trajectories(self):
         self.trajectories = defaultdict(lambda:[])
-        self.trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[]})
+        self.trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'value':[]})
 
     def instantiate_network_params(self):
         device = 'cpu'
         network_params = copy.deepcopy(self.config.network_params)
         network_params['maxlen'] = 10
-        network_params['embedding_size'] = 128
-        network_params['transformer_in'] = 256
-        network_params['transformer_out'] = 128
         network_params['device'] = device
         return network_params
 
-    def load_model(self,path):
+    def load_model(self,model,path):
         if os.path.isfile(path):
-            self.model.load_state_dict(load(path,map_location=D('cpu')))
+            model.load_state_dict(load(path,map_location=D('cpu')))
             set_grad_enabled(False)
         else:
             raise ValueError('File does not exist')
@@ -107,11 +106,13 @@ class API(object):
                 action_masks = poker_round['action_masks']
                 rewards = poker_round['rewards']
                 betsizes = poker_round['betsize']
+                values = poker_round['value']
                 assert(isinstance(rewards,list))
                 assert(isinstance(actions,list))
                 assert(isinstance(action_prob,list))
                 assert(isinstance(action_probs,list))
                 assert(isinstance(states,list))
+                assert(isinstance(values,list))
                 for step,state in enumerate(states):
                     state_json = {
                         'game':self.env.game,
@@ -125,7 +126,8 @@ class API(object):
                         'betsize_mask':betsize_masks[step].tolist(),
                         'action_mask':action_masks[step].tolist(),
                         'betsize':betsizes[step],
-                        'reward':rewards[step]
+                        'reward':rewards[step],
+                        'value':values[step].tolist()
                     }
                     self.db['game_data'].insert_one(state_json)
 
@@ -135,12 +137,14 @@ class API(object):
         }
         player_data = self.db['game_data'].find(query).sort('_id',-1)
         action_probs = []
+        values = []
         for result in player_data:
             action_probs.append(result['action_probs'])
+            values.append(result['value'])
             break
         model_outputs = {
             'action_probs':action_probs,
-            'q_values':action_probs
+            'q_values':values
         }
         return model_outputs
 
@@ -227,12 +231,15 @@ class API(object):
         self.trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
         self.trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
         self.trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
+        self.trajectory[cur_player]['value'].append(actor_outputs['value'])
 
     def query_bot(self,state,obs,action_mask,betsize_mask,done):
         while self.env.current_player != self.player['position'] and not done:
-            outputs = self.model(state,action_mask,betsize_mask)
-            self.store_actions(outputs)
-            state,obs,done,action_mask,betsize_mask = self.env.step(outputs)
+            actor_outputs = self.actor(state,action_mask,betsize_mask)
+            critic_outputs = self.critic(obs)
+            actor_outputs['value'] = critic_outputs['value']
+            self.store_actions(actor_outputs)
+            state,obs,done,action_mask,betsize_mask = self.env.step(actor_outputs)
             if not done:
                 self.store_state(state,obs,action_mask,betsize_mask)
         return state,obs,done,action_mask,betsize_mask
@@ -263,7 +270,8 @@ class API(object):
             'action_category':action_type,
             'betsize':betsize_category,
             'action_prob':np.array([0]),
-            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2)
+            'action_probs':np.zeros(self.env.action_space + self.env.betsize_space - 2),
+            'value':np.zeros(self.env.action_space + self.env.betsize_space - 2)
         }
         self.store_actions(player_outputs)
         state,obs,done,action_mask,betsize_mask = self.env.step(player_outputs)
