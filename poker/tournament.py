@@ -193,7 +193,7 @@ if __name__ == "__main__":
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net2_path = weight_paths[match[1]]
             net2.load_state_dict(torch.load(net2_path))
-            results = tournament(env,latest_net,net2,match,training_params)
+            results,stats = tournament(env,latest_net,net2,match,training_params)
             result_array[data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
         # Create Results Table
         table = PrettyTable(["Model Name", *model_names[:-1]])
@@ -218,7 +218,7 @@ if __name__ == "__main__":
             net2_path = weight_paths[match[1]]
             net1.load_state_dict(torch.load(net1_path))
             net2.load_state_dict(torch.load(net2_path))
-            results = tournament(env,net1,net2,match,training_params)
+            results,stats = tournament(env,net1,net2,match,training_params)
             result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
             result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
         # Create Results Table

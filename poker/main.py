@@ -85,7 +85,7 @@ if __name__ == "__main__":
                         help='path to critic')
     parser.add_argument('--koth',
                         dest='koth',
-                        action='store_true'
+                        action='store_true',
                         help='Train by King of the hill')
     parser.set_defaults(koth=False)
     parser.set_defaults(single=False)
@@ -166,7 +166,8 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.mkdir(directory)
     # Clean training_run folder
-    # clean_folder(training_params['save_dir'])
+    clean_folder(training_params['actor_path'])
+    clean_folder(training_params['critic_path'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
