@@ -12,11 +12,11 @@ import copy
 import time
 import logging
 
-from models.networks import BetAgent,OmahaActor
+from models.networks import OmahaActor,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from utils.utils import return_latest_baseline_path
-from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
+from utils.utils import return_latest_baseline_path,return_next_baseline_path
+from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights,load_villain
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
@@ -26,6 +26,15 @@ def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
     padding = np.zeros(N)
     return padded_state
+
+def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
+    baseline_path = return_latest_baseline_path(baseline_path)
+    if baseline_path:
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        load_weights(villain,baseline_path)
+    else:
+        villain = BetAgent()
+    return villain
 
 def generate_vs_frozen(env,actor,critic,villain,training_params,id):
     # actor.eval()
@@ -76,7 +85,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
 
 
 def generate_trajectories(env,actor,critic,training_params,id):
-    """We want to store """
+    """Generates full trajectories by playing against itself"""
     # actor.eval()
     # critic.eval()
     with torch.no_grad():
@@ -185,8 +194,7 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
     actor.train()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = list(mongo.get_data(query,projection))
-    # loss_dict = defaultdict(lambda:None)
+    data = mongo.get_data(query,projection)
     for i in range(params['learning_rounds']):
         policy_losses = []
         losses = []
@@ -194,7 +202,6 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
             critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             losses.append(critic_loss)
             policy_losses.append(policy_loss)
-        # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     mongo.close()
     del data
     return actor,critic,params
@@ -250,15 +257,8 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id):
-    villain = BetAgent()
-    # nS = env.state_space
-    # nA = env.action_space
-    # nB = env.betsize_space
-    # seed = 1235
-    # villain = OmahaActor(seed,nS,nA,nB,network_params).to(learning_params['device'])
-    # baseline_path = return_latest_baseline_path(training_params['baseline_path'])
-    # load_weights(villain,baseline_path)
+def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
+    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -274,3 +274,13 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+            # validate vs baseline
+            results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+            model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
+            # if it beats it by 60%
+            if model_result  > (validation_params['epochs'] * .60):
+                # save weights as new baseline, otherwise keep training.
+                new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                torch.save(actor.state_dict(), new_baseline_path)
+                # load new villain
+                villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])

@@ -10,8 +10,7 @@ are meant to be executed from the /poker folder
 
 There are two requirement files, one for pip and one for conda.
 ```pip install requirements.txt```
-or if useing conda
-
+or if using conda
 ```conda config --add channels conda-forge```
 ```conda create --name <env> --file conda_requirements.txt```
 

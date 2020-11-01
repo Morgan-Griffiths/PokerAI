@@ -27,15 +27,25 @@ def grep(pat, txt):
     r = re.search(pat, txt)
     return r.group(0) if r else 1e+10
 
+def return_next_baseline_path(path):
+    baselines_path = return_latest_baseline_path(path)
+    if baselines_path:
+        max_num = path.rsplit('baseline')[-1]
+        return os.path.join(path,f'baseline{int(max_num)+1}')
+    else:
+        return os.path.join(path,'baseline1')
+
 def return_latest_baseline_path(path):
     baselines_paths = load_paths(path)
-    agents = {}
-    highest_number = 0
-    for name,b_path in baselines_paths.items():
-        number = int(name.split('baseline')[-1])
-        agents[number] = b_path
-        highest_number = max(highest_number,number)
-    return agents[highest_number]
+    if baselines_paths:
+        agents = {}
+        highest_number = 0
+        for name,b_path in baselines_paths.items():
+            number = int(name.split('baseline')[-1])
+            agents[number] = b_path
+            highest_number = max(highest_number,number)
+        return agents[highest_number]
+    return ''
 
 def load_paths(folder):
     weight_paths = {}
