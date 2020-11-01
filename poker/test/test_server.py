@@ -66,12 +66,6 @@ class BaseTestCase(TestCase):
         c = self.app.test_client()
         response = c.get('/api/player/stats')
         print(response.data)
-
-    def test_model_load(self):
-        config = Config()
-        c = self.app.test_client()
-        response = c.post('/api/model/load',data=json.dumps(dict(path=config.production_actor)),follow_redirects=True)
-        print(response.data)
-
+        
 if __name__ == '__main__':
     unittest.main()
