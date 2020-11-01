@@ -6,7 +6,7 @@ class Config(object):
     def __init__(self):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
-        self.maxlen = 10
+        self.maxlen = 20
         self.baseline_path = os.path.join(os.getcwd(),'checkpoints/baselines')
         self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.production_critic = os.path.join(os.getcwd(),'checkpoints/production/OmahaCriticFinal')
