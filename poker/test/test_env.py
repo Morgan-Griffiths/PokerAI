@@ -134,23 +134,27 @@ class TestEnv(unittest.TestCase):
         assert np.array_equal(betsize_mask,np.array([1.,1.]))
         assert len(env.players.players['SB'].hand) == self.env_params['cards_per_player']
         assert len(env.players.players['BB'].hand) == self.env_params['cards_per_player']
-        assert len(env.deck) == 52 - (self.env_params['cards_per_player'] * self.env_params['n_players'] + pdt.Globals.INITIALIZE_BOARD_CARDS[self.env_params['starting_street']]) 
+        assert len(env.deck) == 52 - (self.env_params['cards_per_player'] * self.env_params['n_players'] + pdt.Globals.INITIALIZE_BOARD_CARDS[params['starting_street']]) 
 
     def testCheckCheck(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         state,obs,done,mask,betsize_mask = env.step(ACTION_CHECK)
         assert state.ndim == 3
         assert obs.ndim == 3
         assert state.shape == (1,2,STATE_SHAPE)
         assert obs.shape == (1,2,OBS_SHAPE)
-        assert state[:,1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,1][:,env.state_mapping['street']] == params['starting_street']
         assert state[:,1][:,env.state_mapping['hero_position']] == pdt.Position.SB
         assert state[:,1][:,env.state_mapping['player2_position']] == pdt.Position.BB
         assert state[:,1][:,env.state_mapping['last_position']] == pdt.Position.BB
         assert state[:,1][:,env.state_mapping['last_action']] == pdt.Action.CHECK
-        assert state[:,1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
-        assert state[:,1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize']
+        assert state[:,1][:,env.state_mapping['hero_stacksize']] == params['stacksize']
+        assert state[:,1][:,env.state_mapping['player2_stacksize']] == params['stacksize']
         assert state[:,1][:,env.state_mapping['amount_to_call']] == 0
         assert state[:,1][:,env.state_mapping['pot_odds']] == 0
         assert done == False
@@ -163,7 +167,11 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 5
 
     def testCheckBetFold(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         state,obs,done,mask,betsize_mask = env.step(ACTION_CHECK)
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
@@ -176,13 +184,13 @@ class TestEnv(unittest.TestCase):
         assert env.players['SB'].street_total == 1
         assert env.players['BB'].street_total == 0
         assert env.pot == 2
-        assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,-1][:,env.state_mapping['street']] == pdt.Street.RIVER
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.BET
         assert state[:,-1][:,env.state_mapping['last_betsize']] == 1
-        assert state[:,-1][:,env.state_mapping['hero_stacksize']] == self.env_params['stacksize']
-        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == self.env_params['stacksize'] - 1
+        assert state[:,-1][:,env.state_mapping['hero_stacksize']] == params['stacksize']
+        assert state[:,-1][:,env.state_mapping['player2_stacksize']] == params['stacksize'] - 1
         assert state[:,-1][:,env.state_mapping['amount_to_call']] == 1
         self.assertAlmostEqual(state[:,-1][:,env.state_mapping['pot_odds']][0],0.333,places=2)
         assert done == False
@@ -235,7 +243,7 @@ class TestEnv(unittest.TestCase):
         assert env.players['SB'].street_total == 4
         assert env.players['BB'].street_total == 1
         assert env.pot == 6
-        assert state[:,-1][:,env.state_mapping['street']] == self.env_params['starting_street']
+        assert state[:,-1][:,env.state_mapping['street']] ==  pdt.Street.RIVER
         assert state[:,-1][:,env.state_mapping['hero_position']] == pdt.Position.BB
         assert state[:,-1][:,env.state_mapping['last_position']] == pdt.Position.SB
         assert state[:,-1][:,env.state_mapping['last_action']] == pdt.Action.RAISE
@@ -272,7 +280,11 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 0
 
     def testTies(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         # Modify board and hands
         env.board = [14,0,13,1,12,2,2,2,2,3]
