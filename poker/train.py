@@ -274,7 +274,7 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        if e % training_params['save_every'] == 0 and id == 0:
+        if (e+1) % training_params['save_every'] == 0 if id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
             # validate vs baseline
