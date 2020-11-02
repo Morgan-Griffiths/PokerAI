@@ -25,6 +25,21 @@ from models.model_utils import scale_rewards,soft_update,hard_update,return_valu
 if __name__ == "__main__":
     import argparse
 
+    parser = argparse.ArgumentParser(
+        description=
+        """
+        Profiling all the function calls
+        """)
+
+    parser.add_argument('--function','-f',
+                        dest='function',
+                        default='dual',
+                        metavar="['generate','learn','train]",
+                        type=str,
+                        help='which function to call')
+
+    args = parser.parse_args()
+
     config = Config()
     game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
 
@@ -55,10 +70,15 @@ if __name__ == "__main__":
     network_params['device'] = device
     training_params = {
         'training_epochs':1,
-        'generate_epochs':11,
+        'generate_epochs':1,
         'training_round':0,
-        'game':pdt.GameTypes.OMAHAHI,
-        'id':0
+        'game':'Omaha',
+        'id':0,
+        'save_every':max(100 // 4,1),
+        'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+        'actor_path':config.agent_params['actor_path'],
+        'critic_path':config.agent_params['critic_path'],
+        'baseline_path':config.baseline_path
     }
     learning_params = {
         'training_round':0,
@@ -100,11 +120,16 @@ if __name__ == "__main__":
     # mongo.close()
     # Check env steps
     # test generate
+    print(args)
     tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
-        cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-        # dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # generate_trajectories(env,actor,critic,training_params,id=0)
+        if args.function == 'train':
+        # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
+            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+        elif args.function == 'learn':
+            dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        else:
+            generate_trajectories(env,actor,critic,training_params,id=0)
     print(f'Computation took {time.time() - tic} seconds')
     print(prof)
 
