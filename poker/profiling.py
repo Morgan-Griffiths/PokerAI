@@ -70,7 +70,7 @@ if __name__ == "__main__":
     network_params['device'] = device
     training_params = {
         'training_epochs':1,
-        'generate_epochs':1,
+        'generate_epochs':10,
         'training_round':0,
         'game':'Omaha',
         'id':0,
@@ -121,27 +121,27 @@ if __name__ == "__main__":
     # Check env steps
     # test generate
     print(args)
-    tic = time.time()
-    with profiler.profile(record_shapes=True) as prof:
-        if args.function == 'train':
-        # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
-        elif args.function == 'learn':
-            dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        else:
-            generate_trajectories(env,actor,critic,training_params,id=0)
-    print(f'Computation took {time.time() - tic} seconds')
-    print(prof)
+    # tic = time.time()
+    # with profiler.profile(record_shapes=True) as prof:
+    #     if args.function == 'train':
+    #     # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
+    #         train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+    #     elif args.function == 'learn':
+    #         dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+    #     else:
+    #         generate_trajectories(env,actor,critic,training_params,id=0)
+    # print(f'Computation took {time.time() - tic} seconds')
+    # print(prof)
 
 
     # test env
-    # tic = time.time()
-    # with profiler.profile(record_shapes=True) as prof:
-    #     with torch.no_grad():
-    #         for i in range(100):
-    #             state,obs,done,action_mask,betsize_mask = env.reset()
-    #             while not done:
-    #                 actor_outputs = actor(state,action_mask,betsize_mask)
-    #                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-    # print(f'Computation took {time.time() - tic} seconds')
-    # print(prof)
+    tic = time.time()
+    with profiler.profile(record_shapes=True) as prof:
+        with torch.no_grad():
+            for i in range(100):
+                state,obs,done,action_mask,betsize_mask = env.reset()
+                while not done:
+                    actor_outputs = actor(state,action_mask,betsize_mask)
+                    state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+    print(f'Computation took {time.time() - tic} seconds')
+    print(prof)

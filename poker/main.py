@@ -13,7 +13,7 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
-from models.model_utils import copy_weights,hard_update,expand_conv2d
+from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder
 from tournament import tournament
 
@@ -74,12 +74,12 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Resume training stored weights')
     parser.add_argument('--actor-path','-ap',
-                        dest='model_paths',
+                        dest='actor_path',
                         default=None,
                         type=str,
                         help='path to actor')
     parser.add_argument('--critic-path','-ac',
-                        dest='model_paths',
+                        dest='critic_path',
                         default=None,
                         type=str,
                         help='path to critic')
@@ -210,7 +210,12 @@ if __name__ == "__main__":
     elif args.network_type == 'dual':
         actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        if args.frozen:
+        if args.resume:
+            latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
+            latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+            load_weights(actor,latest_actor_path)
+            load_weights(critic,latest_critic_path)
+        elif args.frozen:
             # Load pretrained hand recognizer
             copy_weights(actor,network_params['actor_hand_recognizer_path'])
             copy_weights(critic,network_params['critic_hand_recognizer_path'])
