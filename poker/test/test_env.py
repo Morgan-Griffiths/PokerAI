@@ -262,7 +262,11 @@ class TestEnv(unittest.TestCase):
         assert env.players['BB'].stack == 1
 
     def testBetRestrictions(self):
-        env = Poker(self.env_params)
+        params = copy.deepcopy(self.env_params)
+        params['starting_street'] = pdt.Street.RIVER
+        params['stacksize'] = 5
+        params['pot'] = 1
+        env = Poker(params)
         state,obs,done,mask,betsize_mask = env.reset()
         state,obs,done,mask,betsize_mask = env.step(ACTION_BET)
         state,obs,done,mask,betsize_mask = env.step(ACTION_RAISE)

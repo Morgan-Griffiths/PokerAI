@@ -82,7 +82,6 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     # print(f'Evaluating {args.network_type}')
-    asdf
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
