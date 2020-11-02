@@ -166,8 +166,9 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.mkdir(directory)
     # Clean training_run folder
-    clean_folder(training_params['actor_path'])
-    clean_folder(training_params['critic_path'])
+    if not args.resume:
+        clean_folder(training_params['actor_path'])
+        clean_folder(training_params['critic_path'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
