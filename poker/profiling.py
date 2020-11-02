@@ -139,10 +139,3 @@ if __name__ == "__main__":
                         state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
     print(f'Computation took {time.time() - tic} seconds')
     print(prof)
-
-
-    # test env
-    # tic = time.time()
-    # with profiler.profile(record_shapes=True) as prof:
-    # print(f'Computation took {time.time() - tic} seconds')
-    # print(prof)
