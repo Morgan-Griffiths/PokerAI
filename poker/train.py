@@ -83,7 +83,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
                 trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
-
+@profile
 def generate_trajectories(env,actor,critic,training_params,id):
     """Generates full trajectories by playing against itself"""
     # actor.eval()
@@ -188,7 +188,8 @@ def combined_learning_update(model,params):
     del data
     mongo.close()
     return model,params
-
+    
+@profile
 def dual_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
     actor.train()
