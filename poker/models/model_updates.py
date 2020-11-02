@@ -244,7 +244,8 @@ def update_combined(poker_round,model,params):
     torch.nn.utils.clip_grad_norm_(model.parameters(), params['gradient_clip'])
     optimizer.step()
     return critic_loss.item(),policy_loss.item()
-
+    
+@profile
 def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params):
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
@@ -267,7 +268,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     soft_update(critic,target_critic,device)
     # Actor update #
     target_values = target_critic(obs)['value']
-    actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
+    actor_out = actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
     expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
     advantages = (target_values[actor_value_mask] - expected_value).view(-1)

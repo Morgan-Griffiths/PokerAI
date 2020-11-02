@@ -333,13 +333,12 @@ class OmahaActor(Network):
         """
         state: B,M,39
         """
-        x = state
-        if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32).to(self.device)
-            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
-            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
+        if not isinstance(state,torch.Tensor):
+            state = torch.tensor(state,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float32).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float32).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-        out = self.process_input(x)
+        out = self.process_input(state)
         B,M,c = out.size()
         n_padding = self.maxlen - M
         if n_padding < 0:
@@ -446,10 +445,9 @@ class OmahaObsQCritic(Network):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,obs):
-        x = obs
-        if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
-        out = self.process_input(x)
+        if not isinstance(obs,torch.Tensor):
+            obs = torch.tensor(obs,dtype=torch.float32)#.to(self.device)
+        out = self.process_input(obs)
         # context = self.attention(out)
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)
