@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
 from models.model_utils import strip_padding,unspool,hardcode_handstrength
-from hashlib import md5
+import time
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
