@@ -138,7 +138,7 @@ if __name__ == "__main__":
         'betsizes': game_object.rule_params['betsizes'],
         'bet_type': game_object.rule_params['bettype'],
         'n_players': 2,
-        'pot':1,
+        'pot':game_object.state_params['pot'],
         'stacksize': game_object.state_params['stacksize'],
         'cards_per_player': game_object.state_params['cards_per_player'],
         'starting_street': game_object.starting_street,
