@@ -36,12 +36,12 @@ if __name__ == "__main__":
                         help='whether to split the actor critic into two separate networks or not')
     parser.add_argument('--epochs','-e',
                         dest='epochs',
-                        default=10,
+                        default=1,
                         type=int,
                         help='Number of training rounds')
     parser.add_argument('--generate','-g',
                         dest='generate',
-                        default=5,
+                        default=1,
                         type=int,
                         help='Number of generated hands per epoch per thread')
     parser.add_argument('--learning','-l',
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Train by King of the hill')
     parser.set_defaults(koth=False)
-    parser.set_defaults(single=False)
+    parser.set_defaults(single=True)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
