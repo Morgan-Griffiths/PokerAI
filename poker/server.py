@@ -168,7 +168,8 @@ class API(object):
             # scale values
             if np.max(np.abs(values)) > 0:
                 values *= action_mask
-                values /= np.max(np.abs(values))
+                
+                values /= self.env_params['stacksize'] + self.env_params['pot']
             model_outputs = {
                 'action_probs':action_probs.tolist(),
                 'q_values':[values.tolist()]
@@ -178,6 +179,8 @@ class API(object):
                 'action_probs':[0]*self.env.action_space,
                 'q_values':[0]*self.env.action_space
             }
+        print(model_outputs)
+        print(action_mask)
         return model_outputs
 
     def return_player_stats(self):
