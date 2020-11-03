@@ -328,7 +328,7 @@ class OmahaActor(Network):
         # )
         self.fc_final = nn.Linear(2560,self.combined_output)
         self.dropout = nn.Dropout(0.5)
-        
+    @profile    
     def forward(self,state,action_mask,betsize_mask):
         """
         state: B,M,39
@@ -443,7 +443,7 @@ class OmahaObsQCritic(Network):
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(params['transformer_out'],1)
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
-
+    @profile
     def forward(self,obs):
         if not isinstance(obs,torch.Tensor):
             obs = torch.tensor(obs,dtype=torch.float32)#.to(self.device)

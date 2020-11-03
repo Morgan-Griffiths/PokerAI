@@ -13,11 +13,17 @@ last_position: int list of positions. last position is the null position. Used f
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
+# local vars for speedup
+ACTION_OFFSET = pdt.Action.OFFSET
+ACTION_UNOPENED = pdt.Action.UNOPENED
 ACTION_RAISE = pdt.Action.RAISE
 ACTION_BET = pdt.Action.BET
 ACTION_FOLD = pdt.Action.FOLD
 ACTION_CALL = pdt.Action.CALL
 ACTION_CHECK = pdt.Action.CHECK
+STREET_PREFLOP = pdt.Street.PREFLOP
+STREET_RIVER = pdt.Street.RIVER
+NO_BLIND = pdt.Blind.NO_BLIND
 
 class Poker(object):
     def __init__(self,params):
@@ -60,7 +66,7 @@ class Poker(object):
         self.board[:len(starting_board_cards)] = starting_board_cards
         
     def update_board(self):
-        assert(self.street > pdt.Street.PREFLOP and self.street <= pdt.Street.RIVER), f'Street is outside bounds {self.street}'
+        assert(self.street > pdt.Street.PREFLOP and self.street <= STREET_RIVER), f'Street is outside bounds {self.street}'
         new_board_cards = flatten(self.deck.deal_board(self.street))
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
@@ -88,7 +94,7 @@ class Poker(object):
         if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
         else:
-            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=0)
         # Generate state and masks
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
@@ -100,10 +106,10 @@ class Poker(object):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5
         SB_action = ACTION_BET
-        self.update_state(SB_action,SB_post,blind=pdt.Blind.POSTED)
+        self.update_state(SB_action,SB_post,blind=BLIND_POSTED)
         BB_post = 1.
         BB_action = ACTION_RAISE
-        self.update_state(BB_action,BB_post,blind=pdt.Blind.POSTED)
+        self.update_state(BB_action,BB_post,blind=BLIND_POSTED)
     
     @profile
     def step(self,inputs):
@@ -113,7 +119,7 @@ class Poker(object):
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
-        action = inputs['action_category'] + pdt.Action.OFFSET
+        action = inputs['action_category'] + ACTION_OFFSET
         betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
         if self.round_over():
@@ -137,13 +143,13 @@ class Poker(object):
             temp_index.increment()
         return flatten(player_data)
     
-    def update_state(self,action,betsize,blind=pdt.Blind.NO_BLIND):
+    def update_state(self,action,betsize,blind=NO_BLIND):
         """Updates the global state. Appends the new global state to storage"""
-        if blind != pdt.Blind.POSTED:
+        if blind != BLIND_POSTED:
             self.players_remaining -= 1
         if (action == ACTION_RAISE or action == ACTION_BET):
             self.last_aggressor.update_aggression(self.current_index.value(),action,betsize)
-            if blind != pdt.Blind.POSTED:
+            if blind != BLIND_POSTED:
                 self.players_remaining = self.players.num_active_players - 1 # Current active player won't act again unless action is reopened
         elif action == ACTION_FOLD:
             self.players.update_status(self.current_player,Status.FOLDED)
@@ -177,7 +183,7 @@ class Poker(object):
     
     def increment_street(self):
         self.street += 1
-        assert not self.street > pdt.Street.RIVER,'Street is greater than river'
+        assert not self.street > STREET_RIVER,'Street is greater than river'
         # clear previous street totals
         self.players.reset_street_totals()
         # update board
@@ -186,13 +192,13 @@ class Poker(object):
         self.players_remaining = self.players.num_active_players
         self.street_starting_index()
         self.last_aggressor.next_street(self.street)
-        self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
+        self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=NO_BLIND)
         # Fast forward to river if allin
         if self.players.to_showdown:
-            for _ in range(pdt.Street.RIVER - self.street):
+            for _ in range(STREET_RIVER - self.street):
                 self.street += 1
                 self.update_board()
-            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
+            self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=NO_BLIND)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
@@ -236,12 +242,12 @@ class Poker(object):
         return actives
     
     def round_over(self):
-        if self.players_remaining == 0 and self.street != pdt.Street.RIVER and self.players.num_folded_players != self.n_players - 1:
+        if self.players_remaining == 0 and self.street != STREET_RIVER and self.players.num_folded_players != self.n_players - 1:
             return True
         return False
     
     def game_over(self):
-        if (self.players_remaining == 0 and self.street == pdt.Street.RIVER) or (self.players.num_folded_players == self.n_players - 1):
+        if (self.players_remaining == 0 and self.street == STREET_RIVER) or (self.players.num_folded_players == self.n_players - 1):
             return True
         return False
     
@@ -290,7 +296,7 @@ class Poker(object):
         betsize includes player totals.
         returns categorical betsize, and flat action category
         """
-        actionOffset = action + pdt.Action.OFFSET
+        actionOffset = action + ACTION_OFFSET
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
         if actionOffset == ACTION_FOLD or actionOffset == ACTION_CHECK or actionOffset == ACTION_CALL: # fold check call
@@ -340,7 +346,7 @@ class Poker(object):
                     possible_betsizes[i] = 1
                     if i == 0 and min_raise >= self.players[self.current_player].stack or max_raise * betsize >= self.players[self.current_player].stack:
                         break
-        elif self.global_states.last_aggressive_action == pdt.Action.UNOPENED or self.global_states.last_aggressive_action == ACTION_CHECK:
+        elif self.global_states.last_aggressive_action == ACTION_UNOPENED or self.global_states.last_aggressive_action == ACTION_CHECK:
             for i,betsize in enumerate(self.betsizes,0):
                 possible_betsizes[i] = 1
                 if betsize * self.pot >= self.players[self.current_player].stack:

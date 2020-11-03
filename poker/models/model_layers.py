@@ -136,7 +136,7 @@ class ProcessHandBoard(nn.Module):
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
         self.hand_out = nn.Linear(128,256) #params['lstm_in'] // 3)
-
+    @profile
     def forward(self,x):
         """
         x: concatenated hand and board. alternating rank and suit.
@@ -324,7 +324,7 @@ class PreProcessLayer(nn.Module):
         self.ordinal = ProcessOrdinal(critic,params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
         self.betsize_fc = nn.Linear(1,params['embedding_size']//2)
-
+    @profile
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
