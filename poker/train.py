@@ -83,7 +83,6 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,id):
                 trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
-@profile
 def generate_trajectories(env,actor,critic,training_params,id):
     """Generates full trajectories by playing against itself"""
     # actor.eval()
@@ -122,6 +121,7 @@ def generate_trajectories(env,actor,critic,training_params,id):
                 trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
+@profile
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
     """
     takes trajectories and inserts them into db for data analysis and learning.
@@ -188,8 +188,7 @@ def combined_learning_update(model,params):
     del data
     mongo.close()
     return model,params
-    
-@profile
+
 def dual_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
     actor.train()
@@ -199,6 +198,8 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
     for i in range(params['learning_rounds']):
         for poker_round in data:
             critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+        soft_update(critic,target_critic,params['device'])
+        soft_update(actor,target_actor,params['device'])
     mongo.close()
     del data
     return actor,critic,params

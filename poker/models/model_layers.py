@@ -38,6 +38,7 @@ class NetworkFunctions(object):
             actions[betsize_category + 3] = 1
         return torch.argmax(actions, dim=0).unsqueeze(0)
     
+    @profile
     def batch_unwrap_action(self,actions:torch.Tensor,previous_actions:torch.Tensor):
         """
         Unwraps flat action into action_category and betsize_category
@@ -59,6 +60,7 @@ class NetworkFunctions(object):
         int_actions[actions_le_3] = actions[actions_le_3]
         return int_actions,int_betsizes
 
+    @profile
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """
         Unwraps flat action into action_category and betsize_category

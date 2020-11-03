@@ -443,7 +443,7 @@ class OmahaObsQCritic(Network):
         self.dropout = nn.Dropout(0.5)
         self.value_output = nn.Linear(params['transformer_out'],1)
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
-    @profile
+        
     def forward(self,obs):
         if not isinstance(obs,torch.Tensor):
             obs = torch.tensor(obs,dtype=torch.float32)#.to(self.device)

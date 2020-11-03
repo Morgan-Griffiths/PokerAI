@@ -72,7 +72,6 @@ class Poker(object):
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
-    @profile
     def reset(self):
         self.global_states.reset()
         self.current_index.reset()
@@ -112,7 +111,6 @@ class Poker(object):
         BB_action = ACTION_RAISE
         self.update_state(BB_action,BB_post,blind=BLIND_POSTED)
     
-    @profile
     def step(self,inputs):
         """
         Increments the env state with current action,betsize.
