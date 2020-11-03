@@ -1,4 +1,5 @@
 import copy
+from functools import cached_property,lru_cache
 import numpy as np
 from random import shuffle
 import poker_env.datatypes as pdt
@@ -61,6 +62,7 @@ class Poker(object):
         assert(self.starting_stack >= 1)
         assert(self.cards_per_player >= 2)
 
+    @lru_cache(maxsize=1,typed=False)
     def initialize_board(self):
         self.board = [0] * 10
         starting_board_cards = flatten(self.deck.initialize_board(self.starting_street))
@@ -72,6 +74,7 @@ class Poker(object):
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
+    @lru_cache(maxsize=1,typed=False)
     def reset(self):
         self.global_states.reset()
         self.current_index.reset()
@@ -102,6 +105,7 @@ class Poker(object):
         assert isinstance(betsize_mask,(np.generic,np.ndarray))
         return state,obs,self.game_over(),action_mask,betsize_mask
         
+    @lru_cache(maxsize=1,typed=False)
     def instantiate_blinds(self):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5
@@ -426,21 +430,26 @@ class Poker(object):
         return self.players[self.current_player].stack
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def action_space(self):
         return 5
-    
+
     @property
+    @lru_cache(maxsize=1,typed=False)
     def state_space(self):
         return 31 + self.n_players * 4
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def betsize_space(self):
         return len(self.betsizes)
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def observation_space(self):
         return 21 + self.n_players * 4 + self.n_players * 10
 
     @property
+    @lru_cache(maxsize=1,typed=False)
     def global_space(self):
         return 21 + self.n_players * 4
