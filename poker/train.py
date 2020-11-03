@@ -121,7 +121,7 @@ def generate_trajectories(env,actor,critic,training_params,id):
                 trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
-@profile
+
 def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,id:int,epochs:int):
     """
     takes trajectories and inserts them into db for data analysis and learning.

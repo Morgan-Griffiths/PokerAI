@@ -256,6 +256,10 @@ if __name__ == "__main__":
                 learning_params['actor_lrscheduler'].step()
                 learning_params['critic_lrscheduler'].step()
                 training_params['training_round'] = (e+1) * training_params['training_epochs']
+                # Clean mongo
+                mongo = MongoDB()
+                mongo.clean_db()
+                mongo.close()
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))

@@ -7,8 +7,8 @@ import os
 from pymongo import MongoClient
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
 import time
-import cProfile
 
 from db import MongoDB
 from poker_env.config import Config
@@ -118,24 +118,33 @@ if __name__ == "__main__":
     # mongo = MongoDB()
     # mongo.clean_db()
     # mongo.close()
-    # Check env steps
-    # test generate
     print(args)
-    tic = time.time()
-    with profiler.profile(record_shapes=True) as prof:
-        if args.function == 'train':
-        # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
-        elif args.function == 'learn':
-            dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        elif args.function == 'generate':
-            generate_trajectories(env,actor,critic,training_params,id=0)
-        else:
-            with torch.no_grad():
-                for i in range(100):
-                    state,obs,done,action_mask,betsize_mask = env.reset()
-                    while not done:
-                        actor_outputs = actor(state,action_mask,betsize_mask)
-                        state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-    print(f'Computation took {time.time() - tic} seconds')
-    print(prof)
+    times = []
+    for i,val in enumerate([1,2,5,10,25,50]):
+        print(f'Generating {i} samples')
+        tic = time.time()
+        training_params['generate'] = val
+        train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+        toc = time.time()
+        print(f'{i} samples took {toc-tic} seconds')
+        times.append(toc-tic)
+    plt.plot(times)
+    plt.savefig(f'generate_times.png',bbox_inches='tight')
+    # tic = time.time()
+    # with profiler.profile(record_shapes=True) as prof:
+    #     if args.function == 'train':
+    #     # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
+    #         train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+    #     elif args.function == 'learn':
+    #         dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+    #     elif args.function == 'generate':
+    #         generate_trajectories(env,actor,critic,training_params,id=0)
+    #     else:
+    #         with torch.no_grad():
+    #             for i in range(100):
+    #                 state,obs,done,action_mask,betsize_mask = env.reset()
+    #                 while not done:
+    #                     actor_outputs = actor(state,action_mask,betsize_mask)
+    #                     state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+    # print(f'Computation took {time.time() - tic} seconds')
+    # print(prof)
