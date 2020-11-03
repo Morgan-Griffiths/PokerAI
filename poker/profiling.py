@@ -123,7 +123,7 @@ if __name__ == "__main__":
     for i,val in enumerate([1,2,5,10,25,50]):
         print(f'Generating {val} samples')
         tic = time.time()
-        training_params['generate'] = val
+        training_params['generate_epochs'] = val
         train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
         toc = time.time()
         print(f'{val} samples took {toc-tic} seconds')
