@@ -20,8 +20,6 @@ from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,
 from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
 
-
-
 if __name__ == "__main__":
     import argparse
 
@@ -131,23 +129,23 @@ if __name__ == "__main__":
     #     mongo = MongoDB()
     #     mongo.clean_db()
     #     mongo.close()
-    plt.scatter([1,2,5,10,25,50],[0.26,0.73,1.75,3,7.9,14.5])
-    plt.savefig(f'generate_times.png',bbox_inches='tight')
-    # tic = time.time()
-    # with profiler.profile(record_shapes=True) as prof:
-    #     if args.function == 'train':
-    #     # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-    #         train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
-    #     elif args.function == 'learn':
-    #         dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-    #     elif args.function == 'generate':
-    #         generate_trajectories(env,actor,critic,training_params,id=0)
-    #     else:
-    #         with torch.no_grad():
-    #             for i in range(100):
-    #                 state,obs,done,action_mask,betsize_mask = env.reset()
-    #                 while not done:
-    #                     actor_outputs = actor(state,action_mask,betsize_mask)
-    #                     state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-    # print(f'Computation took {time.time() - tic} seconds')
-    # print(prof)
+    # plt.scatter([1,2,5,10,25,50],[0.26,0.73,1.75,3,7.9,14.5])
+    # plt.savefig(f'generate_times.png',bbox_inches='tight')
+    tic = time.time()
+    with profiler.profile(record_shapes=True) as prof:
+        if args.function == 'train':
+        # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
+            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+        elif args.function == 'learn':
+            dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        elif args.function == 'generate':
+            generate_trajectories(env,actor,critic,training_params,id=0)
+        else:
+            with torch.no_grad():
+                for i in range(100):
+                    state,obs,done,action_mask,betsize_mask = env.reset()
+                    while not done:
+                        actor_outputs = actor(state,action_mask,betsize_mask)
+                        state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+    print(f'Computation took {time.time() - tic} seconds')
+    print(prof)
