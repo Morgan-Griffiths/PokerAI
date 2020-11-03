@@ -23,6 +23,7 @@ ACTION_CALL = pdt.Action.CALL
 ACTION_CHECK = pdt.Action.CHECK
 STREET_PREFLOP = pdt.Street.PREFLOP
 STREET_RIVER = pdt.Street.RIVER
+BLIND_POSTED = pdt.Blind.POSTED
 NO_BLIND = pdt.Blind.NO_BLIND
 
 class Poker(object):
