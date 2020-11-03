@@ -15,6 +15,7 @@ from flask_cors import CORS
 from poker_env.env import Poker,flatten
 import poker_env.datatypes as pdt
 from poker_env.config import Config
+from models.model_utils import norm_frequencies
 from models.networks import OmahaActor,OmahaObsQCritic
 
 """
@@ -136,16 +137,21 @@ class API(object):
             'player':self.player['name']
         }
         player_data = self.db['game_data'].find(query).sort('_id',-1)
-        action_probs = []
-        values = []
         for result in player_data:
-            action_probs.append(result['action_probs'])
-            values.append(result['value'])
+            action_probs = np.array(result['action_probs'])
+            values = np.array(result['value'])
+            action_mask = np.array(result['action_mask'])
             break
+
+        action_probs *= action_mask
+        action_probs /= np.sum(action_probs)
+        # scale values
+        values /= np.max(np.abs(values))
         model_outputs = {
-            'action_probs':action_probs,
-            'q_values':values
+            'action_probs':[action_probs[0].tolist()],
+            'q_values':[values.tolist()]
         }
+        print(model_outputs)
         return model_outputs
 
     def return_player_stats(self):
