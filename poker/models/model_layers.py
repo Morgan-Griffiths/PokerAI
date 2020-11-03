@@ -5,7 +5,7 @@ from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
 from models.model_utils import strip_padding,unspool,hardcode_handstrength
 import time
-from functools import cached_property
+from functools import lru_cache
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -39,7 +39,7 @@ class NetworkFunctions(object):
             actions[betsize_category + 3] = 1
         return torch.argmax(actions, dim=0).unsqueeze(0)
 
-    @cached_property
+    @lru_cache(maxsize=25)
     def batch_unwrap_action(self,actions:torch.Tensor,previous_actions:torch.Tensor):
         """
         Unwraps flat action into action_category and betsize_category
@@ -326,7 +326,7 @@ class PreProcessLayer(nn.Module):
         self.ordinal = ProcessOrdinal(critic,params)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
         self.betsize_fc = nn.Linear(1,params['embedding_size']//2)
-        
+
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
