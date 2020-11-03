@@ -14,18 +14,6 @@ last_position: int list of positions. last position is the null position. Used f
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
-def memoize(function):
-    memo = {}
-    def wrapper(*args):
-        if 0 in memo:
-            print('memo',type(memo[0]),memo[0])
-            return memo[0]
-        out = function(*args)
-        print('out',type(out),out)
-        memo[0] = out
-        return out
-    return wrapper
-
 # local vars for speedup
 ACTION_OFFSET = pdt.Action.OFFSET
 ACTION_UNOPENED = pdt.Action.UNOPENED
@@ -74,7 +62,6 @@ class Poker(object):
         assert(self.starting_stack >= 1)
         assert(self.cards_per_player >= 2)
 
-    @lru_cache(maxsize=1,typed=False)
     def initialize_board(self):
         self.board = [0] * 10
         starting_board_cards = flatten(self.deck.initialize_board(self.starting_street))
@@ -86,7 +73,6 @@ class Poker(object):
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
-    @memoize
     def reset(self):
         self.global_states.reset()
         self.current_index.reset()
@@ -117,7 +103,6 @@ class Poker(object):
         assert isinstance(betsize_mask,(np.generic,np.ndarray))
         return state,obs,self.game_over(),action_mask,betsize_mask
         
-    @memoize
     def instantiate_blinds(self):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5

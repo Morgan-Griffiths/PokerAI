@@ -39,7 +39,7 @@ class NetworkFunctions(object):
             actions[betsize_category + 3] = 1
         return torch.argmax(actions, dim=0).unsqueeze(0)
 
-    @lru_cache(maxsize=25)
+    @lru_cache(maxsize=30)
     def batch_unwrap_action(self,actions:torch.Tensor,previous_actions:torch.Tensor):
         """
         Unwraps flat action into action_category and betsize_category

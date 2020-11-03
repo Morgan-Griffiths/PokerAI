@@ -197,7 +197,6 @@ class HoldemQCritic(Network):
 #                Omaha Networks                #
 ################################################
 
-
 class OmahaBatchActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
         super().__init__()
@@ -327,7 +326,6 @@ class OmahaActor(Network):
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
         # )
         self.fc_final = nn.Linear(2560,self.combined_output)
-        self.dropout = nn.Dropout(0.5)
 
     def forward(self,state,action_mask,betsize_mask):
         """
