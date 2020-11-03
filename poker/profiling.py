@@ -115,19 +115,22 @@ if __name__ == "__main__":
     learning_params['actor_lrscheduler'] = actor_lrscheduler
     learning_params['critic_lrscheduler'] = critic_lrscheduler
     # Clean mongo
-    # mongo = MongoDB()
-    # mongo.clean_db()
-    # mongo.close()
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
     print(args)
     times = []
     for i,val in enumerate([1,2,5,10,25,50]):
-        print(f'Generating {i} samples')
+        print(f'Generating {val} samples')
         tic = time.time()
         training_params['generate'] = val
         train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
         toc = time.time()
-        print(f'{i} samples took {toc-tic} seconds')
+        print(f'{val} samples took {toc-tic} seconds')
         times.append(toc-tic)
+        mongo = MongoDB()
+        mongo.clean_db()
+        mongo.close()
     plt.plot(times)
     plt.savefig(f'generate_times.png',bbox_inches='tight')
     # tic = time.time()
