@@ -95,7 +95,7 @@ if __name__ == "__main__":
                         help='Train by batch')
     parser.set_defaults(batch=False)
     parser.set_defaults(koth=True)
-    parser.set_defaults(single=True)
+    parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
