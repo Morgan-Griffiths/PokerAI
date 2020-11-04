@@ -26,89 +26,87 @@ def pad_state(state,maxlen):
     padding = np.zeros(N)
     return padded_state
 
+@torch.no_grad()
 def generate_vs_frozen(env,actor,critic,villain,training_params,id):
     # actor.eval()
     # critic.eval()
     trajectories = defaultdict(lambda:[])
-    with torch.no_grad():
-        for e in range(training_params['generate_epochs']):
-            trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
-            state,obs,done,action_mask,betsize_mask = env.reset()
-            cur_player = env.current_player
-            if e % 2 == 0:
-                actor_positions = {'SB':actor,'BB':villain}
-                critic_positions = {'SB':critic,'BB':villain}
-                agent_loc = {'SB':1,'BB':0}
-            else:
-                actor_positions = {'SB':villain,'BB':actor}
-                critic_positions = {'SB':villain,'BB':critic}
-                agent_loc = {'SB':0,'BB':1}
-            if agent_loc[cur_player]:
-                trajectory[cur_player]['states'].append(copy.copy(state))
-                trajectory[cur_player]['obs'].append(copy.copy(obs))
-                trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
-                trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
-            while not done:
-                actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
-                if agent_loc[cur_player]:
-                    critic_outputs = critic_positions[env.current_player](obs)
-                    trajectory[cur_player]['values'].append(critic_outputs['value'])
-                    trajectory[cur_player]['actions'].append(actor_outputs['action'])
-                    trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
-                    trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
-                    trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
-                    trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
-                state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-                cur_player = env.current_player
-                if not done and agent_loc[cur_player]:
-                    trajectory[cur_player]['states'].append(state)
-                    trajectory[cur_player]['obs'].append(copy.copy(obs))
-                    trajectory[cur_player]['action_masks'].append(action_mask)
-                    trajectory[cur_player]['betsize_masks'].append(betsize_mask)
-            assert len(trajectory[cur_player]['betsize']) == len(trajectory[cur_player]['betsize_masks'])
-            rewards = env.player_rewards()
-            for position in trajectory.keys():
-                N = len(trajectory[position]['betsize_masks'])
-                trajectory[position]['rewards'] = [rewards[position]] * N
-                trajectories[position].append(trajectory[position])
-    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
-
-def generate_trajectories(env,actor,critic,training_params,id):
-    """Generates full trajectories by playing against itself"""
-    # actor.eval()
-    # critic.eval()
-    with torch.no_grad():
-        trajectories = defaultdict(lambda:[])
-        for e in range(training_params['generate_epochs']):
-            trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
-            state,obs,done,action_mask,betsize_mask = env.reset()
-            cur_player = env.current_player
+    for e in range(training_params['generate_epochs']):
+        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
+        state,obs,done,action_mask,betsize_mask = env.reset()
+        cur_player = env.current_player
+        if e % 2 == 0:
+            actor_positions = {'SB':actor,'BB':villain}
+            critic_positions = {'SB':critic,'BB':villain}
+            agent_loc = {'SB':1,'BB':0}
+        else:
+            actor_positions = {'SB':villain,'BB':actor}
+            critic_positions = {'SB':villain,'BB':critic}
+            agent_loc = {'SB':0,'BB':1}
+        if agent_loc[cur_player]:
             trajectory[cur_player]['states'].append(copy.copy(state))
             trajectory[cur_player]['obs'].append(copy.copy(obs))
             trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
             trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
-            while not done:
-                actor_outputs = actor(state,action_mask,betsize_mask)
-                critic_outputs = critic(obs)
+        while not done:
+            actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
+            if agent_loc[cur_player]:
+                critic_outputs = critic_positions[env.current_player](obs)
                 trajectory[cur_player]['values'].append(critic_outputs['value'])
                 trajectory[cur_player]['actions'].append(actor_outputs['action'])
                 trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
                 trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
                 trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
                 trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
-                state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-                cur_player = env.current_player
-                if not done:
-                    trajectory[cur_player]['states'].append(state)
-                    trajectory[cur_player]['obs'].append(copy.copy(obs))
-                    trajectory[cur_player]['action_masks'].append(action_mask)
-                    trajectory[cur_player]['betsize_masks'].append(betsize_mask)
-            assert len(trajectory[cur_player]['betsize']) == len(trajectory[cur_player]['betsize_masks'])
-            rewards = env.player_rewards()
-            for position in trajectory.keys():
-                N = len(trajectory[position]['betsize_masks'])
-                trajectory[position]['rewards'] = [rewards[position]] * N
-                trajectories[position].append(trajectory[position])
+            state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+            cur_player = env.current_player
+            if not done and agent_loc[cur_player]:
+                trajectory[cur_player]['states'].append(state)
+                trajectory[cur_player]['obs'].append(copy.copy(obs))
+                trajectory[cur_player]['action_masks'].append(action_mask)
+                trajectory[cur_player]['betsize_masks'].append(betsize_mask)
+        assert len(trajectory[cur_player]['betsize']) == len(trajectory[cur_player]['betsize_masks'])
+        rewards = env.player_rewards()
+        for position in trajectory.keys():
+            N = len(trajectory[position]['betsize_masks'])
+            trajectory[position]['rewards'] = [rewards[position]] * N
+            trajectories[position].append(trajectory[position])
+    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
+
+@torch.no_grad()
+def generate_trajectories(env,actor,critic,training_params,id):
+    """Generates full trajectories by playing against itself"""
+    trajectories = defaultdict(lambda:[])
+    for e in range(training_params['generate_epochs']):
+        trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
+        state,obs,done,action_mask,betsize_mask = env.reset()
+        cur_player = env.current_player
+        trajectory[cur_player]['states'].append(copy.copy(state))
+        trajectory[cur_player]['obs'].append(copy.copy(obs))
+        trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
+        trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
+        while not done:
+            actor_outputs = actor(state,action_mask,betsize_mask)
+            critic_outputs = critic(obs)
+            trajectory[cur_player]['values'].append(critic_outputs['value'])
+            trajectory[cur_player]['actions'].append(actor_outputs['action'])
+            trajectory[cur_player]['action_category'].append(actor_outputs['action_category'])
+            trajectory[cur_player]['action_prob'].append(actor_outputs['action_prob'])
+            trajectory[cur_player]['action_probs'].append(actor_outputs['action_probs'])
+            trajectory[cur_player]['betsize'].append(actor_outputs['betsize'])
+            state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+            cur_player = env.current_player
+            if not done:
+                trajectory[cur_player]['states'].append(state)
+                trajectory[cur_player]['obs'].append(copy.copy(obs))
+                trajectory[cur_player]['action_masks'].append(action_mask)
+                trajectory[cur_player]['betsize_masks'].append(betsize_mask)
+        assert len(trajectory[cur_player]['betsize']) == len(trajectory[cur_player]['betsize_masks'])
+        rewards = env.player_rewards()
+        for position in trajectory.keys():
+            N = len(trajectory[position]['betsize_masks'])
+            trajectory[position]['rewards'] = [rewards[position]] * N
+            trajectories[position].append(trajectory[position])
     insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],id,training_params['generate_epochs'])
 
 
@@ -178,10 +176,9 @@ def combined_learning_update(model,params):
     del data
     mongo.close()
     return model,params
-
+    
 def dual_learning_update(actor,critic,target_actor,target_critic,params,validation_params):
     mongo = MongoDB()
-    actor.train()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
@@ -196,7 +193,6 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
 
 def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
-    actor.train()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     db_data = mongo.get_data(query,projection)
@@ -206,7 +202,6 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
         for i,data in enumerate(trainloader):
             critic_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
-        # print(f'Learning Round {i}, critic loss {sum(losses)}, policy loss {sum(policy_losses)}')
     mongo.close()
     return actor,critic,params
 
@@ -216,7 +211,6 @@ def train_batch(env,actor,critic,target_actor,target_critic,training_params,lear
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         # generate_trajectories(env,target_actor,target_critic,training_params,id)
-        # train on trajectories
         actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()

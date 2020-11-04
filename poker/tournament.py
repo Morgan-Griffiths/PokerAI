@@ -17,6 +17,7 @@ from poker_env.config import Config
 from poker_env.env import Poker
 from utils.utils import load_paths,grep,return_latest_baseline_path,bin_by_handstrength
 
+@torch.no_grad()
 def tournament(env,agent1,agent2,model_names,training_params):
     hero = model_names[1]
     villain = model_names[0]
@@ -31,44 +32,43 @@ def tournament(env,agent1,agent2,model_names,training_params):
         villain: {'SB':0,'BB':0},
         hero: {'SB':0,'BB':0}
     }
-    with torch.no_grad():
-        for e in range(training_params['epochs']):
-            sys.stdout.write('\r')
-            if e % 2 == 0:
-                agent_positions = {'SB':agent1,'BB':agent2}
-                agent_loc = {'SB':villain,'BB':hero}
-            else:
-                agent_positions = {'SB':agent2,'BB':agent1}
-                agent_loc = {'SB':hero,'BB':villain}
-            state,obs,done,action_mask,betsize_mask = env.reset()
-            while not done:
-                actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
-                street = pdt.Globals.STREET_DICT[state[:,-1,env.state_mapping['street']][0]]
-                if street == pdt.StreetStrs.RIVER:
-                    if agent_loc[env.current_player] == hero:
-                        hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
-                        villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
-                        model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
-                        model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
-                        hero_category = bin_by_handstrength(hero_handstrength)
-                        model_dict[hero][street][hero_category].append(actor_outputs['action_category'])
-                    else:
-                        villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
-                        hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
-                        model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
-                        model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
-                        villain_category = bin_by_handstrength(villain_handstrength)
-                        model_dict[villain][street][villain_category].append(actor_outputs['action_category'])
+    for e in range(training_params['epochs']):
+        sys.stdout.write('\r')
+        if e % 2 == 0:
+            agent_positions = {'SB':agent1,'BB':agent2}
+            agent_loc = {'SB':villain,'BB':hero}
+        else:
+            agent_positions = {'SB':agent2,'BB':agent1}
+            agent_loc = {'SB':hero,'BB':villain}
+        state,obs,done,action_mask,betsize_mask = env.reset()
+        while not done:
+            actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
+            street = pdt.Globals.STREET_DICT[state[:,-1,env.state_mapping['street']][0]]
+            if street == pdt.StreetStrs.RIVER:
+                if agent_loc[env.current_player] == hero:
+                    hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
+                    villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
+                    model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
+                    model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
+                    hero_category = bin_by_handstrength(hero_handstrength)
+                    model_dict[hero][street][hero_category].append(actor_outputs['action_category'])
                 else:
-                    model_dict[agent_loc[env.current_player]][street]['actions'].append(actor_outputs['action_category'])
-                state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-            rewards = env.player_rewards()
-            agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
-            agent_performance[agent_loc['BB']]['BB'] += rewards['BB']
-            sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
-            sys.stdout.flush()
-            sys.stdout.write(", epoch %d"% (e+1))
-            sys.stdout.flush()
+                    villain_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['hand_board']][:,None,:]))[0][0][0]
+                    hero_handstrength = hardcode_handstrength(torch.from_numpy(obs[:,-1,env.obs_mapping['villain_board']][:,None,:]))[0][0][0]
+                    model_dict[hero][street]['counts'].append(bin_by_handstrength(hero_handstrength))
+                    model_dict[villain][street]['counts'].append(bin_by_handstrength(villain_handstrength))
+                    villain_category = bin_by_handstrength(villain_handstrength)
+                    model_dict[villain][street][villain_category].append(actor_outputs['action_category'])
+            else:
+                model_dict[agent_loc[env.current_player]][street]['actions'].append(actor_outputs['action_category'])
+            state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
+        rewards = env.player_rewards()
+        agent_performance[agent_loc['SB']]['SB'] += rewards['SB']
+        agent_performance[agent_loc['BB']]['BB'] += rewards['BB']
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['epochs']), (100*(e+1)//training_params['epochs'])))
+        sys.stdout.flush()
+        sys.stdout.write(", epoch %d"% (e+1))
+        sys.stdout.flush()
     return agent_performance,model_dict
 
 def count_actions(values):
