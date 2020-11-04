@@ -239,7 +239,7 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
+def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         if validation_params['koth']:

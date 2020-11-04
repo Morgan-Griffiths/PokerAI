@@ -222,7 +222,7 @@ if __name__ == "__main__":
     # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
     if args.single:
         for e in range(training_params['lr_steps']):
-            train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+            train_dual(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
             # Validate
             # if validation_params['koth']:
             #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         critic.share_memory()
         processes = []
         for e in range(training_params['lr_steps']):
-            mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id),nprocs=num_processes)
+            mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             # for id in range(num_processes): # No. of processes
             #     p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
             #     p.start()
