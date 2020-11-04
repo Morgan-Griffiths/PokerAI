@@ -275,14 +275,3 @@ def train_dual(env,actor,critic,target_actor,target_critic,training_params,learn
         if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-            # validate vs baseline
-            if validation_params['koth']:
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-                model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
-                # if it beats it by 60%
-                if model_result  > (validation_params['epochs'] * .60):
-                    # save weights as new baseline, otherwise keep training.
-                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                    torch.save(actor.state_dict(), new_baseline_path)
-                    # load new villain
-                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])

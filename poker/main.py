@@ -260,6 +260,16 @@ if __name__ == "__main__":
                 mongo = MongoDB()
                 mongo.clean_db()
                 mongo.close()
+                # Validate
+                if validation_params['koth']:
+                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+                    results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                    model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
+                    # if it beats it by 60%
+                    if model_result  > (validation_params['epochs'] * .60):
+                        # save weights as new baseline, otherwise keep training.
+                        new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                        torch.save(actor.state_dict(), new_baseline_path)
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
