@@ -12,10 +12,9 @@ import copy
 import time
 import logging
 
-from models.networks import OmahaActor,BetAgent
+from models.networks import OmahaActor
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from utils.utils import return_latest_baseline_path,return_next_baseline_path
 from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
 from tournament import tournament
 from db import MongoDB
@@ -26,15 +25,6 @@ def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
     padding = np.zeros(N)
     return padded_state
-
-def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
-    baseline_path = return_latest_baseline_path(baseline_path)
-    if baseline_path:
-        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        load_weights(villain,baseline_path)
-    else:
-        villain = BetAgent()
-    return villain
 
 def generate_vs_frozen(env,actor,critic,villain,training_params,id):
     # actor.eval()
@@ -189,7 +179,7 @@ def combined_learning_update(model,params):
     mongo.close()
     return model,params
 
-def dual_learning_update(actor,critic,target_actor,target_critic,params):
+def dual_learning_update(actor,critic,target_actor,target_critic,params,validation_params):
     mongo = MongoDB()
     actor.train()
     query = {'training_round':params['training_round']}
@@ -199,7 +189,8 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params):
         for poker_round in data:
             critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
         soft_update(critic,target_critic,params['device'])
-        soft_update(actor,target_actor,params['device'])
+        if validation_params['koth']:
+            soft_update(actor,target_actor,params['device'])
     mongo.close()
     del data
     return actor,critic,params
@@ -255,17 +246,15 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
-    if validation_params['koth']:
-        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+def train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         if validation_params['koth']:
-            generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+            generate_vs_frozen(env,actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
-        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
         sys.stdout.flush()
         sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")

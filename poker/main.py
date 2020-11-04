@@ -12,12 +12,21 @@ import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
-from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
+from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
-from utils.utils import unpack_shared_dict,clean_folder
+from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path
 from tournament import tournament
 
 from torch import optim
+
+def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
+    baseline_path = return_latest_baseline_path(baseline_path)
+    if baseline_path:
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        load_weights(villain,baseline_path)
+    else:
+        villain = BetAgent()
+    return villain
 
 if __name__ == "__main__":
     import argparse
@@ -88,7 +97,7 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Train by King of the hill')
     parser.set_defaults(koth=False)
-    parser.set_defaults(single=True)
+    parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
@@ -231,8 +240,16 @@ if __name__ == "__main__":
         hard_update(critic,target_critic)
         actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
         critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
-        actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
-        critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
+        if validation_params['koth']:
+            stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
+            milestones = [stepsize*2,stepsize*3,stepsize*4]
+            actor_lrscheduler = MultiStepLR(actor_optimizer, milestones=milestones, gamma=0.1)
+            critic_lrscheduler = MultiStepLR(critic_optimizer, milestones=milestones, gamma=0.1)
+            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+        else:
+            actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
+            critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
+            villain = ''
         learning_params['actor_optimizer'] = actor_optimizer
         learning_params['critic_optimizer'] = critic_optimizer
         learning_params['actor_lrscheduler'] = actor_lrscheduler
@@ -241,14 +258,14 @@ if __name__ == "__main__":
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         if args.single:
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+            train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
         else:
             actor.share_memory()
             critic.share_memory()
             processes = []
             for e in range(training_params['lr_steps']):
                 for id in range(num_processes): # No. of processes
-                    p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
+                    p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
                     p.start()
                     processes.append(p)
                 for p in processes: 
