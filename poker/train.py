@@ -178,6 +178,7 @@ def combined_learning_update(model,params):
     return model,params
     
 def dual_learning_update(actor,critic,target_actor,target_critic,params,validation_params):
+    torch.set_grad_enabled(True)
     mongo = MongoDB()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}

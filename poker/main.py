@@ -256,7 +256,6 @@ if __name__ == "__main__":
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                torch.set_grad_enabled(True)
                 # if it beats it by 60%
                 print(f'model_result {model_result}')
                 if model_result  > (validation_params['epochs'] * .60):
