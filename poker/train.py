@@ -189,8 +189,7 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
         for poker_round in data:
             critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
         soft_update(critic,target_critic,params['device'])
-        if validation_params['koth']:
-            soft_update(actor,target_actor,params['device'])
+        soft_update(actor,target_actor,params['device'])
     mongo.close()
     del data
     return actor,critic,params
@@ -250,7 +249,7 @@ def train_dual(env,villain,actor,critic,target_actor,target_critic,training_para
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         if validation_params['koth']:
-            generate_vs_frozen(env,actor,target_critic,villain,training_params,id)
+            generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories

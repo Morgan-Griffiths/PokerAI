@@ -229,9 +229,6 @@ if __name__ == "__main__":
             # Load pretrained hand recognizer
             copy_weights(actor,network_params['actor_hand_recognizer_path'])
             copy_weights(critic,network_params['critic_hand_recognizer_path'])
-            # Expand conv1d over conv2d
-            # expand_conv2d(actor,network_params['actor_hand_recognizer_path'])
-            # expand_conv2d(critic,network_params['critic_hand_recognizer_path'])
         actor.summary
         critic.summary
         target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
