@@ -249,21 +249,21 @@ if __name__ == "__main__":
             learning_params['critic_lrscheduler'].step()
             training_params['training_round'] = (e+1) * training_params['training_epochs']
             # Clean mongo
-            mongo = MongoDB()
-            mongo.clean_db()
-            mongo.close()
-            # Validate
-            if validation_params['koth']:
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-                model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                # if it beats it by 60%
-                print(f'model_result {model_result}')
-                if model_result  > (validation_params['epochs'] * .60):
-                    print(f'Model succeeded, Saving new baseline')
-                    # save weights as new baseline, otherwise keep training.
-                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                    torch.save(actor.state_dict(), new_baseline_path)
-                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+            # mongo = MongoDB()
+            # mongo.clean_db()
+            # mongo.close()
+            # # Validate
+            # if validation_params['koth']:
+            #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+            #     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+            #     # if it beats it by 60%
+            #     print(f'model_result {model_result}')
+            #     if model_result  > (validation_params['epochs'] * .60):
+            #         print(f'Model succeeded, Saving new baseline')
+            #         # save weights as new baseline, otherwise keep training.
+            #         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+            #         torch.save(actor.state_dict(), new_baseline_path)
+            #         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
 
     # save weights
     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
