@@ -94,7 +94,7 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Train by batch')
     parser.set_defaults(batch=False)
-    parser.set_defaults(koth=True)
+    parser.set_defaults(koth=False)
     parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
@@ -256,6 +256,7 @@ if __name__ == "__main__":
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                torch.set_grad_enabled(True)
                 # if it beats it by 60%
                 print(f'model_result {model_result}')
                 if model_result  > (validation_params['epochs'] * .60):
@@ -264,6 +265,7 @@ if __name__ == "__main__":
                     new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+
     # save weights
     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
     torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
