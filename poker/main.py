@@ -224,46 +224,47 @@ if __name__ == "__main__":
         for e in range(training_params['lr_steps']):
             train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
             # Validate
-            if validation_params['koth']:
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-                model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                # if it beats it by 60%
-                print(f'model_result {model_result}')
-                if model_result  > (validation_params['epochs'] * .60):
-                    # save weights as new baseline, otherwise keep training.
-                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                    torch.save(actor.state_dict(), new_baseline_path)
-                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-    else:
-        actor.share_memory()
-        critic.share_memory()
-        processes = []
-        for e in range(training_params['lr_steps']):
-            for id in range(num_processes): # No. of processes
-                p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
-                p.start()
-                processes.append(p)
-            for p in processes: 
-                p.join()
-            learning_params['actor_lrscheduler'].step()
-            learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
-            # Clean mongo
-            # mongo = MongoDB()
-            # mongo.clean_db()
-            # mongo.close()
-            # # Validate
             # if validation_params['koth']:
             #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
             #     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
             #     # if it beats it by 60%
             #     print(f'model_result {model_result}')
             #     if model_result  > (validation_params['epochs'] * .60):
-            #         print(f'Model succeeded, Saving new baseline')
             #         # save weights as new baseline, otherwise keep training.
             #         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
             #         torch.save(actor.state_dict(), new_baseline_path)
             #         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+    else:
+        actor.share_memory()
+        critic.share_memory()
+        processes = []
+        for e in range(training_params['lr_steps']):
+            mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id),nprocs=num_processes)
+            # for id in range(num_processes): # No. of processes
+            #     p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
+            #     p.start()
+            #     processes.append(p)
+            # for p in processes:
+            #     p.join()
+            learning_params['actor_lrscheduler'].step()
+            learning_params['critic_lrscheduler'].step()
+            training_params['training_round'] = (e+1) * training_params['training_epochs']
+            # Clean mongo
+            mongo = MongoDB()
+            mongo.clean_db()
+            mongo.close()
+            # Validate
+            if validation_params['koth']:
+                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                # if it beats it by 60%
+                print(f'model_result {model_result}')
+                if model_result  > (validation_params['epochs'] * .60):
+                    print(f'Model succeeded, Saving new baseline')
+                    # save weights as new baseline, otherwise keep training.
+                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                    torch.save(actor.state_dict(), new_baseline_path)
+                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
 
     # save weights
     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
