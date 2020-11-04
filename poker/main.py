@@ -36,16 +36,9 @@ if __name__ == "__main__":
         """
         Train RL algorithms in a poker environment
         """)
-
-    parser.add_argument('--network','-n',
-                        dest='network_type',
-                        default='dual',
-                        metavar="['combined','dual']",
-                        type=str,
-                        help='whether to split the actor critic into two separate networks or not')
     parser.add_argument('--epochs','-e',
                         dest='epochs',
-                        default=1,
+                        default=3,
                         type=int,
                         help='Number of training rounds')
     parser.add_argument('--generate','-g',
@@ -96,8 +89,13 @@ if __name__ == "__main__":
                         dest='koth',
                         action='store_true',
                         help='Train by King of the hill')
-    parser.set_defaults(koth=False)
-    parser.set_defaults(single=False)
+    parser.add_argument('--batch',
+                        dest='batch',
+                        action='store_true',
+                        help='Train by batch')
+    parser.set_defaults(batch=False)
+    parser.set_defaults(koth=True)
+    parser.set_defaults(single=True)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
 
@@ -167,7 +165,7 @@ if __name__ == "__main__":
         'max_reward':env_params['pot']+env_params['stacksize']
     }
     validation_params = {
-        'epochs':5000,
+        'epochs':50,
         'koth':args.koth
     }
     path = training_params['save_dir']
@@ -186,75 +184,44 @@ if __name__ == "__main__":
     mp.set_start_method('spawn')
     num_processes = min(mp.cpu_count(),6)
     print(f'Number of used processes {num_processes}')
-    print(f'Training {args.network_type} model')
-    if args.network_type == 'combined':
-        alphaPoker = CombinedNet(seed,nS,nA,nB,network_params).to(device)
-        if args.frozen:
-            # Load pretrained hand recognizer
-            copy_weights(alphaPoker,network_params['actor_hand_recognizer_path'])
-        alphaPoker.summary
-        alphaPoker_optimizer = optim.Adam(alphaPoker.parameters(), lr=config.agent_params['critic_lr'])
-        lrscheduler = StepLR(alphaPoker_optimizer, step_size=1, gamma=0.1)
-        learning_params['model_optimizer'] = alphaPoker_optimizer
-        learning_params['lrscheduler'] = lrscheduler
-        alphaPoker.share_memory()
-        # for debugging
-        # generate_trajectories(env,alphaPoker,training_params,id=0)
-        # alphaPoker,learning_params = combined_learning_update(alphaPoker,learning_params)
-        if args.single:
-            train(env,alphaPoker,training_params,learning_params,id=0)
-        else:
-            processes = []
-            for e in range(training_params['lr_steps']):
-                for id in range(num_processes): # No. of processes
-                    p = mp.Process(target=train_combined, args=(env,alphaPoker,training_params,learning_params,id))
-                    p.start()
-                    processes.append(p)
-                for p in processes: 
-                    p.join()
-                learning_params['lrscheduler'].step()
-                training_params['training_round'] = (e+1) * training_params['training_epochs']
-        # save weights
-        torch.save(alphaPoker.state_dict(), os.path.join(path,'OmahaCombinedFinal'))
-        print(f'Saved model weights to {os.path.join(path,"OmahaCombinedFinal")}')
-    elif args.network_type == 'dual':
-        actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        if args.resume:
-            latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
-            latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-            load_weights(actor,latest_actor_path)
-            load_weights(critic,latest_critic_path)
-        elif args.frozen:
-            # Load pretrained hand recognizer
-            copy_weights(actor,network_params['actor_hand_recognizer_path'])
-            copy_weights(critic,network_params['critic_hand_recognizer_path'])
-        actor.summary
-        critic.summary
-        target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-        target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
-        hard_update(actor,target_actor)
-        hard_update(critic,target_critic)
-        actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-        critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
-        if validation_params['koth']:
-            stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
-            milestones = [stepsize*2,stepsize*3,stepsize*4]
-            actor_lrscheduler = MultiStepLR(actor_optimizer, milestones=milestones, gamma=0.1)
-            critic_lrscheduler = MultiStepLR(critic_optimizer, milestones=milestones, gamma=0.1)
-            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-        else:
-            actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
-            critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
-            villain = ''
-        learning_params['actor_optimizer'] = actor_optimizer
-        learning_params['critic_optimizer'] = critic_optimizer
-        learning_params['actor_lrscheduler'] = actor_lrscheduler
-        learning_params['critic_lrscheduler'] = critic_lrscheduler
-        # training loop
-        # generate_trajectories(env,actor,critic,training_params,id=0)
-        # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        if args.single:
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+    if args.resume:
+        latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
+        latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+        load_weights(actor,latest_actor_path)
+        load_weights(critic,latest_critic_path)
+    elif args.frozen:
+        # Load pretrained hand recognizer
+        copy_weights(actor,network_params['actor_hand_recognizer_path'])
+        copy_weights(critic,network_params['critic_hand_recognizer_path'])
+    actor.summary
+    critic.summary
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
+    hard_update(actor,target_actor)
+    hard_update(critic,target_critic)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+    if validation_params['koth']:
+        stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
+        milestones = [stepsize*2,stepsize*3,stepsize*4]
+        actor_lrscheduler = MultiStepLR(actor_optimizer, milestones=milestones, gamma=0.1)
+        critic_lrscheduler = MultiStepLR(critic_optimizer, milestones=milestones, gamma=0.1)
+        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+    else:
+        actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
+        critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
+        villain = ''
+    learning_params['actor_optimizer'] = actor_optimizer
+    learning_params['critic_optimizer'] = critic_optimizer
+    learning_params['actor_lrscheduler'] = actor_lrscheduler
+    learning_params['critic_lrscheduler'] = critic_lrscheduler
+    # training loop
+    # generate_trajectories(env,actor,critic,training_params,id=0)
+    # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+    if args.single:
+        for e in range(training_params['lr_steps']):
             train_dual(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
             # Validate
             if validation_params['koth']:
@@ -267,41 +234,39 @@ if __name__ == "__main__":
                     new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-        else:
-            actor.share_memory()
-            critic.share_memory()
-            processes = []
-            for e in range(training_params['lr_steps']):
-                for id in range(num_processes): # No. of processes
-                    p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
-                    p.start()
-                    processes.append(p)
-                for p in processes: 
-                    p.join()
-                learning_params['actor_lrscheduler'].step()
-                learning_params['critic_lrscheduler'].step()
-                training_params['training_round'] = (e+1) * training_params['training_epochs']
-                # Clean mongo
-                mongo = MongoDB()
-                mongo.clean_db()
-                mongo.close()
-                # Validate
-                if validation_params['koth']:
-                    results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-                    model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                    # if it beats it by 60%
-                    print(results)
-                    if model_result  > (validation_params['epochs'] * .60):
-                        print(f'Model succeeded, Saving new baseline')
-                        # save weights as new baseline, otherwise keep training.
-                        new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                        torch.save(actor.state_dict(), new_baseline_path)
-                        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-        # save weights
-        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
-        print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     else:
-        raise ValueError(f'Network type {args.network_type} not supported')
+        actor.share_memory()
+        critic.share_memory()
+        processes = []
+        for e in range(training_params['lr_steps']):
+            for id in range(num_processes): # No. of processes
+                p = mp.Process(target=train_dual, args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
+                p.start()
+                processes.append(p)
+            for p in processes: 
+                p.join()
+            learning_params['actor_lrscheduler'].step()
+            learning_params['critic_lrscheduler'].step()
+            training_params['training_round'] = (e+1) * training_params['training_epochs']
+            # Clean mongo
+            mongo = MongoDB()
+            mongo.clean_db()
+            mongo.close()
+            # Validate
+            if validation_params['koth']:
+                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                # if it beats it by 60%
+                print(f'model_result {model_result}')
+                if model_result  > (validation_params['epochs'] * .60):
+                    print(f'Model succeeded, Saving new baseline')
+                    # save weights as new baseline, otherwise keep training.
+                    new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                    torch.save(actor.state_dict(), new_baseline_path)
+                    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+    # save weights
+    torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+    torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+    print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
