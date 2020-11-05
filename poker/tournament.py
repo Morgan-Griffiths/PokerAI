@@ -69,10 +69,10 @@ def tournament(env,agent1,agent2,model_names,training_params):
             sys.stdout.flush()
             sys.stdout.write(", epoch %d"% (e+1))
             sys.stdout.flush()
-            print(actor_outputs['action_probs'])
     return agent_performance,model_dict
 
 def count_actions(values):
+    print(values)
     raises = 0
     folds = 0
     calls = 0
@@ -80,6 +80,7 @@ def count_actions(values):
     bets = 0
     total_vals = 0
     for val in values:
+        print(val)
         total_vals += 1
         if val == 0:
             checks += 1
@@ -111,7 +112,7 @@ if __name__ == "__main__":
                         help='Selects network type')
     parser.add_argument('--epochs','-e',
                         dest='epochs',
-                        default=500,
+                        default=5,
                         type=int,
                         help='How many hands to evaluate on')
     parser.add_argument('--tourney','-t',
@@ -253,9 +254,9 @@ if __name__ == "__main__":
                     uniques,freqs = np.unique(counts,return_counts=True)
                     for category in range(9):
                         category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
-                        values = data[category]
-                        checks,folds,calls,bets,raises,total_vals = count_actions(values)
-                        if values:
+                        vals = values[category]
+                        if vals:
+                            checks,folds,calls,bets,raises,total_vals = count_actions(vals)
                             table.add_row([street,category,checks,folds,calls,bets,raises,category_occurances])
                 else:
                     checks,folds,calls,bets,raises,total_vals = count_actions(values['actions'])
