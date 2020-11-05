@@ -241,7 +241,7 @@ if __name__ == "__main__":
             critic.share_memory()
             processes = []
             for e in range(training_params['lr_steps']):
-                mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id),num_processes)
+                mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id),nprocs=num_processes)
                 # for id in range(num_processes): # No. of processes
                 #     p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
                 #     p.start()
