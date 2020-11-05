@@ -72,7 +72,6 @@ def tournament(env,agent1,agent2,model_names,training_params):
     return agent_performance,model_dict
 
 def count_actions(values):
-    print(values)
     raises = 0
     folds = 0
     calls = 0
@@ -80,7 +79,6 @@ def count_actions(values):
     bets = 0
     total_vals = 0
     for val in values:
-        print(val)
         total_vals += 1
         if val == 0:
             checks += 1
@@ -112,7 +110,7 @@ if __name__ == "__main__":
                         help='Selects network type')
     parser.add_argument('--epochs','-e',
                         dest='epochs',
-                        default=5,
+                        default=500,
                         type=int,
                         help='How many hands to evaluate on')
     parser.add_argument('--tourney','-t',
