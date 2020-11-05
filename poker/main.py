@@ -182,7 +182,7 @@ if __name__ == "__main__":
     mongo.close()
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),6)
+    num_processes = min(mp.cpu_count(),3)
     print(f'Number of used processes {num_processes}')
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
