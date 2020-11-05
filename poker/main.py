@@ -15,7 +15,7 @@ from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path
-from tournament import tournament
+from tournament import tournament,print_stats
 
 from torch import optim
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         """)
     parser.add_argument('--epochs','-e',
                         dest='epochs',
-                        default=3,
+                        default=2,
                         type=int,
                         help='Number of training rounds')
     parser.add_argument('--generate','-g',
@@ -53,7 +53,7 @@ if __name__ == "__main__":
                         help='Number of learning passes on the data')
     parser.add_argument('--steps','-s',
                         dest='steps',
-                        default=3,
+                        default=1,
                         type=int,
                         help='Number of learning rate decays')
     parser.add_argument('--frozen',
@@ -94,7 +94,7 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Train by batch')
     parser.set_defaults(batch=False)
-    parser.set_defaults(koth=False)
+    parser.set_defaults(koth=True)
     parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
     parser.set_defaults(frozen=True)
@@ -195,8 +195,8 @@ if __name__ == "__main__":
         # Load pretrained hand recognizer
         copy_weights(actor,network_params['actor_hand_recognizer_path'])
         copy_weights(critic,network_params['critic_hand_recognizer_path'])
-    actor.summary
-    critic.summary
+    # actor.summary
+    # critic.summary
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(device)
     hard_update(actor,target_actor)
@@ -221,8 +221,8 @@ if __name__ == "__main__":
     # generate_trajectories(env,actor,critic,training_params,id=0)
     # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
     if args.single:
-        for e in range(training_params['lr_steps']):
-            train_dual(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+        # for e in range(training_params['lr_steps']):
+        train_batch(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
             # Validate
             # if validation_params['koth']:
             #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
@@ -252,6 +252,7 @@ if __name__ == "__main__":
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it beats it by 60%
+                print_stats(stats)
                 print(f'model_result {model_result}')
                 if model_result  > (validation_params['epochs'] * .60):
                     print(f'Model succeeded, Saving new baseline')

@@ -205,8 +205,7 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo.close()
     return actor,critic,params
 
-def train_batch(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,id):
-    villain = BetAgent()
+def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     for e in range(training_params['training_epochs']):
         sys.stdout.write('\r')
         generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -241,17 +240,17 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     for e in range(training_params['training_epochs']):
-        sys.stdout.write('\r')
+        # sys.stdout.write('\r')
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
-        sys.stdout.flush()
-        sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")
-        sys.stdout.flush()
+        # sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
+        # sys.stdout.flush()
+        # sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")
+        # sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if (e+1) % training_params['save_every'] == 0 and id == 0:
