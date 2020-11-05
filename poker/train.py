@@ -257,7 +257,7 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id):
+def train_dual(id,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     # if validation_params['koth']:
     #     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     villain = BetAgent()
