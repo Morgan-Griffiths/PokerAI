@@ -13,7 +13,6 @@ import time
 import logging
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
 from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker

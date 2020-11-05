@@ -13,7 +13,7 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
-from models.model_utils import copy_weights,hard_update,expand_conv2d
+from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder
 from tournament import tournament
 from utils.utils import return_latest_baseline_path,return_next_baseline_path
