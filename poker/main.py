@@ -174,7 +174,7 @@ if __name__ == "__main__":
     mongo.close()
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),6)
+    num_processes = min(mp.cpu_count(),3)
     print(f'Number of used processes {num_processes}')
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
@@ -235,21 +235,14 @@ if __name__ == "__main__":
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         if args.single:
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
         else:
             actor.share_memory()
             critic.share_memory()
-            processes = []
-            for e in range(training_params['lr_steps']):
-                for id in range(num_processes): # No. of processes
-                    p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
-                    p.start()
-                    processes.append(p)
-                for p in processes: 
-                    p.join()
-                learning_params['actor_lrscheduler'].step()
-                learning_params['critic_lrscheduler'].step()
-                training_params['training_round'] = (e+1) * training_params['training_epochs']
+            mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),num_processes)
+            learning_params['actor_lrscheduler'].step()
+            learning_params['critic_lrscheduler'].step()
+            training_params['training_round'] = (e+1) * training_params['training_epochs']
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
