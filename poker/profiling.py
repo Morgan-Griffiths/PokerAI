@@ -100,6 +100,7 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     # print(f'Evaluating {args.network_type}')
+    id = 0
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     #     print(f'Generating {val} samples')
     #     tic = time.time()
     #     training_params['generate_epochs'] = val
-    #     train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+    #     train_dual(id,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
     #     toc = time.time()
     #     print(f'{val} samples took {toc-tic} seconds')
     #     times.append(toc-tic)
@@ -134,8 +135,7 @@ if __name__ == "__main__":
     tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
         if args.function == 'train':
-        # cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+            train_dual(id,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
         elif args.function == 'learn':
             dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         elif args.function == 'generate':

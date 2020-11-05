@@ -75,16 +75,6 @@ if __name__ == "__main__":
                         dest='resume',
                         action='store_true',
                         help='Resume training stored weights')
-    parser.add_argument('--actor-path','-ap',
-                        dest='actor_path',
-                        default=None,
-                        type=str,
-                        help='path to actor')
-    parser.add_argument('--critic-path','-ac',
-                        dest='critic_path',
-                        default=None,
-                        type=str,
-                        help='path to critic')
     parser.add_argument('--koth',
                         dest='koth',
                         action='store_true',
@@ -165,7 +155,7 @@ if __name__ == "__main__":
         'max_reward':env_params['pot']+env_params['stacksize']
     }
     validation_params = {
-        'epochs':5000,
+        'epochs':2000,
         'koth':args.koth
     }
     path = training_params['save_dir']
@@ -258,10 +248,9 @@ if __name__ == "__main__":
                     new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-
-    # save weights
-    torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-    torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+                # save weights
+                torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+                torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
