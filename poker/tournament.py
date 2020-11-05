@@ -141,7 +141,7 @@ if __name__ == "__main__":
         'pot':1,
         'stacksize': game_object.state_params['stacksize'],
         'cards_per_player': game_object.state_params['cards_per_player'],
-        'starting_street': game_object.starting_street,
+        'starting_street': pdt.Street.RIVER,#game_object.starting_street,
         'global_mapping':config.global_mapping,
         'state_mapping':config.state_mapping,
         'obs_mapping':config.obs_mapping,
