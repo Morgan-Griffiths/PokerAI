@@ -15,7 +15,7 @@ from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder
-from tournament import tournament
+from tournament import tournament,print_stats
 from utils.utils import return_latest_baseline_path,return_next_baseline_path
 from models.networks import OmahaActor,BetAgent
 
@@ -260,6 +260,8 @@ if __name__ == "__main__":
                 if validation_params['koth']:
                     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                    print(f'model_result {model_result}')
+                    print_stats(stats)
                     # if it beats it by 60%
                     if model_result  > (validation_params['epochs'] * .60):
                         # save weights as new baseline, otherwise keep training.
