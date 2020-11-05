@@ -85,7 +85,6 @@ def update_actor_batch(data,local_actor,target_actor,target_critic,params):
     print(table)
     return policy_loss.item()
 
-@profile
 def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_critic,params):
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']
