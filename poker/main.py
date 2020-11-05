@@ -259,7 +259,7 @@ if __name__ == "__main__":
                 # validate vs baseline
                 if validation_params['koth']:
                     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
-                    model_result = (results['trained_model']['SB'] + results['trained_model']['BB']) - (results['baseline_evaluation']['SB'] + results['baseline_evaluation']['BB'])
+                    model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                     # if it beats it by 60%
                     if model_result  > (validation_params['epochs'] * .60):
                         # save weights as new baseline, otherwise keep training.
