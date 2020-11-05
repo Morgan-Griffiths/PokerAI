@@ -69,6 +69,7 @@ def tournament(env,agent1,agent2,model_names,training_params):
             sys.stdout.flush()
             sys.stdout.write(", epoch %d"% (e+1))
             sys.stdout.flush()
+            print(actor_outputs['action_probs'])
     return agent_performance,model_dict
 
 def count_actions(values):
