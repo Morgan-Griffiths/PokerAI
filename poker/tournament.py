@@ -231,7 +231,7 @@ if __name__ == "__main__":
         print(table)
     else:
         print(f'Evaluating {model_name}, from {os.path.join(training_params["actor_path"],model_name)}')
-        trained_model.load_state_dict(torch.load(os.path.join(training_params['actor_path'],model_name)))
+        load_weights(trained_model,os.path.join(training_params['actor_path'],model_name))
         if args.baseline == 'hardcoded':
             baseline_evaluation = BetAgent()
         else:
