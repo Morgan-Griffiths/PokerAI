@@ -208,15 +208,14 @@ if __name__ == "__main__":
         milestones = [stepsize*2,stepsize*3,stepsize*4]
         actor_lrscheduler = MultiStepLR(actor_optimizer, milestones=milestones, gamma=0.1)
         critic_lrscheduler = MultiStepLR(critic_optimizer, milestones=milestones, gamma=0.1)
-        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     else:
         actor_lrscheduler = StepLR(actor_optimizer, step_size=1, gamma=0.1)
         critic_lrscheduler = StepLR(critic_optimizer, step_size=1, gamma=0.1)
-        villain = ''
     learning_params['actor_optimizer'] = actor_optimizer
     learning_params['critic_optimizer'] = critic_optimizer
     learning_params['actor_lrscheduler'] = actor_lrscheduler
     learning_params['critic_lrscheduler'] = critic_lrscheduler
+    villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     # training loop
     # generate_trajectories(env,actor,critic,training_params,id=0)
     # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
@@ -237,7 +236,6 @@ if __name__ == "__main__":
     else:
         actor.share_memory()
         critic.share_memory()
-        processes = []
         for e in range(training_params['lr_steps']):
             mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             learning_params['actor_lrscheduler'].step()

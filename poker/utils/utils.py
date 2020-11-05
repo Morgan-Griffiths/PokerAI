@@ -46,7 +46,7 @@ def return_latest_training_model_path(path):
 def return_next_baseline_path(path):
     baselines_path = return_latest_baseline_path(path)
     if baselines_path:
-        max_num = path.rsplit('baseline')[-1]
+        max_num = baselines_path.rsplit('baseline')[-1]
         return os.path.join(path,f'baseline{int(max_num)+1}')
     else:
         return os.path.join(path,'baseline1')
