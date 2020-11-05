@@ -252,7 +252,7 @@ if __name__ == "__main__":
                     uniques,freqs = np.unique(counts,return_counts=True)
                     for category in range(9):
                         category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
-                        category_vals = data[category]
+                        category_vals = values[category]
                         if category_vals:
                             checks,folds,calls,bets,raises,total_vals = count_actions(category_vals)
                             table.add_row([street,category,checks,folds,calls,bets,raises,category_occurances])
