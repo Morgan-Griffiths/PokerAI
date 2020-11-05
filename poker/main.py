@@ -14,7 +14,7 @@ from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
-from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path
+from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
 from tournament import tournament,print_stats
 
 from torch import optim
