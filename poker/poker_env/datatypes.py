@@ -277,7 +277,7 @@ class BaseOmaha(object):
 class OmahaHI(object):
     def __init__(self):
         K = BaseOmaha()
-        self.starting_street = Street.PREFLOP
+        self.starting_street = Street.RIVER
         self.rule_params = K.rule_params
         self.state_params = K.state_params
         self.state_params['stacksize'] = 20.
