@@ -15,7 +15,7 @@ from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
-from tournament import tournament,print_stats
+from tournament import tournament,print_stats,eval_latest
 
 from torch import optim
 
@@ -155,6 +155,7 @@ if __name__ == "__main__":
         'max_reward':env_params['pot']+env_params['stacksize']
     }
     validation_params = {
+        'actor_path':config.agent_params['actor_path'],
         'epochs':2000,
         'koth':args.koth
     }
@@ -227,10 +228,12 @@ if __name__ == "__main__":
         actor.share_memory()
         critic.share_memory()
         for e in range(training_params['lr_steps']):
+            tic = time.time()
             mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
             training_params['training_round'] = (e+1) * training_params['training_epochs']
+            print(f'Training loop took {time.time()-tic} seconds')
             # Clean mongo
             mongo = MongoDB()
             mongo.clean_db()
@@ -239,18 +242,20 @@ if __name__ == "__main__":
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                # if it beats it by 60%
+                # if it wins 1bb per hand%
                 print_stats(stats)
                 print(f'model_result {model_result}')
-                if model_result  > (validation_params['epochs'] * .60):
+                if model_result  > (validation_params['epochs']):
                     print(f'Model succeeded, Saving new baseline')
                     # save weights as new baseline, otherwise keep training.
                     new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
-                # save weights
-                torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-                torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+            else:
+                eval_latest(seed,nS,nA,nB,validation_params,network_params)
+            # save weights
+            torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+            torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
