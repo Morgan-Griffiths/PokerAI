@@ -251,8 +251,8 @@ def train_combined(env,model,training_params,learning_params,id):
 def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     if torch.cuda.device_count() > 1:
         setup_world(id,2)
-        actor = DDP(actor,device_ids=[id])
-        critic = DDP(critic,device_ids=[id])
+        actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
+        critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
