@@ -31,7 +31,6 @@ def pad_state(state,maxlen):
 def setup_world(rank,world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-
     # initialize the process group
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
@@ -259,6 +258,7 @@ def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_p
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
+        dist.barrier()
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
@@ -266,4 +266,5 @@ def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_p
         if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    cleanup()
+    if torch.cuda.device_count() > 1:
+        cleanup()
