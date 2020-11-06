@@ -112,7 +112,7 @@ def print_stats(stats):
                 table.add_row([street,-1,checks,folds,calls,bets,raises,total_vals])
         print(table)
 
-def eval_latest(seed,nS,nA,nB,training_params,network_params):
+def eval_latest(env,seed,nS,nA,nB,training_params,network_params):
     device = network_params['device']
     weight_paths = load_paths(training_params['actor_path'])
     model_names = list(weight_paths.keys())

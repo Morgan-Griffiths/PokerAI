@@ -252,7 +252,7 @@ if __name__ == "__main__":
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             else:
-                eval_latest(seed,nS,nA,nB,validation_params,network_params)
+                eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
             # save weights
             torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
             torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
