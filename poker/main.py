@@ -156,7 +156,7 @@ if __name__ == "__main__":
     }
     validation_params = {
         'actor_path':config.agent_params['actor_path'],
-        'epochs':2000,
+        'epochs':1000,
         'koth':args.koth
     }
     path = training_params['save_dir']

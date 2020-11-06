@@ -134,7 +134,11 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params):
         result_array[data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
         print_stats(stats)
     # Create Results Table
-    table = PrettyTable(["Model Name", *model_names[:-1]])
+    print(model_names)
+    print('result_array',result_array)
+    print([latest_actor,*result_array])
+    print(["Model Name", *model_names[-last_n_models:-1]])
+    table = PrettyTable(["Model Name", *model_names[-last_n_models:-1]])
     table.add_row([latest_actor,*result_array])
     print(table)
 
