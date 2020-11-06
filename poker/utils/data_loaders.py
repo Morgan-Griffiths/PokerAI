@@ -33,6 +33,8 @@ class trajectoryLoader(Dataset):
             betsize_masks.append(torch.tensor(poker_round['betsize_mask'],dtype=torch.long))
             action_masks.append(torch.tensor(poker_round['action_mask'],dtype=torch.long))
             maxlen = max(maxlen,torch.tensor(poker_round['state']).size(1))
+        print(len(states))
+        print(states)
         self.states = pad_seq(states,maxlen)#.squeeze(2).permute(1,0,2)
         self.obs = pad_seq(obs,maxlen)#.squeeze(2).permute(1,0,2)
         self.actions = torch.stack(actions)#.unsqueeze(-1)
