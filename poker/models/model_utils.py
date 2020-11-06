@@ -106,7 +106,7 @@ def copy_weights(network,path):
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
 
-def soft_update(local,target,device,tau=1e-1):
+def soft_update(local,target,device,tau=5e-2):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
         target_param.data.copy_(tau*local_param.data.to(device) + (1-tau)*target_param.data)
 
