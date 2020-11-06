@@ -252,7 +252,13 @@ if __name__ == "__main__":
                     torch.save(actor.state_dict(), new_baseline_path)
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             else:
-                eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
+                # eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
+                villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                # if it wins 1bb per hand%
+                print_stats(stats)
+                print(f'model_result {model_result}')
             # save weights
             torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
             torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
