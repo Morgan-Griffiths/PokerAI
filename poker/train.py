@@ -8,6 +8,7 @@ import sys
 import numpy as np
 from pymongo import MongoClient
 from collections import defaultdict
+from torch.nn.parallel import DistributedDataParallel as DDP
 import copy
 import time
 import logging
@@ -207,18 +208,13 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
 
 def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     for e in range(training_params['training_epochs']):
-        sys.stdout.write('\r')
-        generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
-        # generate_trajectories(env,target_actor,target_critic,training_params,id)
+        if validation_params['koth']:
+            generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
+        else:
+            generate_trajectories(env,target_actor,target_critic,training_params,id)
         actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
-        sys.stdout.flush()
-        sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")
-        sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        # learning_params['actor_lrscheduler'].step()
-        # learning_params['critic_lrscheduler'].step()
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
@@ -239,18 +235,16 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+    if torch.cuda.device_count() > 1:
+        actor = DDP(actor,device_ids=[0,1])
+        critic = DDP(critic,device_ids=[0,1])
     for e in range(training_params['training_epochs']):
-        # sys.stdout.write('\r')
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
-        # sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
-        # sys.stdout.flush()
-        # sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, ID: {id}")
-        # sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if (e+1) % training_params['save_every'] == 0 and id == 0:

@@ -4,7 +4,6 @@ import torch.multiprocessing as mp
 import torch
 import os
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
-from torch.nn import DataParallel
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
@@ -211,8 +210,11 @@ if __name__ == "__main__":
     # generate_trajectories(env,actor,critic,training_params,id=0)
     # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
     if args.single:
-        # for e in range(training_params['lr_steps']):
-        train_batch(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+        for e in range(training_params['lr_steps']):
+            if args.batch:
+                train_batch(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+            else:
+                train_dual(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
             # Validate
             # if validation_params['koth']:
             #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
@@ -229,11 +231,14 @@ if __name__ == "__main__":
         critic.share_memory()
         for e in range(training_params['lr_steps']):
             tic = time.time()
-            mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+            if args.batch:
+                mp.spawn(train_batch,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+            else:
+                mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
             training_params['training_round'] = (e+1) * training_params['training_epochs']
-            print(f'Training loop took {time.time()-tic} seconds')
+            print(f'Training loop took {(time.time()-tic)/60} minutes')
             # Clean mongo
             mongo = MongoDB()
             mongo.clean_db()
@@ -253,7 +258,6 @@ if __name__ == "__main__":
                     villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             else:
                 # eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
-                villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it wins 1bb per hand%
