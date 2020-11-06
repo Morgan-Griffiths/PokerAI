@@ -8,7 +8,7 @@ from poker_env.datatypes import Action
 from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
+from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding,copy_weights
 
 class BetAgent(object):
@@ -53,7 +53,7 @@ class HoldemBaseline(Network):
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
-        self.process_input = PreProcessPokerInputs(params)
+        self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
@@ -111,7 +111,7 @@ class HoldemBaselineCritic(Network):
         # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
 
-        self.process_input = PreProcessPokerInputs(params,critic=True)
+        self.process_input = PreProcessLayer(params,critic=True)
         self.fc1 = nn.Linear(304,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],nA)
@@ -166,7 +166,7 @@ class HoldemQCritic(Network):
         self.nO = nO
         self.nA = nA
         
-        self.process_input = PreProcessPokerInputs(params)
+        self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['mapping']
         emb = 1248
@@ -325,7 +325,7 @@ class OmahaActor(Network):
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
         # )
-        self.fc_final = nn.Linear(2560,self.combined_output)
+        self.fc_final = nn.Linear(5120,self.combined_output)
 
     def forward(self,state,action_mask,betsize_mask):
         """
