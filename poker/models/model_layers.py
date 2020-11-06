@@ -304,12 +304,12 @@ class PreProcessLayer(nn.Module):
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
-            o = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
-            c = self.continuous(x[:,:,self.obs_mapping['continuous']])
+            o = self.ordinal(x[:,:,self.obs_mapping['ordinal']].to(self.device))
+            c = self.continuous(x[:,:,self.obs_mapping['continuous']].to(self.device))
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
-            o = self.ordinal(x[:,:,self.state_mapping['ordinal']])
-            c = self.continuous(x[:,:,self.state_mapping['continuous']])
+            o = self.ordinal(x[:,:,self.state_mapping['ordinal']].to(self.device))
+            c = self.continuous(x[:,:,self.state_mapping['continuous']].to(self.device))
         combined = torch.cat((h,o,c),dim=-1)
         return combined
 
