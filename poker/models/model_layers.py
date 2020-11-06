@@ -185,112 +185,85 @@ class ProcessHandBoard(nn.Module):
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params):
         super().__init__()
+        self.critic = critic
         self.device = params['device']
         self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
         self.action_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Action.UNOPENED+1,padding_idx=0)
-        # self.position_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
-        # self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=2)
+        self.position_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=4,padding_idx=0)
+        self.actor_indicies = {
+            'hero_pos':0,
+            'street':2,
+            'last_action_pos':4,
+            'prev_action':5
+        }
+        self.critic_indicies = {
+            'hero_pos':0,
+            'street':1,
+            'last_action_pos':5,
+            'prev_action':6
+        }
         if critic:
-            self.forward = self.forward_critic
+            self.indicies = self.critic_indicies
         else:
-            self.forward = self.forward_actor
+            self.indicies = self.actor_indicies
 
-    def forward_actor(self,x):
-        # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,1].long())
-        # hero_position = self.position_emb(x[:,1].long()) + order[0]
-        # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long())
-        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
-        return street
-
-    def forward_critic(self,x):
-        # order = self.order_emb(torch.arange(2))
-        street = self.street_emb(x[:,:,2].long())
-        # hero_position = self.position_emb(x[:,1].long()) + order[0]
-        # vil_position = self.position_emb(x[:,2].long()) + order[1]
-        previous_action = self.action_emb(x[:,:,6].long())
-        ordinal_output = torch.cat((street,previous_action),dim=-1) #hero_position,vil_position,
-        return street
+    def forward(self,x):
+        hero_position = self.street_emb(x[:,:,self.indicies['hero_pos']].long())
+        street = self.street_emb(x[:,:,self.indicies['street']].long())
+        previous_action = self.action_emb(x[:,:,self.indicies['prev_action']].long())
+        last_action_position = self.position_emb(x[:,:,self.indicies['last_action_pos']].long())
+        return torch.cat((street,hero_position,previous_action,last_action_position),dim=-1)
 
 class ProcessContinuous(nn.Module):
-    def __init__(self,params):
+    def __init__(self,critic,params):
         super().__init__()
-        self.mapping = params['mapping']
-        self.betsize_fc = nn.Linear(1,params['embedding_size'])
-        self.stack_fc = nn.Linear(1,params['embedding_size'])
-        self.call_fc = nn.Linear(1,params['embedding_size'])
-        self.odds_fc = nn.Linear(1,params['embedding_size'])
-        self.order_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=5)
-        
-    def forward(self,x):
-        M,C = x.size()
-        # 
-        previous_betsize = x[:,0].unsqueeze(-1)
-        hero_stack = x[:,1].unsqueeze(-1)
-        villain_stack = x[:,2].unsqueeze(-1)
-        amnt_to_call = x[:,3].unsqueeze(-1)
-        pot_odds = x[:,4].unsqueeze(-1)
+        self.stack_fc = nn.Linear(1,params['embedding_size']//4)
+        self.call_fc = nn.Linear(1,params['embedding_size']//4)
+        self.odds_fc = nn.Linear(1,params['embedding_size']//4)
+        self.pot_fc = nn.Linear(1,params['embedding_size']//4)
+        self.critic_indicies = {
+            'hero_stack':0,
+            'pot':3,
+            'amnt_to_call':4,
+            'pot_odds':5
+        }
+        self.actor_indicies = {
+            'hero_stack':0,
+            'pot':4,
+            'amnt_to_call':5,
+            'pot_odds':6
+        }
+        if critic:
+            self.indicies = self.critic_indicies
+        else:
+            self.indicies = self.actor_indicies
 
-        order = self.order_emb(torch.arange(5))
-        bets = []
-        heros = []
-        villains = []
+    def forward(self,x):
+        B,M,C = x.size()
+        hero_stack = x[:,:,self.indicies['hero_stack']]
+        amnt_to_call = x[:,:,self.indicies['amnt_to_call']]
+        pot_odds = x[:,:,self.indicies['pot_odds']]
+        pot = x[:,:,self.indicies['pot']]
+        stack = []
         calls = []
         odds = []
-        for i in range(M):
-            bets.append(self.betsize_fc(previous_betsize[i]) + order[0])
-            heros.append(self.stack_fc(hero_stack[i]) + order[1])
-            villains.append(self.stack_fc(villain_stack[i]) + order[2])
-            calls.append(self.call_fc(amnt_to_call[i]) + order[3])
-            odds.append(self.odds_fc(pot_odds[i]) + order[4])
-        bet = torch.stack(bets)
-        hero = torch.stack(heros)
-        villain = torch.stack(villains)
-        call = torch.stack(calls)
-        odd = torch.stack(odds)
-        continuous_output = torch.stack((bet,hero,villain,call,odd),dim=-1).view(M,-1)
-        return continuous_output
-
-class PreProcessPokerInputs(nn.Module):
-    def __init__(self,params,critic=False):
-        super().__init__()
-        self.maxlen = params['maxlen']
-        self.mapping = params['mapping']
-        self.device = params['device']
-        hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length).to(self.device)
-        self.continuous = ProcessContinuous(params)
-        self.ordinal = ProcessOrdinal(params)
-        self.initialize(critic)
-
-    def initialize(self,critic):
-        if critic:
-            self.forward = self.forward_critic
-        else:
-            self.forward = self.forward_actor
-
-    def forward_critic(self,x):
-        h = self.hand_board(x[:,:,self.mapping['observation']['hand_board']].long())
-        # h.size(B,M,240)
-        o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
-        # o.size(B,M,5)
-        c = self.ordinal(x[:,:,self.mapping['observation']['ordinal'].long()])
-        # h.size(B,M,128)
-        combined = torch.cat((h,o,c),dim=-1)
-        return combined
-
-    def forward_actor(self,x):
-        stripped_x = strip_padding(x,self.maxlen).squeeze(0)
-        M,C = stripped_x.size()
-        h = self.hand_board(stripped_x[:,self.mapping['state']['hand_board']].long())
-        # h.size(B,M,240)
-        o = self.continuous(stripped_x[:,self.mapping['state']['continuous'].long()])
-        # o.size(B,M,5)
-        c = self.ordinal(stripped_x[:,self.mapping['state']['ordinal'].long()])
-        # h.size(B,M,128)
-        combined = torch.cat((h,o,c),dim=-1)
-        return combined
+        pot = []
+        for i in range(B):
+            for j in range(M):
+                stack.append(self.stack_fc(hero_stack[i,j].unsqueeze(-1)))
+                calls.append(self.call_fc(amnt_to_call[i,j].unsqueeze(-1)))
+                odds.append(self.odds_fc(pot_odds[i,j].unsqueeze(-1)))
+                pot.append(self.pot_fc(pot_odds[i,j].unsqueeze(-1)))
+        emb_pot = torch.stack(pot).view(B,M,-1)
+        emb_call = torch.stack(calls).view(B,M,-1)
+        emb_stack = torch.stack(stack).view(B,M,-1)
+        emb_odds = torch.stack(odds).view(B,M,-1)
+        if emb_pot.dim() == 2:
+            emb_pot = emb_pot.unsqueeze(0)
+            emb_call = emb_call.unsqueeze(0)
+            emb_stack = emb_stack.unsqueeze(0)
+            emb_odds = emb_odds.unsqueeze(0)
+        return torch.stack((emb_pot,emb_call,emb_stack,emb_odds),dim=-1).view(B,M,-1)
 
 class EncoderAttention(nn.Module):
     def __init__(self,in_size,lstm_out):
@@ -322,38 +295,22 @@ class PreProcessLayer(nn.Module):
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
         self.hand_board = ProcessHandBoard(params,hand_length)
-        # self.continuous = ProcessContinuous(params)
+        self.continuous = ProcessContinuous(critic,params)
         self.ordinal = ProcessOrdinal(critic,params)
-        self.action_emb = nn.Embedding(embedding_dim=params['embedding_size'], num_embeddings=Action.UNOPENED+1,padding_idx=0)#embedding_dim=params['embedding_size']
-        self.betsize_fc = nn.Linear(1,params['embedding_size']//2)
-
+        
     def forward(self,x):
         B,M,C = x.size()
         if self.critic:
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
             h = h1 - h2
-            c = self.ordinal(x[:,:,self.obs_mapping['ordinal']].to(self.device))
+            o = self.ordinal(x[:,:,self.obs_mapping['ordinal']])
+            c = self.continuous(x[:,:,self.obs_mapping['continuous']])
         else:
             h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
-            c = self.ordinal(x[:,:,self.state_mapping['ordinal']].to(self.device))
-        # h.size(B,M,240)
-        last_a = x[:,:,self.state_mapping['last_action']].long().to(self.device)
-        last_b = x[:,:,self.state_mapping['last_betsize']].to(self.device)
-
-        emb_a = self.action_emb(last_a)
-        embedded_bets = []
-        for i in range(B):
-            for j in range(M):
-                embedded_bets.append(self.betsize_fc(last_b[i,j].unsqueeze(-1)))
-        embeds = torch.stack(embedded_bets).view(B,M,-1)
-        # o = self.continuous(x[:,:,self.mapping['observation']['continuous'].long()])
-        # o.size(B,M,5)
-        # h.size(B,M,128)
-        if embeds.dim() == 2:
-            embeds = embeds.unsqueeze(0)
-        # print(h.size(),emb_a.size(),embeds.size(),c.size())
-        combined = torch.cat((h,emb_a,embeds,c),dim=-1)
+            o = self.ordinal(x[:,:,self.state_mapping['ordinal']])
+            c = self.continuous(x[:,:,self.state_mapping['continuous']])
+        combined = torch.cat((h,o,c),dim=-1)
         return combined
 
 ################################################
