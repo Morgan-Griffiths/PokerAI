@@ -226,6 +226,7 @@ def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
+        dist.barrier()
         actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
