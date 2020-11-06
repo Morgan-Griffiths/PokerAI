@@ -125,6 +125,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
     """
     takes trajectories and inserts them into db for data analysis and learning.
     """
+    print('training_round',training_round)
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
     keys = training_data.keys()
