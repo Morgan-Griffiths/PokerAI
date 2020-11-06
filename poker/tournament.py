@@ -92,6 +92,26 @@ def count_actions(values):
             raises += 1
     return [checks/total_vals,folds/total_vals,calls/total_vals,bets/total_vals,raises/total_vals,total_vals]
 
+def print_stats(stats):
+    for model,data in stats.items():
+        print(model)
+        table = PrettyTable(['Street','Hand Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
+        for street in tuple(data.keys()):
+            values = data[street]
+            if street == pdt.StreetStrs.RIVER:
+                counts = values['counts']
+                uniques,freqs = np.unique(counts,return_counts=True)
+                for category in range(9):
+                    category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
+                    category_vals = values[category]
+                    if category_vals:
+                        checks,folds,calls,bets,raises,total_vals = count_actions(category_vals)
+                        table.add_row([street,category,checks,folds,calls,bets,raises,category_occurances])
+            else:
+                checks,folds,calls,bets,raises,total_vals = count_actions(values['actions'])
+                table.add_row([street,-1,checks,folds,calls,bets,raises,total_vals])
+        print(table)
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
@@ -242,24 +262,7 @@ if __name__ == "__main__":
         model_names = ['baseline_evaluation','trained_model']
         results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
         print(results)
-        for model,data in stats.items():
-            print(model)
-            table = PrettyTable(['Street','Hand Category','Check','Fold','Call','Bet','Raise','Hand Counts'])
-            for street in tuple(data.keys()):
-                values = data[street]
-                if street == pdt.StreetStrs.RIVER:
-                    counts = values['counts']
-                    uniques,freqs = np.unique(counts,return_counts=True)
-                    for category in range(9):
-                        category_occurances = 0 if category not in uniques else freqs[uniques == category][0]
-                        category_vals = values[category]
-                        if category_vals:
-                            checks,folds,calls,bets,raises,total_vals = count_actions(category_vals)
-                            table.add_row([street,category,checks,folds,calls,bets,raises,category_occurances])
-                else:
-                    checks,folds,calls,bets,raises,total_vals = count_actions(values['actions'])
-                    table.add_row([street,-1,checks,folds,calls,bets,raises,total_vals])
-            print(table)
+        print_stats(stats)
 
         print(f"{model_names[0]}: {results[model_names[0]]['SB'] + results[model_names[0]]['BB']}")
         print(f"{model_names[1]}: {results[model_names[1]]['SB'] + results[model_names[1]]['BB']}")

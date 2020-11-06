@@ -13,11 +13,22 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
-from models.model_utils import copy_weights,hard_update,expand_conv2d
+from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder
-from tournament import tournament
+from tournament import tournament,print_stats
+from utils.utils import return_latest_baseline_path,return_next_baseline_path
+from models.networks import OmahaActor,BetAgent
 
 from torch import optim
+
+def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
+    baseline_path = return_latest_baseline_path(baseline_path)
+    if baseline_path:
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        load_weights(villain,baseline_path)
+    else:
+        villain = BetAgent()
+    return villain
 
 if __name__ == "__main__":
     import argparse
@@ -231,25 +242,33 @@ if __name__ == "__main__":
         learning_params['critic_optimizer'] = critic_optimizer
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
+        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
         # training loop
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         if args.single:
-            train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)
+            train_dual(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
         else:
             actor.share_memory()
             critic.share_memory()
-            processes = []
             for e in range(training_params['lr_steps']):
-                for id in range(num_processes): # No. of processes
-                    p = mp.Process(target=train_dual, args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id))
-                    p.start()
-                    processes.append(p)
-                for p in processes: 
-                    p.join()
+                mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
                 learning_params['actor_lrscheduler'].step()
                 learning_params['critic_lrscheduler'].step()
                 training_params['training_round'] = (e+1) * training_params['training_epochs']
+                # validate vs baseline
+                if validation_params['koth']:
+                    results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                    model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
+                    print(f'model_result {model_result}')
+                    print_stats(stats)
+                    # if it beats it by 60%
+                    if model_result  > (validation_params['epochs'] * .60):
+                        # save weights as new baseline, otherwise keep training.
+                        new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
+                        torch.save(actor.state_dict(), new_baseline_path)
+                        # load new villain
+                        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
