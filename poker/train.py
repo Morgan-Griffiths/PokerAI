@@ -8,6 +8,7 @@ import sys
 import numpy as np
 from pymongo import MongoClient
 from collections import defaultdict
+import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import copy
 import time
@@ -26,6 +27,16 @@ def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
     padding = np.zeros(N)
     return padded_state
+
+def setup_world(rank,world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
 
 @torch.no_grad()
 def generate_vs_frozen(env,actor,critic,villain,training_params,id):
@@ -207,6 +218,9 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     return actor,critic,params
 
 def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+    if torch.cuda.device_count() > 1:
+        actor = DDP(actor,device_ids=[0,1])
+        critic = DDP(critic,device_ids=[0,1])
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -218,6 +232,7 @@ def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+    cleanup()
 
 def train_combined(env,model,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
@@ -236,8 +251,9 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
     if torch.cuda.device_count() > 1:
-        actor = DDP(actor,device_ids=[0,1])
-        critic = DDP(critic,device_ids=[0,1])
+        setup_world(id,2)
+        actor = DDP(actor,device_ids=[id])
+        critic = DDP(critic,device_ids=[id])
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -250,3 +266,4 @@ def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_p
         if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+    cleanup()
