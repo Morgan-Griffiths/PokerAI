@@ -138,8 +138,8 @@ if __name__ == '__main__':
                         help='resume training from an earlier run',
                         action='store_true')
     parser.add_argument('--function','-f',
-                        metavar='example,'
-                        dest='function'
+                        metavar='example,',
+                        dest='function',
                         help='which function to run'
                         )
     parser.set_defaults(resume=False)
