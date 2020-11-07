@@ -41,9 +41,14 @@ def train_classification(dataset_params,agent_params,training_params):
         'category_weights':category_weights
     }
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
-    train_network(data_dict,agent_params,training_params)
+    world_size = 2
+    mp.spawn(train_network,
+        args=(data_dict,agent_params,training_params,),
+        nprocs=world_size,
+        join=True)
 
-def train_network(data_dict,agent_params,training_params):
+def train_network(id,data_dict,agent_params,training_params):
+    setup_world(id,2)
     device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
@@ -93,6 +98,8 @@ def train_network(data_dict,agent_params,training_params):
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
+        print(f'Loss: {np.mean(score_window)}')
+    cleanup()
 
 def example(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
