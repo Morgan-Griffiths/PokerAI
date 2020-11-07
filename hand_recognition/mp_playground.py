@@ -95,6 +95,8 @@ def train_network(data_dict,agent_params,training_params):
         scores.append(np.mean(score_window))
 
 def example(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
     # create default process group
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
     # create local model
@@ -135,6 +137,11 @@ if __name__ == '__main__':
     parser.add_argument('--resume',
                         help='resume training from an earlier run',
                         action='store_true')
+    parser.add_argument('--function','-f',
+                        metavar='example,'
+                        dest='function'
+                        help='which function to run'
+                        )
     parser.set_defaults(resume=False)
     args = parser.parse_args()
 
@@ -186,5 +193,7 @@ if __name__ == '__main__':
     }
     agent_params['network_params'] = network_params
     agent_params['examine_params'] = examine_params
-    # train_classification(dataset_params,agent_params,training_params)
-    main()
+    if args.function == 'example':
+        main()
+    else:
+        train_classification(dataset_params,agent_params,training_params)
