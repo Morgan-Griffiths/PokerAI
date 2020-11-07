@@ -39,8 +39,6 @@ def cleanup():
 
 @torch.no_grad()
 def generate_vs_frozen(env,actor,critic,villain,training_params,id):
-    # actor.eval()
-    # critic.eval()
     trajectories = defaultdict(lambda:[])
     for e in range(training_params['generate_epochs']):
         trajectory = defaultdict(lambda:{'states':[],'obs':[],'betsize_masks':[],'action_masks':[], 'actions':[],'action_category':[],'action_probs':[],'action_prob':[],'betsize':[],'rewards':[],'values':[]})
@@ -125,7 +123,6 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
     """
     takes trajectories and inserts them into db for data analysis and learning.
     """
-    print('training_round',training_round)
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
     keys = training_data.keys()

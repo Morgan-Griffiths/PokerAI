@@ -40,6 +40,11 @@ if __name__ == "__main__":
                         default=2,
                         type=int,
                         help='Number of training rounds')
+    parser.add_argument('--valepochs','-ve',
+                        dest='valepochs',
+                        default=1000,
+                        type=int,
+                        help='Number of validation rounds')
     parser.add_argument('--generate','-g',
                         dest='generate',
                         default=1,
@@ -155,7 +160,7 @@ if __name__ == "__main__":
     }
     validation_params = {
         'actor_path':config.agent_params['actor_path'],
-        'epochs':1000,
+        'epochs':args.valepochs,
         'koth':args.koth
     }
     path = training_params['save_dir']
@@ -237,7 +242,8 @@ if __name__ == "__main__":
                 mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             learning_params['actor_lrscheduler'].step()
             learning_params['critic_lrscheduler'].step()
-            training_params['training_round'] = (e+1) * training_params['training_epochs']
+            # training_params['training_round'] = (e+1) * training_params['training_epochs']
+            # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
             print(f'Training loop took {(time.time()-tic)/60} minutes')
             # Clean mongo
             mongo = MongoDB()
