@@ -3,6 +3,7 @@ import time
 import torch.multiprocessing as mp
 import torch
 import os
+import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
@@ -235,6 +236,8 @@ if __name__ == "__main__":
         actor.share_memory()
         critic.share_memory()
         for e in range(training_params['lr_steps']):
+            now = datetime.datetime.now()
+            print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
             tic = time.time()
             if args.batch:
                 mp.spawn(train_batch,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
@@ -272,6 +275,6 @@ if __name__ == "__main__":
             # save weights
             torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
             torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
-    print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
+            print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     toc = time.time()
     print(f'Training completed in {(toc-tic)/60} minutes')
