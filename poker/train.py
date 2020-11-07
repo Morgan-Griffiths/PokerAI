@@ -251,10 +251,18 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+    # cuda_dict = {0:'cuda:0',1:'cuda:1'}
+    # network_params['device'] = cuda_dict[id]
+    # actor = OmahaActor(1235,env.state_space,env.action_space,env.betsize_space,network_params).to(cuda_dict[id])
+    # critic = OmahaObsQCritic(1235,env.state_space,env.action_space,env.betsize_space,network_params).to(cuda_dict[id])
+    # latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
+    # latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+    # load_weights(actor,latest_actor_path)
+    # load_weights(critic,latest_critic_path)
     if torch.cuda.device_count() > 1:
-        # setup_world(id,2)
-        actor = DataParallel(actor)
-        critic = DataParallel(critic)
+        setup_world(id,2)
+        actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
+        critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -268,5 +276,5 @@ def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_p
         if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    # if torch.cuda.device_count() > 1:
-    #     cleanup()
+    if torch.cuda.device_count() > 1:
+        cleanup()
