@@ -851,8 +851,8 @@ class HandRankClassificationFC(nn.Module):
         ranks = x[:,:,0].long()
         suits = x[:,:,1].long()
         if torch.cuda.is_available():
-            emb_ranks = self.rank_emb(ranks).cuda()
-            emb_suits = self.suit_emb(suits).cuda()
+            emb_ranks = self.rank_emb(ranks.cuda())
+            emb_suits = self.suit_emb(suits.cuda())
         else:
             emb_ranks = self.rank_emb(ranks)
             emb_suits = self.suit_emb(suits)
