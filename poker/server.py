@@ -15,6 +15,7 @@ from flask_cors import CORS
 from poker_env.env import Poker,flatten
 import poker_env.datatypes as pdt
 from poker_env.config import Config
+from models.model_utils import norm_frequencies
 from models.networks import OmahaActor,OmahaObsQCritic
 
 """
@@ -33,10 +34,10 @@ class API(object):
             'betsizes': self.game_object.rule_params['betsizes'],
             'bet_type': self.game_object.rule_params['bettype'],
             'n_players': 2,
-            'pot':1,
-            'stacksize': 10,#self.game_object.state_params['stacksize'],
+            'pot':self.game_object.state_params['pot'],
+            'stacksize': self.game_object.state_params['stacksize'],
             'cards_per_player': self.game_object.state_params['cards_per_player'],
-            'starting_street': pdt.Street.FLOP, #self.game_object.starting_street,
+            'starting_street': self.game_object.starting_street,
             'global_mapping':self.config.global_mapping,
             'state_mapping':self.config.state_mapping,
             'obs_mapping':self.config.obs_mapping,
@@ -79,6 +80,19 @@ class API(object):
 
     def update_player_position(self,position):
         self.player['position'] = position
+
+    def insert_model_outputs(self,model_outputs,action_mask):
+        outputs_json = {
+            'action':model_outputs['action'],
+            'action_category':model_outputs['action_category'],
+            'betsize':model_outputs['betsize'],
+            'action_prob':model_outputs['action_prob'].detach().numpy().tolist(),
+            'action_probs':model_outputs['action_probs'].detach().numpy().tolist(),
+            'value':model_outputs['value'].detach().numpy().tolist(),
+            'action_mask':action_mask.tolist(),
+            'player':self.player['name']
+        }
+        self.db['bot_data'].insert_one(outputs_json)
 
     def insert_into_db(self,training_data:dict):
         """
@@ -135,17 +149,38 @@ class API(object):
         query = {
             'player':self.player['name']
         }
-        player_data = self.db['game_data'].find(query).sort('_id',-1)
+        player_data = self.db['bot_data'].find(query).sort('_id',-1)
         action_probs = []
         values = []
+        action_mask = []
         for result in player_data:
-            action_probs.append(result['action_probs'])
-            values.append(result['value'])
+            action_probs.append(np.array(result['action_probs']))
+            values.append(np.array(result['value']))
+            action_mask.append(np.array(result['action_mask']))
             break
-        model_outputs = {
-            'action_probs':action_probs,
-            'q_values':values
-        }
+        if action_probs:
+            action_probs = action_probs[0]
+            values = values[0]
+            action_mask = action_mask[0]
+            if np.sum(action_probs) > 0:
+                action_probs *= action_mask
+                action_probs /= np.sum(action_probs)
+            # scale values
+            if np.max(np.abs(values)) > 0:
+                values *= action_mask
+                
+                values /= self.env_params['stacksize'] + self.env_params['pot']
+            model_outputs = {
+                'action_probs':action_probs.tolist(),
+                'q_values':[values.tolist()]
+            }
+        else:
+            model_outputs = {
+                'action_probs':[0]*self.env.action_space,
+                'q_values':[0]*self.env.action_space
+            }
+        print(model_outputs)
+        print(action_mask)
         return model_outputs
 
     def return_player_stats(self):
@@ -238,6 +273,7 @@ class API(object):
             actor_outputs = self.actor(state,action_mask,betsize_mask)
             critic_outputs = self.critic(obs)
             actor_outputs['value'] = critic_outputs['value']
+            self.insert_model_outputs(actor_outputs,action_mask)
             self.store_actions(actor_outputs)
             state,obs,done,action_mask,betsize_mask = self.env.step(actor_outputs)
             if not done:
