@@ -14,6 +14,7 @@ from torch.nn.parallel import DataParallel
 import copy
 import time
 import logging
+from torch import optim
 
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
