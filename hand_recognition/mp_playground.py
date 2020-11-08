@@ -21,6 +21,8 @@ from networks import *
 from network_config import NetworkConfig
 from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes,unspool,generate_category_weights
 
+CUDA_DICT = {0:'cuda:0',1:'cuda:1'}
+
 def setup_world(rank,world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
@@ -57,7 +59,7 @@ def train_network(id,data_dict,agent_params,training_params):
     # if torch.cuda.device_count() > 1:
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
     #     net = DDP(net)
-    net.to(device)
+    net.to(id)
     if 'category_weights' in data_dict:
         criterion = training_params['criterion'](data_dict['category_weights'].to(device))
     else:
@@ -78,11 +80,6 @@ def train_network(id,data_dict,agent_params,training_params):
             targets = targets.cuda() if torch.cuda.is_available() else targets
             # zero the parameter gradients
             optimizer.zero_grad()
-            # unspool hand into 60,5 combos
-            if training_params['five_card_conversion'] == True:
-                inputs = unspool(inputs)
-            if training_params['one_hot'] == True:
-                inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
             loss = criterion(outputs, targets)
             loss.backward()
