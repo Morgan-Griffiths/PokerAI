@@ -117,6 +117,7 @@ def example(rank, world_size):
     loss_fn(outputs, labels).backward()
     # update parameters
     optimizer.step()
+    cleanup()
 
 def main():
     world_size = 2
