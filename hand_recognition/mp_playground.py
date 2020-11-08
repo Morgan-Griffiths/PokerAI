@@ -77,7 +77,9 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.write('\r')
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            targets = targets.cuda() if torch.cuda.is_available() else targets
+            inputs = inputs.to(id)
+            targets = targets.to(id)
+            # targets = targets.cuda() if torch.cuda.is_available() else targets
             # zero the parameter gradients
             optimizer.zero_grad()
             outputs = net(inputs)
@@ -90,7 +92,7 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
         print('outputs',outputs.shape)
-        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)}')
+        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:100]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:100]}')
         print('targets',targets[:100])
         lr_stepper.step()
         score_window.append(loss.item())
