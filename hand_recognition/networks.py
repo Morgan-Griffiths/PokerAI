@@ -827,7 +827,7 @@ class HandRankClassificationFC(nn.Module):
         self.params = params
         self.nA = params['nA']
         self.activation_fc = activation_fc
-        self.emb_size = 64
+        self.emb_size = 2
         self.seed = torch.manual_seed(params['seed'])
         self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
         self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
@@ -857,8 +857,12 @@ class HandRankClassificationFC(nn.Module):
             emb_ranks = self.rank_emb(ranks)
             emb_suits = self.suit_emb(suits)
         # Split off the hand for one fc, board for other fc
-        hand_emb = emb_ranks[:,:2,:]
-        board_emb = emb_ranks[:,2:,:]
+        hand_rank_emb = emb_ranks[:,:2,:]
+        board_rank_emb = emb_ranks[:,2:,:]
+        hand_suit_emb = emb_suits[:,:2,:]
+        board_suit_emb = emb_suits[:,2:,:]
+        hand_emb = torch.cat((hand_rank_emb,hand_suit_emb))
+        board_emb = torch.cat((board_rank_emb,board_suit_emb))
         hand = self.activation_fc(self.hand_fc(hand_emb))
         board = self.activation_fc(self.board_fc(board_emb))
         x = torch.cat((hand,board),dim=1)
@@ -876,7 +880,6 @@ class PartialHandRegression(nn.Module):
         super().__init__()
         self.params = params
         self.nA = params['nA']
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         

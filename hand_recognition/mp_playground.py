@@ -51,7 +51,7 @@ def train_classification(dataset_params,agent_params,training_params):
 
 def train_network(id,data_dict,agent_params,training_params):
     setup_world(id,2)
-    device = agent_params['network_params']['gpu1']
+    # device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
         load_weights(net)
@@ -61,7 +61,7 @@ def train_network(id,data_dict,agent_params,training_params):
     #     net = DDP(net)
     net.to(id)
     if 'category_weights' in data_dict:
-        criterion = training_params['criterion'](data_dict['category_weights'].to(device))
+        criterion = training_params['criterion'](data_dict['category_weights'].to(id))
     else:
         criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
@@ -110,7 +110,6 @@ def example(rank, world_size):
     # define loss function and optimizer
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
-
     # forward pass
     outputs = ddp_model(torch.randn(20, 10).to(rank))
     labels = torch.randn(20, 10).to(rank)
