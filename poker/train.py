@@ -15,7 +15,7 @@ import copy
 import time
 import logging
 from torch import optim
-
+from poker_env.config import Config
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
@@ -254,6 +254,7 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
     # Setup for dual gpu and mp parallel training
+    config = Config()
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
