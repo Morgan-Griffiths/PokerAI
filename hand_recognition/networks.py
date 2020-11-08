@@ -840,7 +840,7 @@ class HandRankClassificationFC(nn.Module):
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(160,self.nA)
+        self.categorical_output = nn.Linear(320,self.nA)
 
     def forward(self,x):
         """
