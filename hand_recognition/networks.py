@@ -827,7 +827,7 @@ class HandRankClassificationFC(nn.Module):
         self.params = params
         self.nA = params['nA']
         self.activation_fc = activation_fc
-        self.emb_size = 2
+        self.emb_size = 16
         self.seed = torch.manual_seed(params['seed'])
         self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
         self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
