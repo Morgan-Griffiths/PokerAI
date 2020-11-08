@@ -250,25 +250,38 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
-    # cuda_dict = {0:'cuda:0',1:'cuda:1'}
-    # network_params['device'] = cuda_dict[id]
-    # actor = OmahaActor(1235,env.state_space,env.action_space,env.betsize_space,network_params).to(cuda_dict[id])
-    # critic = OmahaObsQCritic(1235,env.state_space,env.action_space,env.betsize_space,network_params).to(cuda_dict[id])
-    # latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
-    # latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-    # load_weights(actor,latest_actor_path)
-    # load_weights(critic,latest_critic_path)
-    # if torch.cuda.device_count() > 1:
-    #     setup_world(id,2)
-    #     actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
-    #     critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
+def train_dual(id,env,training_params,learning_params,network_params,validation_params):
+    # Setup for dual gpu and mp parallel training
+    if torch.cuda.device_count() > 1:
+        setup_world(id,2)
+    network_params['device'] = id
+    learning_params['device'] = id
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
+    latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+    load_weights(actor,latest_actor_path)
+    load_weights(critic,latest_critic_path)
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    hard_update(actor,target_actor)
+    hard_update(critic,target_critic)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+    learning_params['actor_optimizer'] = actor_optimizer
+    learning_params['critic_optimizer'] = critic_optimizer
+    if training_params['koth']:
+        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+    if torch.cuda.device_count() > 1:
+        actor = DDP(actor)
+        critic = DDP(critic)
+        target_actor = DDP(target_actor)
+        target_critic = DDP(target_critic)
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
-        # dist.barrier()
         # train on trajectories
         actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
@@ -276,5 +289,9 @@ def train_dual(id,env,villain,actor,critic,target_actor,target_critic,training_p
         if (e+1) % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    # if torch.cuda.device_count() > 1:
-    #     cleanup()
+    if id == 0:
+        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+        print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
+    if torch.cuda.device_count() > 1:
+        cleanup()
