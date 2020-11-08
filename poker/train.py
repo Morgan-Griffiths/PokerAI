@@ -277,7 +277,7 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
     learning_params['actor_optimizer'] = actor_optimizer
     learning_params['critic_optimizer'] = critic_optimizer
-    if training_params['koth']:
+    if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
     if torch.cuda.device_count() > 1:
         actor = DDP(actor)
