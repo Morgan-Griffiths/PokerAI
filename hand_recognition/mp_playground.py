@@ -51,6 +51,7 @@ def train_classification(dataset_params,agent_params,training_params):
 
 def train_network(id,data_dict,agent_params,training_params):
     setup_world(id,2)
+    agent_params['network_params']['device'] = id
     # device = agent_params['network_params']['gpu1']
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:

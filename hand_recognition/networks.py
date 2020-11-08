@@ -825,6 +825,7 @@ class HandRankClassificationFC(nn.Module):
     def __init__(self,params,hidden_dims=(32,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
+        self.device = params['device']
         self.nA = params['nA']
         self.activation_fc = activation_fc
         self.emb_size = 16
@@ -848,11 +849,11 @@ class HandRankClassificationFC(nn.Module):
         """
         # Input is (b,5,2)
         M,c,h = x.size()
-        ranks = x[:,:,0].long()
-        suits = x[:,:,1].long()
+        ranks = x[:,:,0].long().to(self.device)
+        suits = x[:,:,1].long().to(self.device)
         if torch.cuda.is_available():
-            emb_ranks = self.rank_emb(ranks.cuda())
-            emb_suits = self.suit_emb(suits.cuda())
+            emb_ranks = self.rank_emb(ranks)
+            emb_suits = self.suit_emb(suits)
         else:
             emb_ranks = self.rank_emb(ranks)
             emb_suits = self.suit_emb(suits)
