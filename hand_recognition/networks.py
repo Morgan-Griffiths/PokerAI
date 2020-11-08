@@ -851,12 +851,8 @@ class HandRankClassificationFC(nn.Module):
         M,c,h = x.size()
         ranks = x[:,:,0].long().to(self.device)
         suits = x[:,:,1].long().to(self.device)
-        if torch.cuda.is_available():
-            emb_ranks = self.rank_emb(ranks)
-            emb_suits = self.suit_emb(suits)
-        else:
-            emb_ranks = self.rank_emb(ranks)
-            emb_suits = self.suit_emb(suits)
+        emb_ranks = self.rank_emb(ranks)
+        emb_suits = self.suit_emb(suits)
         # Split off the hand for one fc, board for other fc
         hand_emb = emb_ranks[:,:2,:] + emb_suits[:,:2,:]
         board_emb = emb_ranks[:,2:,:] + emb_suits[:,2:,:]

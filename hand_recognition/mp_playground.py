@@ -59,7 +59,7 @@ def train_network(id,data_dict,agent_params,training_params):
     count_parameters(net)
     # if torch.cuda.device_count() > 1:
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
-    #     net = DDP(net)
+    net = DDP(net)
     net.to(id)
     if 'category_weights' in data_dict:
         criterion = training_params['criterion'](data_dict['category_weights'].to(id))
