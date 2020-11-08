@@ -134,6 +134,10 @@ if __name__ == "__main__":
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     network_params                                = config.network_params
     network_params['device'] = device
+    network_params['seed'] = seed
+    network_params['nS'] = nS
+    network_params['nA'] = nA
+    network_params['nB'] = nB
     training_params = {
         'lr_steps':args.steps,
         'training_epochs':args.epochs,

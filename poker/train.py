@@ -252,6 +252,10 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
     # Setup for dual gpu and mp parallel training
+    seed = network_params['seed']
+    nS = network_params['nS']
+    nA = network_params['nA']
+    nB = network_params['nB']
     if torch.cuda.device_count() > 1:
         setup_world(id,2)
     network_params['device'] = id
