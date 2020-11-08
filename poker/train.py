@@ -15,7 +15,7 @@ import copy
 import time
 import logging
 
-from models.networks import OmahaActor
+from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
 from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights
