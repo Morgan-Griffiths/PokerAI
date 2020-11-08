@@ -227,7 +227,7 @@ if __name__ == "__main__":
     if args.tourney == 'latest':
         """Takes the latest network weights and evals vs all the previous ones or the last N"""
         # load all file paths
-        eval_latest(seed,nS,nA,nB,training_params,network_params)
+        eval_latest(env,seed,nS,nA,nB,training_params,network_params)
     elif args.tourney == 'roundrobin':
         """Runs all saved weights (in training_run folder) against each other in a round robin"""
         # load all file paths
