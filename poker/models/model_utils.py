@@ -21,7 +21,7 @@ def load_weights(net,path,id=0):
     if torch.cuda.is_available():
         # # configure map_location properly
         # map_location = {'cuda:%d' % 0: 'cuda:%d' % id}
-        net.load_state_dict(torch.load(path,map_location=id))
+        net.load_state_dict(torch.load(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
