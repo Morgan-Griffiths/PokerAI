@@ -271,6 +271,12 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
     load_weights(actor,latest_actor_path)
     load_weights(critic,latest_critic_path)
+
+    dist.barrier()
+    # configure map_location properly
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % id}
+    ddp_model.load_state_dict(
+        torch.load(CHECKPOINT_PATH, map_location=map_location))
     target_actor = OmahaActor(seed,nS,nA,nB,network_params)
     target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
     hard_update(actor,target_actor)
