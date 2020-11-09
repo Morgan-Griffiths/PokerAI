@@ -57,8 +57,6 @@ def train_network(id,data_dict,agent_params,training_params):
     if training_params['resume']:
         load_weights(net)
     count_parameters(net)
-    # if torch.cuda.device_count() > 1:
-    #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
     net = DDP(net)
     net.to(id)
     if 'category_weights' in data_dict:
