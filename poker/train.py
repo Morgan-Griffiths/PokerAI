@@ -271,7 +271,6 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     critic = DDP(critic)
     load_weights(actor,latest_actor_path,id)
     load_weights(critic,latest_critic_path,id)
-    # dist.barrier()
     target_actor = OmahaActor(seed,nS,nA,nB,network_params)
     target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
     hard_update(actor,target_actor)
@@ -304,6 +303,4 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
         print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
-    if torch.cuda.device_count() > 1:
-        dist.barrier()
-        cleanup()
+    cleanup()
