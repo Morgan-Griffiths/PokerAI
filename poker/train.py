@@ -305,4 +305,5 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
         print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     if torch.cuda.device_count() > 1:
+        dist.barrier()
         cleanup()
