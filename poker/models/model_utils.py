@@ -17,9 +17,11 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
-def load_weights(net,path):
+def load_weights(net,path,id=0):
     if torch.cuda.is_available():
-        net.load_state_dict(torch.load(path))
+        # # configure map_location properly
+        map_location = {'cuda:%d' % 0: 'cuda:%d' % id}
+        net.load_state_dict(torch.load(path,map_location=map_location))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
