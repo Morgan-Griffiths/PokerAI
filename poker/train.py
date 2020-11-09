@@ -263,27 +263,30 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
         setup_world(id,2)
     network_params['device'] = id
     learning_params['device'] = id
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    actor = OmahaActor(seed,nS,nA,nB,network_params)
+    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
+    actor = DDP(actor)
+    critic = DDP(critic)
     latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
     latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
     load_weights(actor,latest_actor_path)
     load_weights(critic,latest_critic_path)
-    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params)
+    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
     hard_update(actor,target_actor)
     hard_update(critic,target_critic)
+    target_actor = DDP(target_actor)
+    target_critic = DDP(target_critic)
     actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
     learning_params['actor_optimizer'] = actor_optimizer
     learning_params['critic_optimizer'] = critic_optimizer
+    actor = actor.to(id)
+    critic = critic.to(id)
+    target_critic = target_critic.to(id)
+    target_actor = target_actor.to(id)
     if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(id)
-    if torch.cuda.device_count() > 1:
-        actor = DDP(actor,device_ids=[id])
-        critic = DDP(critic,device_ids=[id])
-        target_actor = DDP(target_actor,device_ids=[id])
-        target_critic = DDP(target_critic,device_ids=[id])
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
