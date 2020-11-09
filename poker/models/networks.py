@@ -353,10 +353,6 @@ class OmahaActor(Network):
         # skip connection
         # category_logits += h
         action_soft = F.softmax(category_logits,dim=-1)
-        # if torch.cuda.is_available():
-        #     action_probs = norm_frequencies(action_soft,mask.cuda())
-        #     previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).cuda()#.to(self.device)
-        # else:
         action_probs = norm_frequencies(action_soft,mask)
         previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
         m = Categorical(action_probs)

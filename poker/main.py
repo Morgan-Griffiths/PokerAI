@@ -172,19 +172,15 @@ if __name__ == "__main__":
     if not args.resume:
         clean_folder(training_params['actor_path'])
         clean_folder(training_params['critic_path'])
-    # Clean mongo
-    mongo = MongoDB()
-    mongo.clean_db()
-    mongo.close()
     # Set processes
     mp.set_start_method('spawn')
     num_processes = min(mp.cpu_count(),num_gpus)
     print(f'Number of used processes {num_processes}')
-    actor = OmahaActor(seed,nS,nA,nB,network_params)
-    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
-    actor.summary
-    critic.summary
     if args.frozen:
+        actor = OmahaActor(seed,nS,nA,nB,network_params)
+        critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
+        actor.summary
+        critic.summary
         # Load pretrained hand recognizer
         copy_weights(actor,network_params['actor_hand_recognizer_path'])
         copy_weights(critic,network_params['critic_hand_recognizer_path'])
@@ -224,6 +220,11 @@ if __name__ == "__main__":
         # actor.share_memory()
         # critic.share_memory()
         for e in range(training_params['lr_steps']):
+            # Clean mongo
+            mongo = MongoDB()
+            mongo.clean_db()
+            mongo.close()
+            # Train
             now = datetime.datetime.now()
             print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
             tic = time.time()
@@ -236,15 +237,10 @@ if __name__ == "__main__":
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
             # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
             print(f'Training loop took {(time.time()-tic)/60} minutes')
-            # Clean mongo
-            mongo = MongoDB()
-            mongo.clean_db()
-            mongo.close()
             # Validate
+            actor = OmahaActor(seed,nS,nA,nB,network_params)
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
-            latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
             load_weights(actor,latest_actor_path)
-            load_weights(critic,latest_critic_path)
             villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
