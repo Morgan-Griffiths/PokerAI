@@ -28,6 +28,9 @@ def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
         villain = BetAgent()
     return villain
 
+def cleanup():
+    dist.destroy_process_group()
+
 if __name__ == "__main__":
     import argparse
 
@@ -232,6 +235,7 @@ if __name__ == "__main__":
                 mp.spawn(train_batch,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
             else:
                 mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+            cleanup()
             # learning_params['actor_lrscheduler'].step()
             # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
