@@ -81,15 +81,16 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     state,obs,done,action_mask,betsize_mask = env.reset()
     actor_output = ddp_actor(state,action_mask,betsize_mask)
     critic_output = ddp_critic(obs)['value']
+    optimizer = optim.SGD(ddp_critic.parameters(), lr=0.001)
     # backward
     reward = torch.tensor([[[1]]]).to(id)
     value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
     critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
-    critic_optimizer.zero_grad()
+    optimizer.zero_grad()
     critic_loss.backward()
-    critic_optimizer.step()
+    optimizer.step()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
