@@ -74,10 +74,12 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     learning_params['device'] = id
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
     critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    ddp_actor = DDP(actor)
+    ddp_critic = DDP(critic)
     env = Poker(env_params)
     state,obs,done,action_mask,betsize_mask = env.reset()
-    actor_output = actor(state,action_mask,betsize_mask)
-    critic_output = critic(obs)
+    actor_output = ddp_actor(state,action_mask,betsize_mask)
+    critic_output = ddp_critic(obs)
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
