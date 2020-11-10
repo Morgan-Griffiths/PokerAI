@@ -3,6 +3,7 @@ import numpy as np
 from prettytable import PrettyTable
 from itertools import combinations
 from utils.cardlib import hand_rank,encode
+from collections import OrderedDict
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -19,9 +20,16 @@ def count_parameters(model):
 
 def load_weights(net,path,id=0):
     if torch.cuda.is_available():
-        # # configure map_location properly
+        # check if module is in the dict name
+        state_dict = torch.load(path)
+        # create new OrderedDict that does not contain `module.`
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if k[:7] == 'module':
+                name = k[7:] # remove `module.`
+                new_state_dict[name] = v
         map_location = {'cuda:%d' % 0: 'cuda:%d' % id}
-        net.load_state_dict(torch.load(path,map_location=map_location))
+        net.load_state_dict(new_state_dict)#torch.load(path,map_location=map_location))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
