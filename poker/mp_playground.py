@@ -173,9 +173,10 @@ if __name__ == '__main__':
         main()
     else:
         mp.spawn(train_example,
-        args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params),
+        args=(num_gpus,),
         nprocs=num_processes,
         join=True)
+    #env_params,training_params,learning_params,network_params,validation_params)
     # mp.spawn(train_test,
     # args=(env,training_params,learning_params,network_params,validation_params,),
     # nprocs=num_processes,
