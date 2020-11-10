@@ -79,6 +79,27 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     cleanup()
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=
+        """
+        effective multiprocessing
+        """)
+    parser.add_argument('-e','--epochs',
+                        help='Number of training epochs',
+                        default=10,type=int)
+    parser.add_argument('--resume',
+                        help='resume training from an earlier run',
+                        action='store_true')
+    parser.add_argument('--function','-f',
+                        metavar='example,',
+                        dest='function',
+                        help='which function to run'
+                        )
+    parser.set_defaults(resume=False)
+    args = parser.parse_args()
+
     EPOCHS = 1
 
     num_gpus = torch.cuda.device_count()
@@ -148,11 +169,13 @@ if __name__ == '__main__':
         'koth':False
     }
     num_processes = min(1,num_gpus)
-    # main()
-    mp.spawn(train_example,
-    args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params),
-    nprocs=num_processes,
-    join=True)
+    if args.function == 'example':
+        main()
+    else:
+        mp.spawn(train_example,
+        args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params),
+        nprocs=num_processes,
+        join=True)
     # mp.spawn(train_test,
     # args=(env,training_params,learning_params,network_params,validation_params,),
     # nprocs=num_processes,
