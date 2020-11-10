@@ -199,8 +199,8 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             print('round')
-        soft_update(critic,target_critic,params['device'])
-        soft_update(actor,target_actor,params['device'])
+        # soft_update(critic,target_critic,params['device'])
+        # soft_update(actor,target_actor,params['device'])
     mongo.close()
     print('end learn')
 
@@ -301,7 +301,7 @@ def train_dual(id,env_params,training_params,learning_params,network_params,vali
             generate_trajectories(env,target_actor,target_critic,training_params,id)
         print('post gen')
         # train on trajectories
-        # dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
+        dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print('post learn')

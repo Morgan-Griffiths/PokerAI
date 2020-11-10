@@ -5,6 +5,7 @@ import torch
 import os
 import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
@@ -238,11 +239,12 @@ if __name__ == "__main__":
             print(f'Training loop took {(time.time()-tic)/60} minutes')
             # Validate
             actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+            ddp_actor = DDP(actor,device_ids=[device])
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
-            load_weights(actor,latest_actor_path)
+            load_weights(ddp_actor,latest_actor_path)
             villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(device)
             if validation_params['koth']:
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                results,stats = tournament(env,ddp_actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it wins 1bb per hand%
                 print_stats(stats)
@@ -251,10 +253,10 @@ if __name__ == "__main__":
                     print(f'Model succeeded, Saving new baseline')
                     # save weights as new baseline, otherwise keep training.
                     new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                    torch.save(actor.state_dict(), new_baseline_path)
+                    torch.save(ddp_actor.state_dict(), new_baseline_path)
             else:
                 # eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                results,stats = tournament(env,ddp_actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it wins 1bb per hand%
                 print_stats(stats)
