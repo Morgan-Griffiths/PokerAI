@@ -253,8 +253,7 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def instantiate_models(id,training_params,learning_params,network_params):
-    config = Config()
+def instantiate_models(id,config,training_params,learning_params,network_params):
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
@@ -288,8 +287,9 @@ def instantiate_models(id,training_params,learning_params,network_params):
     return actor,critic,target_actor,target_critic
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
+    config = Config()
     # Setup for dual gpu and mp parallel training
-    actor,critic,target_actor,target_critic = instantiate_models(id,training_params,learning_params,network_params)
+    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
     if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(id)
     for e in range(training_params['training_epochs']):
