@@ -229,9 +229,9 @@ if __name__ == "__main__":
             print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
             tic = time.time()
             if args.batch:
-                mp.spawn(train_batch,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+                mp.spawn(train_batch,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             else:
-                mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+                mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             # learning_params['actor_lrscheduler'].step()
             # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']

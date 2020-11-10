@@ -90,4 +90,7 @@ if __name__ == '__main__':
         'koth':False
     }
     num_processes = min(1,num_gpus)
-    mp.spawn(train_test,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+    mp.spawn(train_test,
+    args=(env,training_params,learning_params,network_params,validation_params,),
+    nprocs=num_processes,
+    join=True)
