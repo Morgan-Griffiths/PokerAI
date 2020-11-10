@@ -78,6 +78,13 @@ def train_example(id,world_size):#env_params,training_params,learning_params,net
     # actor_output = actor(state,action_mask,betsize_mask)
     cleanup()
 
+def train_main(env_params,training_params,learning_params,network_params,validation_params):
+    world_size = 2
+    mp.spawn(train_example,
+    args=(world_size,env_params,training_params,learning_params,network_params,validation_params),
+    nprocs=num_processes,
+    join=True)
+
 if __name__ == '__main__':
     import argparse
 
@@ -172,11 +179,7 @@ if __name__ == '__main__':
     if args.function == 'example':
         main()
     else:
-        mp.spawn(train_example,
-        args=(num_gpus,),
-        nprocs=num_processes,
-        join=True)
-    #env_params,training_params,learning_params,network_params,validation_params)
+        train_main(env_params,training_params,learning_params,network_params,validation_params)
     # mp.spawn(train_test,
     # args=(env,training_params,learning_params,network_params,validation_params,),
     # nprocs=num_processes,
