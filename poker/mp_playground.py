@@ -1,7 +1,7 @@
 
 import time
 import torch.multiprocessing as mp
-from multiprocessing import Lock
+from torch.multiprocessing import Lock
 import torch
 import copy
 import os
