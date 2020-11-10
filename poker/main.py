@@ -172,20 +172,20 @@ if __name__ == "__main__":
     if not args.resume:
         clean_folder(training_params['actor_path'])
         clean_folder(training_params['critic_path'])
+        if args.frozen:
+            actor = OmahaActor(seed,nS,nA,nB,network_params)
+            critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
+            actor.summary
+            critic.summary
+            # Load pretrained hand recognizer
+            copy_weights(actor,network_params['actor_hand_recognizer_path'])
+            copy_weights(critic,network_params['critic_hand_recognizer_path'])
+            torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
+            torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),num_gpus)
+    num_processes = min(1,num_gpus)
     print(f'Number of used processes {num_processes}')
-    if args.frozen:
-        actor = OmahaActor(seed,nS,nA,nB,network_params)
-        critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
-        actor.summary
-        critic.summary
-        # Load pretrained hand recognizer
-        copy_weights(actor,network_params['actor_hand_recognizer_path'])
-        copy_weights(critic,network_params['critic_hand_recognizer_path'])
-        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
-        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
     # if validation_params['koth']:
     #     stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
     #     milestones = [stepsize*2,stepsize*3,stepsize*4]
