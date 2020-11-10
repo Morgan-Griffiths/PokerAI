@@ -66,8 +66,8 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     print('train_example',id)
     setup_world(id,world_size)
     config = Config()
-    ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
-    # env = Poker(env_params)
+    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    env = Poker(env_params)
     # state,obs,done,action_mask,betsize_mask = env.reset()
     # actor_output = ddp_actor(state,action_mask,betsize_mask)
     # critic_output = ddp_critic(obs)['value']
