@@ -86,7 +86,7 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     value_mask = return_value_mask(torch.tensor([[[1]]]))
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
