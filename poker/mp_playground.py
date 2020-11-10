@@ -104,25 +104,25 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     betsize_mask = poker_round['betsize_mask']
     action_mask = poker_round['action_mask']
     ## Critic update ##
-    # local_values = critic(obs)['value']
-    # value_mask = return_value_mask(action)
-    # # TD_error = local_values[value_mask] - reward
-    # # critic_loss = (TD_error**2*0.5).mean()
-    # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
-    # critic_optimizer.zero_grad()
-    # critic_loss.backward()
-    # critic_optimizer.step()
-    # Actor update #
-    # target_values = target_critic(obs)['value']
-    # actor_out = actor(state,action_mask,betsize_mask)
-    # actor_value_mask = return_value_mask(actor_out['action'])
-    # expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    # advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-    # policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-    # actor_optimizer.zero_grad()
-    # policy_loss.backward()
-    # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-    # actor_optimizer.step()
+    local_values = critic(obs)['value']
+    value_mask = return_value_mask(action)
+    # TD_error = local_values[value_mask] - reward
+    # critic_loss = (TD_error**2*0.5).mean()
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
+    Actor update #
+    target_values = target_critic(obs)['value']
+    actor_out = actor(state,action_mask,betsize_mask)
+    actor_value_mask = return_value_mask(actor_out['action'])
+    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    actor_optimizer.zero_grad()
+    policy_loss.backward()
+    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    actor_optimizer.step()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     training_params = {
         'lr_steps':1,
         'training_epochs':EPOCHS,
-        'generate_epochs':5,
+        'generate_epochs':1,
         'training_round':0,
         'game':'Omaha',
         'id':0,
