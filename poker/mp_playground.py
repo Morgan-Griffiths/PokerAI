@@ -77,7 +77,7 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     env = Poker(env_params)
     state,obs,done,action_mask,betsize_mask = env.reset()
     actor_output = actor(state,action_mask,betsize_mask)
-    critic_output = critic(state,action_mask,betsize_mask)
+    critic_output = critic(obs)
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
