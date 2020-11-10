@@ -66,16 +66,16 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     os.environ['MASTER_PORT'] = '12355'
     # initialize the process group
     dist.init_process_group("gloo", rank=id, world_size=world_size)
-    # seed = network_params['seed']
-    # nS = network_params['nS']
-    # nA = network_params['nA']
-    # nB = network_params['nB']
-    # network_params['device'] = id
-    # learning_params['device'] = id
-    # actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    # env = Poker(env_params)
-    # state,obs,done,action_mask,betsize_mask = env.reset()
-    # actor_output = actor(state,action_mask,betsize_mask)
+    seed = network_params['seed']
+    nS = network_params['nS']
+    nA = network_params['nA']
+    nB = network_params['nB']
+    network_params['device'] = id
+    learning_params['device'] = id
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    env = Poker(env_params)
+    state,obs,done,action_mask,betsize_mask = env.reset()
+    actor_output = actor(state,action_mask,betsize_mask)
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
