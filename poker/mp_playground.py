@@ -60,7 +60,7 @@ def main():
         nprocs=world_size,
         join=True)
 
-def train_example(id,world_size):#env_params,training_params,learning_params,network_params,validation_params):
+def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
