@@ -249,15 +249,15 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_optimizer = params['critic_optimizer']
     actor_optimizer = params['actor_optimizer']
     device = params['device']
-    state = poker_round['state']
-    obs = poker_round['obs']
-    action = poker_round['action']
+    state = poker_round['state'].to(device)
+    obs = poker_round['obs'].to(device)
+    action = poker_round['action'].to(device)
     reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(device)
-    betsize_mask = poker_round['betsize_mask']
-    action_mask = poker_round['action_mask']
+    betsize_mask = poker_round['betsize_mask'].to(device)
+    action_mask = poker_round['action_mask'].to(device)
     ## Critic update ##
     local_values = critic(obs)['value']
-    value_mask = return_value_mask(action)
+    value_mask = return_value_mask(action).to(device)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
     critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
