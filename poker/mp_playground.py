@@ -60,7 +60,7 @@ def main():
         nprocs=world_size,
         join=True)
 
-def train_example(id,world_size):#,env_params,training_params,learning_params,network_params,validation_params):
+def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
@@ -81,10 +81,9 @@ def train_example(id,world_size):#,env_params,training_params,learning_params,ne
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
     mp.spawn(train_example,
-    args=(world_size,),
+    args=(world_size,env_params,training_params,learning_params,network_params,validation_params,),
     nprocs=world_size,
     join=True)
-    #env_params,training_params,learning_params,network_params,validation_params
 
 if __name__ == '__main__':
     import argparse
