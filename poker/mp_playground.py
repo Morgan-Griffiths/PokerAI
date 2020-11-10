@@ -29,6 +29,7 @@ def setup_world(rank,world_size):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
 def cleanup():
+    print('cleanup')
     dist.destroy_process_group()
 
 def example(rank, world_size):
@@ -61,7 +62,10 @@ def main():
 
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
-    setup_world(id,world_size)
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    # initialize the process group
+    dist.init_process_group("gloo", rank=id, world_size=world_size)
     # seed = network_params['seed']
     # nS = network_params['nS']
     # nA = network_params['nA']
