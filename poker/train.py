@@ -196,9 +196,9 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
     query = {'training_round':params['training_round'],'id':id}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
-    # for i in range(params['learning_rounds']):
-    #     for poker_round in data:
-    #         update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+    for i in range(params['learning_rounds']):
+        for poker_round in data:
+            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
     #     soft_update(critic,target_critic,params['device'])
     #     soft_update(actor,target_actor,params['device'])
     mongo.close()
