@@ -11,7 +11,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from poker_env.config import Config
 
-from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,train_test
+from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,train_test,instantiate_models
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
@@ -62,66 +62,17 @@ def main():
         nprocs=world_size,
         join=True)
 
-
-def instantiate_models(id,config,training_params,learning_params,network_params):
-    print('instantiate_models',id)
-    seed = network_params['seed']
-    nS = network_params['nS']
-    nA = network_params['nA']
-    nB = network_params['nB']
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
-    ddp_actor = DDP(actor,device_ids=[id])
-    ddp_critic = DDP(critic,device_ids=[id])
-    latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
-    latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-    print('post return_latest_training_model_path')
-    load_weights(ddp_actor,latest_actor_path,id)
-    load_weights(ddp_critic,latest_critic_path,id)
-    # target networks
-    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
-    ddp_target_actor = DDP(target_actor,device_ids=[id])
-    ddp_target_critic = DDP(target_critic,device_ids=[id])
-    hard_update(ddp_actor,ddp_target_actor)
-    hard_update(ddp_critic,ddp_target_critic)
-    actor_optimizer = optim.Adam(ddp_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-    critic_optimizer = optim.Adam(ddp_critic.parameters(), lr=config.agent_params['critic_lr'])
-    learning_params['actor_optimizer'] = actor_optimizer
-    learning_params['critic_optimizer'] = critic_optimizer
-    return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
-
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    # initialize the process group
-    dist.init_process_group("gloo", rank=id, world_size=world_size)
+    setup_world(id,world_size)
     config = Config()
-    network_params['device'] = id
-    learning_params['device'] = id
     ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
-    seed = network_params['seed']
-    nS = network_params['nS']
-    nA = network_params['nA']
-    nB = network_params['nB']
-    # actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    # critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
-    # ddp_actor = DDP(actor,device_ids=[id])
-    # ddp_critic = DDP(critic,device_ids=[id])
-    env = Poker(env_params)
-    state,obs,done,action_mask,betsize_mask = env.reset()
-    actor_output = ddp_actor(state,action_mask,betsize_mask)
-    critic_output = ddp_critic(obs)['value']
+    # env = Poker(env_params)
+    # state,obs,done,action_mask,betsize_mask = env.reset()
+    # actor_output = ddp_actor(state,action_mask,betsize_mask)
+    # critic_output = ddp_critic(obs)['value']
+    generate_trajectories(env,target_actor,target_critic,training_params,id)
     # backward
-    reward = torch.tensor([[[1]]]).to(id)
-    value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
-    # TD_error = local_values[value_mask] - reward
-    # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
-    learning_params['critic_optimizer'].zero_grad()
-    critic_loss.backward()
-    learning_params['critic_optimizer'].step()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
