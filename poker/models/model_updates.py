@@ -265,7 +265,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_loss.backward()
     critic_optimizer.step()
     # Actor update #
-    target_values = target_critic(obs.to(device))['value']
+    target_values = target_critic(obs)['value']
     actor_out = actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
     expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
