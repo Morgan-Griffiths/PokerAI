@@ -60,6 +60,8 @@ def main():
         join=True)
 
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
+    print('train_example',id)
+    setup_world(id,world_size)
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
@@ -141,7 +143,11 @@ if __name__ == '__main__':
         'koth':False
     }
     num_processes = min(1,num_gpus)
-    main()
+    # main()
+    mp.spawn(train_example,
+    args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params,),
+    nprocs=num_processes,
+    join=True)
     # mp.spawn(train_test,
     # args=(env,training_params,learning_params,network_params,validation_params,),
     # nprocs=num_processes,
