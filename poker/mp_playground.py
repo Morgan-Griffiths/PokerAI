@@ -86,8 +86,8 @@ def dual_learning_update(actor,critic,target_actor,target_critic,learning_params
     for i in range(learning_params['learning_rounds']):
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,learning_params)
-        # soft_update(critic,target_critic,learning_params['device'])
-        # soft_update(actor,target_actor,learning_params['device'])
+        soft_update(critic,target_critic,learning_params['device'])
+        soft_update(actor,target_actor,learning_params['device'])
     mongo.close()
 
 def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params):
