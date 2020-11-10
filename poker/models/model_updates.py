@@ -256,14 +256,14 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     betsize_mask = poker_round['betsize_mask']
     action_mask = poker_round['action_mask']
     ## Critic update ##
-    local_values = critic(obs)['value']
-    value_mask = return_value_mask(action)
-    # TD_error = local_values[value_mask] - reward
-    # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
-    critic_optimizer.zero_grad()
-    critic_loss.backward()
-    critic_optimizer.step()
+    # local_values = critic(obs)['value']
+    # value_mask = return_value_mask(action)
+    # # TD_error = local_values[value_mask] - reward
+    # # critic_loss = (TD_error**2*0.5).mean()
+    # critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    # critic_optimizer.zero_grad()
+    # critic_loss.backward()
+    # critic_optimizer.step()
     # Actor update #
     target_values = target_critic(obs)['value']
     actor_out = actor(state,action_mask,betsize_mask)
@@ -283,4 +283,3 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     # print('\nadvantages',advantages)
     # print('\nreward',reward)
     # print('\npolicy_loss',policy_loss)
-    return critic_loss.item(),policy_loss.item()

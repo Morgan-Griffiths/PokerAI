@@ -197,7 +197,7 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
     data = mongo.get_data(query,projection)
     for i in range(params['learning_rounds']):
         for poker_round in data:
-            critic_loss,policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+            policy_loss = update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
         soft_update(critic,target_critic,params['device'])
         soft_update(actor,target_actor,params['device'])
     mongo.close()
@@ -253,8 +253,7 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
-def train_dual(id,env,training_params,learning_params,network_params,validation_params):
-    # Setup for dual gpu and mp parallel training
+def instantiate_models(training_params,learning_params,network_params):
     config = Config()
     seed = network_params['seed']
     nS = network_params['nS']
@@ -286,6 +285,11 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     critic = critic.to(id)
     target_critic = target_critic.to(id)
     target_actor = target_actor.to(id)
+    return actor,critic,target_actor,target_critic
+
+def train_dual(id,env,training_params,learning_params,network_params,validation_params):
+    # Setup for dual gpu and mp parallel training
+    actor,critic,target_actor,target_critic = instantiate_models(training_params,learning_params,network_params)
     if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(id)
     for e in range(training_params['training_epochs']):
