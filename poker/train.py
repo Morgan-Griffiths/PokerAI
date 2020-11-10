@@ -201,6 +201,7 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
     #     soft_update(critic,target_critic,params['device'])
     #     soft_update(actor,target_actor,params['device'])
+    dist.barrier()
     mongo.close()
 
 def batch_learning_update(actor,critic,target_actor,target_critic,params):
