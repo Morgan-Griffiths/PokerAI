@@ -85,6 +85,10 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     ddp_target_critic = DDP(target_critic,device_ids=[id])
     hard_update(ddp_actor,ddp_target_actor)
     hard_update(ddp_critic,ddp_target_critic)
+    actor_optimizer = optim.Adam(ddp_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(ddp_critic.parameters(), lr=config.agent_params['critic_lr'])
+    learning_params['actor_optimizer'] = actor_optimizer
+    learning_params['critic_optimizer'] = critic_optimizer
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
@@ -109,16 +113,15 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     state,obs,done,action_mask,betsize_mask = env.reset()
     actor_output = ddp_actor(state,action_mask,betsize_mask)
     critic_output = ddp_critic(obs)['value']
-    # optimizer = optim.SGD(ddp_critic.parameters(), lr=0.001)
-    # # backward
-    # reward = torch.tensor([[[1]]]).to(id)
-    # value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
-    # # TD_error = local_values[value_mask] - reward
-    # # critic_loss = (TD_error**2*0.5).mean()
-    # critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
-    # optimizer.zero_grad()
-    # critic_loss.backward()
-    # optimizer.step()
+    # backward
+    reward = torch.tensor([[[1]]]).to(id)
+    value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
+    # TD_error = local_values[value_mask] - reward
+    # critic_loss = (TD_error**2*0.5).mean()
+    critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
+    learning_params['critic_optimizer'].zero_grad()
+    critic_loss.backward()
+    learning_params['critic_optimizer'].step()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
