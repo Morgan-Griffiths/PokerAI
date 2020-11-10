@@ -74,7 +74,7 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     generate_trajectories(env,target_actor,target_critic,training_params,id)
     print('post gen')
     dist.barrier()
-    dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
+    dual_learning_update(id,actor,critic,target_actor,target_critic,learning_params,validation_params)
     print('post learn')
     # backward
     dist.barrier()

@@ -152,6 +152,7 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             assert(isinstance(states,list))
             for step,state in enumerate(states):
                 state_json = {
+                    'id':id,
                     'training_round':training_round,
                     'poker_round':i + (id * epochs),
                     'state':state.tolist(),
@@ -190,19 +191,17 @@ def combined_learning_update(model,params):
     mongo.close()
     return model,params
     
-def dual_learning_update(actor,critic,target_actor,target_critic,params,validation_params):
+def dual_learning_update(id,actor,critic,target_actor,target_critic,params,validation_params):
     mongo = MongoDB()
-    query = {'training_round':params['training_round']}
+    query = {'training_round':params['training_round'],'id':id}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
     for i in range(params['learning_rounds']):
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
-            print('round')
         soft_update(critic,target_critic,params['device'])
         soft_update(actor,target_actor,params['device'])
     mongo.close()
-    print('end learn')
 
 def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
@@ -268,8 +267,8 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     ddp_critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
     latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
     latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-    load_weights(ddp_actor,latest_actor_path,id)
-    load_weights(ddp_critic,latest_critic_path,id)
+    load_weights(ddp_actor,latest_actor_path,id,ddp=True)
+    load_weights(ddp_critic,latest_critic_path,id,ddp=True)
     # target networks
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
     target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
@@ -302,7 +301,7 @@ def train_dual(id,env_params,training_params,learning_params,network_params,vali
         print('post gen')
         # train on trajectories
         dist.barrier()
-        dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
+        dual_learning_update(id,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print('post learn')
