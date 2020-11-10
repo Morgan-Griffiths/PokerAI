@@ -218,7 +218,9 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo.close()
     return actor,critic,params
 
-def train_batch(id,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+def train_batch(id,env_params,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+    
+    env = Poker(env_params)
     # if torch.cuda.device_count() > 1:
     #     setup_world(id,2)
     #     actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
@@ -283,11 +285,12 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     learning_params['critic_optimizer'] = critic_optimizer
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
-def train_dual(id,env,training_params,learning_params,network_params,validation_params):
+def train_dual(id,env_params,training_params,learning_params,network_params,validation_params):
     print('traindual',id)
     setup_world(id,2)
     print('post setup_world')
     config = Config()
+    env = Poker(env_params)
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
     if validation_params['koth']:
@@ -308,36 +311,5 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     #     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
     #     torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
     #     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
+    dist.barrier()
     cleanup()
-
-def test_update(actor,critic,target_actor,target_critic,params,validation_params):
-    print('test_update')
-    mongo = MongoDB()
-    query = {'training_round':params['training_round']}
-    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = mongo.get_data(query,projection)
-    for i in range(params['learning_rounds']):
-        for poker_round in data:
-            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
-        soft_update(critic,target_critic,params['device'])
-        soft_update(actor,target_actor,params['device'])
-    mongo.close()
-    del data
-    return actor,critic,params
-
-def train_test(id,env,training_params,learning_params,network_params,validation_params):
-    print('train_test',id)
-    setup_world(id,2)
-    print('post setup_world')
-    config = Config()
-    # Setup for dual gpu and mp parallel training
-    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
-    print('post inst')
-    for e in range(training_params['training_epochs']):
-        generate_trajectories(env,target_actor,target_critic,training_params,id)
-        # train on trajectories
-        # actor,critic,learning_params = test_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
-        training_params['training_round'] += 1
-        learning_params['training_round'] += 1
-    cleanup()
-

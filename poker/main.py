@@ -183,7 +183,6 @@ if __name__ == "__main__":
             torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
             torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
     # Set processes
-    mp.set_start_method('spawn')
     num_processes = min(1,num_gpus)
     print(f'Number of used processes {num_processes}')
     # if validation_params['koth']:
@@ -229,19 +228,19 @@ if __name__ == "__main__":
             print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
             tic = time.time()
             if args.batch:
-                mp.spawn(train_batch,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
+                mp.spawn(train_batch,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             else:
-                mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
+                mp.spawn(train_dual,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             # learning_params['actor_lrscheduler'].step()
             # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
             # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
             print(f'Training loop took {(time.time()-tic)/60} minutes')
             # Validate
-            actor = OmahaActor(seed,nS,nA,nB,network_params)
+            actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
             load_weights(actor,latest_actor_path)
-            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
+            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(device)
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])

@@ -11,7 +11,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from poker_env.config import Config
 
-from train import train_combined,train_dual,train_batch,generate_trajectories,combined_learning_update,train_test,instantiate_models
+from train import train_combined,train_dual,dual_learning_update,train_batch,generate_trajectories,combined_learning_update,train_test,instantiate_models
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
@@ -76,50 +76,6 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     # backward
     dist.barrier()
     cleanup()
-
-
-def dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params):
-    mongo = MongoDB()
-    query = {'training_round':learning_params['training_round']}
-    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = mongo.get_data(query,projection)
-    for i in range(learning_params['learning_rounds']):
-        for poker_round in data:
-            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,learning_params)
-        soft_update(critic,target_critic,learning_params['device'])
-        soft_update(actor,target_actor,learning_params['device'])
-    mongo.close()
-
-def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params):
-    critic_optimizer = params['critic_optimizer']
-    actor_optimizer = params['actor_optimizer']
-    device = params['device']
-    state = poker_round['state']
-    obs = poker_round['obs']
-    action = poker_round['action']
-    reward = torch.tensor(poker_round['reward']).unsqueeze(-1).to(device)
-    betsize_mask = poker_round['betsize_mask']
-    action_mask = poker_round['action_mask']
-    ## Critic update ##
-    local_values = critic(obs)['value']
-    value_mask = return_value_mask(action)
-    # TD_error = local_values[value_mask] - reward
-    # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
-    critic_optimizer.zero_grad()
-    critic_loss.backward()
-    critic_optimizer.step()
-    # Actor update #
-    target_values = target_critic(obs)['value']
-    actor_out = actor(state,action_mask,betsize_mask)
-    actor_value_mask = return_value_mask(actor_out['action'])
-    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-    actor_optimizer.zero_grad()
-    policy_loss.backward()
-    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-    actor_optimizer.step()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
