@@ -254,6 +254,7 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def instantiate_models(id,config,training_params,learning_params,network_params):
+    print('instantiate_models')
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
@@ -313,6 +314,7 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
         cleanup()
 
 def test_update(actor,critic,target_actor,target_critic,params,validation_params):
+    print('test_update')
     mongo = MongoDB()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
@@ -331,6 +333,7 @@ def train_test(id,env,training_params,learning_params,network_params,validation_
     config = Config()
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    print('post inst')
     for e in range(training_params['training_epochs']):
         generate_trajectories(env,target_actor,target_critic,training_params,id)
         # train on trajectories

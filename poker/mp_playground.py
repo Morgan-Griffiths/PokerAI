@@ -6,7 +6,7 @@ import os
 import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
 
-from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
+from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,train_test
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
@@ -90,4 +90,4 @@ if __name__ == '__main__':
         'koth':False
     }
     num_processes = min(1,num_gpus)
-    mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+    mp.spawn(train_test,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
