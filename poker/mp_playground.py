@@ -110,16 +110,16 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_loss.backward()
     critic_optimizer.step()
     # Actor update #
-    # target_values = target_critic(obs)['value']
-    # actor_out = actor(state,action_mask,betsize_mask)
-    # actor_value_mask = return_value_mask(actor_out['action'])
-    # expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    # advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-    # policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-    # actor_optimizer.zero_grad()
-    # policy_loss.backward()
-    # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-    # actor_optimizer.step()
+    target_values = target_critic(obs)['value']
+    actor_out = actor(state,action_mask,betsize_mask)
+    actor_value_mask = return_value_mask(actor_out['action'])
+    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    actor_optimizer.zero_grad()
+    policy_loss.backward()
+    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    actor_optimizer.step()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
