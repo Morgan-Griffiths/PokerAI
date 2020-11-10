@@ -287,6 +287,7 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     return actor,critic,target_actor,target_critic
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
+    print('traindual',id)
     config = Config()
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
@@ -310,3 +311,32 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     #     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     if torch.cuda.device_count() > 1:
         cleanup()
+
+def test_update(actor,critic,target_actor,target_critic,params,validation_params):
+    mongo = MongoDB()
+    query = {'training_round':params['training_round']}
+    projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
+    data = mongo.get_data(query,projection)
+    for i in range(params['learning_rounds']):
+        for poker_round in data:
+            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+        soft_update(critic,target_critic,params['device'])
+        soft_update(actor,target_actor,params['device'])
+    mongo.close()
+    del data
+    return actor,critic,params
+
+def train_test(id,env,training_params,learning_params,network_params,validation_params):
+    print('train_test',id)
+    config = Config()
+    # Setup for dual gpu and mp parallel training
+    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    for e in range(training_params['training_epochs']):
+        generate_trajectories(env,target_actor,target_critic,training_params,id)
+        # train on trajectories
+        # actor,critic,learning_params = test_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
+        training_params['training_round'] += 1
+        learning_params['training_round'] += 1
+    if torch.cuda.device_count() > 1:
+        cleanup()
+
