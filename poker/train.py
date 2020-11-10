@@ -259,9 +259,6 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     nS = network_params['nS']
     nA = network_params['nA']
     nB = network_params['nB']
-    if torch.cuda.device_count() > 1:
-        setup_world(id,2)
-    print('post setup_world')
     network_params['device'] = id
     learning_params['device'] = id
     actor = OmahaActor(seed,nS,nA,nB,network_params)
@@ -293,6 +290,9 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
     print('traindual',id)
+    if torch.cuda.device_count() > 1:
+        setup_world(id,2)
+    print('post setup_world')
     config = Config()
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
@@ -334,6 +334,9 @@ def test_update(actor,critic,target_actor,target_critic,params,validation_params
 
 def train_test(id,env,training_params,learning_params,network_params,validation_params):
     print('train_test',id)
+    if torch.cuda.device_count() > 1:
+        setup_world(id,2)
+    print('post setup_world')
     config = Config()
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
