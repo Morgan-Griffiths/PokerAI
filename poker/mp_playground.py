@@ -62,16 +62,17 @@ def main():
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
     setup_world(id,world_size)
-    seed = network_params['seed']
-    nS = network_params['nS']
-    nA = network_params['nA']
-    nB = network_params['nB']
-    network_params['device'] = id
-    learning_params['device'] = id
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    env = Poker(env_params)
-    state,obs,done,action_mask,betsize_mask = env.reset()
-    actor_output = actor(state,action_mask,betsize_mask)
+    # seed = network_params['seed']
+    # nS = network_params['nS']
+    # nA = network_params['nA']
+    # nB = network_params['nB']
+    # network_params['device'] = id
+    # learning_params['device'] = id
+    # actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    # env = Poker(env_params)
+    # state,obs,done,action_mask,betsize_mask = env.reset()
+    # actor_output = actor(state,action_mask,betsize_mask)
+    cleanup()
 
 if __name__ == '__main__':
     EPOCHS = 1
@@ -145,7 +146,7 @@ if __name__ == '__main__':
     num_processes = min(1,num_gpus)
     # main()
     mp.spawn(train_example,
-    args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params,),
+    args=(num_gpus,env_params,training_params,learning_params,network_params,validation_params),
     nprocs=num_processes,
     join=True)
     # mp.spawn(train_test,
