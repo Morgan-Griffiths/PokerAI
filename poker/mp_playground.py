@@ -82,7 +82,7 @@ def train_main(env_params,training_params,learning_params,network_params,validat
     world_size = 2
     mp.spawn(train_example,
     args=(world_size,),
-    nprocs=num_processes,
+    nprocs=world_size,
     join=True)
     #env_params,training_params,learning_params,network_params,validation_params
 
