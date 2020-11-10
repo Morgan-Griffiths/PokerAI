@@ -38,6 +38,7 @@ def setup_world(rank,world_size):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
 def cleanup():
+    print('cleanup')
     dist.destroy_process_group()
 
 @torch.no_grad()
