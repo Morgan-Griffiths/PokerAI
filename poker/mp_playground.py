@@ -71,6 +71,9 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     # state,obs,done,action_mask,betsize_mask = env.reset()
     # actor_output = ddp_actor(state,action_mask,betsize_mask)
     # critic_output = ddp_critic(obs)['value']
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
     generate_trajectories(env,target_actor,target_critic,training_params,id)
     print('post gen')
     dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
@@ -79,16 +82,15 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     dist.barrier()
     cleanup()
 
-
 def dual_learning_update(actor,critic,target_actor,target_critic,params,validation_params):
     mongo = MongoDB()
     query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
-    # for i in range(params['learning_rounds']):
-    #     for poker_round in data:
-    #         update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
-    #         print('round')
+    for i in range(params['learning_rounds']):
+        for poker_round in data:
+            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+            print('round')
     #     soft_update(critic,target_critic,params['device'])
     #     soft_update(actor,target_actor,params['device'])
     mongo.close()
@@ -115,16 +117,16 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_loss.backward()
     critic_optimizer.step()
     # Actor update #
-    target_values = target_critic(obs)['value']
-    actor_out = actor(state,action_mask,betsize_mask)
-    actor_value_mask = return_value_mask(actor_out['action'])
-    expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
-    advantages = (target_values[actor_value_mask] - expected_value).view(-1)
-    policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
-    actor_optimizer.zero_grad()
-    policy_loss.backward()
-    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-    actor_optimizer.step()
+    # target_values = target_critic(obs)['value']
+    # actor_out = actor(state,action_mask,betsize_mask)
+    # actor_value_mask = return_value_mask(actor_out['action'])
+    # expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    # advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    # policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    # actor_optimizer.zero_grad()
+    # policy_loss.backward()
+    # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    # actor_optimizer.step()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
