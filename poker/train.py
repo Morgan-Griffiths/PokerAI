@@ -255,6 +255,8 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def instantiate_models(id,config,training_params,learning_params,network_params):
     print('instantiate_models',id)
+    print('network',network_params['device'])
+    print('learning_params',learning_params['device'])
     network_params['device'] = id
     learning_params['device'] = id
     seed = network_params['seed']
