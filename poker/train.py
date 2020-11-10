@@ -192,17 +192,18 @@ def combined_learning_update(model,params):
     return model,params
     
 def dual_learning_update(id,actor,critic,target_actor,target_critic,params,validation_params):
-    mongo = MongoDB()
     query = {'training_round':params['training_round'],'id':id}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
-    data = mongo.get_data(query,projection)
+    client = MongoClient('localhost', 27017,maxPoolSize=10000)
+    db = client['poker']
+    data = db['game_data'].find(query,projection)
     for i in range(params['learning_rounds']):
         dist.barrier()
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
     #     soft_update(critic,target_critic,params['device'])
     #     soft_update(actor,target_actor,params['device'])
-    mongo.close()
+    client.close()
 
 def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
