@@ -261,22 +261,26 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     nB = network_params['nB']
     if torch.cuda.device_count() > 1:
         setup_world(id,2)
+    print('post setup_world')
     network_params['device'] = id
     learning_params['device'] = id
     actor = OmahaActor(seed,nS,nA,nB,network_params)
     critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
     latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
     latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+    print('post return_latest_training_model_path')
     actor = DDP(actor)
     critic = DDP(critic)
     load_weights(actor,latest_actor_path,id)
     load_weights(critic,latest_critic_path,id)
+    print('post load weights')
     target_actor = OmahaActor(seed,nS,nA,nB,network_params)
     target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
     hard_update(actor,target_actor)
     hard_update(critic,target_critic)
     target_actor = DDP(target_actor)
     target_critic = DDP(target_critic)
+    print('post target')
     actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
     critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
     learning_params['actor_optimizer'] = actor_optimizer
