@@ -9,6 +9,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
+from poker_env.config import Config
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,train_test
 from poker_env.config import Config
@@ -61,36 +62,56 @@ def main():
         nprocs=world_size,
         join=True)
 
+
+def instantiate_models(id,config,training_params,learning_params,network_params):
+    print('instantiate_models',id)
+    seed = network_params['seed']
+    nS = network_params['nS']
+    nA = network_params['nA']
+    nB = network_params['nB']
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    ddp_actor = DDP(actor,device_ids=[id])
+    ddp_critic = DDP(critic,device_ids=[id])
+    latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
+    latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
+    print('post return_latest_training_model_path')
+    load_weights(ddp_actor,latest_actor_path,id)
+    load_weights(ddp_critic,latest_critic_path,id)
+    return ddp_actor,ddp_critic
+
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     # initialize the process group
     dist.init_process_group("gloo", rank=id, world_size=world_size)
+    config = Config()
+    network_params['device'] = id
+    learning_params['device'] = id
+    ddp_actor,ddp_critic = instantiate_models(id,config,training_params,learning_params,network_params)
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
     nB = network_params['nB']
-    network_params['device'] = id
-    learning_params['device'] = id
-    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
-    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
-    ddp_actor = DDP(actor,device_ids=[id])
-    ddp_critic = DDP(critic,device_ids=[id])
+    # actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    # critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    # ddp_actor = DDP(actor,device_ids=[id])
+    # ddp_critic = DDP(critic,device_ids=[id])
     env = Poker(env_params)
     state,obs,done,action_mask,betsize_mask = env.reset()
     actor_output = ddp_actor(state,action_mask,betsize_mask)
     critic_output = ddp_critic(obs)['value']
-    optimizer = optim.SGD(ddp_critic.parameters(), lr=0.001)
-    # backward
-    reward = torch.tensor([[[1]]]).to(id)
-    value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
-    # TD_error = local_values[value_mask] - reward
-    # critic_loss = (TD_error**2*0.5).mean()
-    critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
-    optimizer.zero_grad()
-    critic_loss.backward()
-    optimizer.step()
+    # optimizer = optim.SGD(ddp_critic.parameters(), lr=0.001)
+    # # backward
+    # reward = torch.tensor([[[1]]]).to(id)
+    # value_mask = return_value_mask(torch.tensor([[[1]]])).to(id)
+    # # TD_error = local_values[value_mask] - reward
+    # # critic_loss = (TD_error**2*0.5).mean()
+    # critic_loss = F.smooth_l1_loss(reward,critic_output[value_mask],reduction='sum')
+    # optimizer.zero_grad()
+    # critic_loss.backward()
+    # optimizer.step()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
