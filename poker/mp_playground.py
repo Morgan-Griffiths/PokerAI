@@ -71,9 +71,6 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     # state,obs,done,action_mask,betsize_mask = env.reset()
     # actor_output = ddp_actor(state,action_mask,betsize_mask)
     # critic_output = ddp_critic(obs)['value']
-    mongo = MongoDB()
-    mongo.clean_db()
-    mongo.close()
     generate_trajectories(env,target_actor,target_critic,training_params,id)
     print('post gen')
     dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
@@ -95,7 +92,6 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
     #     soft_update(actor,target_actor,params['device'])
     mongo.close()
     print('end learn')
-
 
 def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params):
     critic_optimizer = params['critic_optimizer']
@@ -130,6 +126,9 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
     mp.spawn(train_example,
     args=(world_size,env_params,training_params,learning_params,network_params,validation_params,),
     nprocs=world_size,
