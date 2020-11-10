@@ -199,8 +199,8 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             print('round')
-        # soft_update(critic,target_critic,params['device'])
-        # soft_update(actor,target_actor,params['device'])
+        soft_update(critic,target_critic,params['device'])
+        soft_update(actor,target_actor,params['device'])
     mongo.close()
     print('end learn')
 
