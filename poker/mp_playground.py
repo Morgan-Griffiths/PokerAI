@@ -2,6 +2,7 @@
 import time
 import torch.multiprocessing as mp
 import torch
+import copy
 import os
 import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
@@ -86,7 +87,7 @@ def train_main(env_params,training_params,learning_params,network_params,validat
     mongo.clean_db()
     mongo.close()
     mp.spawn(train_example,
-    args=(world_size,env_params,training_params,learning_params,network_params,validation_params,),
+    args=(world_size,copy.deepcopy(env_params),copy.deepcopy(training_params),copy.deepcopy(learning_params),copy.deepcopy(network_params),copy.deepcopy(validation_params),),
     nprocs=world_size,
     join=True)
 
