@@ -429,7 +429,6 @@ class OmahaObsQCritic(Network):
         self.mapping = params['state_mapping']
         self.device = params['device']
         # self.emb = params['embedding_size']
-        # self.lstm = nn.LSTM(1280, 128)
         emb = params['transformer_in']
         n_heads = 8
         depth = 2
@@ -440,7 +439,7 @@ class OmahaObsQCritic(Network):
 
     def forward(self,obs):
         if not isinstance(obs,torch.Tensor):
-            obs = torch.tensor(obs,dtype=torch.float32)#.to(self.device)
+            obs = torch.tensor(obs,dtype=torch.float32).to(self.device)
         out = self.process_input(obs)
         # context = self.attention(out)
         q_input = self.transformer(out)
