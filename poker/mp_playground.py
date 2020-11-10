@@ -112,7 +112,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
-    Actor update #
+    # Actor update #
     target_values = target_critic(obs)['value']
     actor_out = actor(state,action_mask,betsize_mask)
     actor_value_mask = return_value_mask(actor_out['action'])
