@@ -78,7 +78,14 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
     print('post return_latest_training_model_path')
     load_weights(ddp_actor,latest_actor_path,id)
     load_weights(ddp_critic,latest_critic_path,id)
-    return ddp_actor,ddp_critic
+    # target networks
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    ddp_target_actor = DDP(target_actor,device_ids=[id])
+    ddp_target_critic = DDP(target_critic,device_ids=[id])
+    hard_update(ddp_actor,ddp_target_actor)
+    hard_update(ddp_critic,ddp_target_critic)
+    return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
@@ -89,7 +96,7 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     config = Config()
     network_params['device'] = id
     learning_params['device'] = id
-    ddp_actor,ddp_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
