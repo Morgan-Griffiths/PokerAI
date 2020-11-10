@@ -290,8 +290,7 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
     print('traindual',id)
-    if torch.cuda.device_count() > 1:
-        setup_world(id,2)
+    setup_world(id,2)
     print('post setup_world')
     config = Config()
     # Setup for dual gpu and mp parallel training
@@ -314,8 +313,7 @@ def train_dual(id,env,training_params,learning_params,network_params,validation_
     #     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
     #     torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
     #     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
-    if torch.cuda.device_count() > 1:
-        cleanup()
+    cleanup()
 
 def test_update(actor,critic,target_actor,target_critic,params,validation_params):
     print('test_update')
@@ -334,8 +332,7 @@ def test_update(actor,critic,target_actor,target_critic,params,validation_params
 
 def train_test(id,env,training_params,learning_params,network_params,validation_params):
     print('train_test',id)
-    if torch.cuda.device_count() > 1:
-        setup_world(id,2)
+    setup_world(id,2)
     print('post setup_world')
     config = Config()
     # Setup for dual gpu and mp parallel training
@@ -347,6 +344,5 @@ def train_test(id,env,training_params,learning_params,network_params,validation_
         # actor,critic,learning_params = test_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-    if torch.cuda.device_count() > 1:
-        cleanup()
+    cleanup()
 
