@@ -84,5 +84,10 @@ if __name__ == '__main__':
         'min_reward':-env_params['stacksize'],
         'max_reward':env_params['pot']+env_params['stacksize']
     }
+    validation_params = {
+        'actor_path':config.agent_params['actor_path'],
+        'epochs':1,
+        'koth':False
+    }
     num_processes = min(1,num_gpus)
     mp.spawn(train_dual,args=(env,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
