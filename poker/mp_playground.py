@@ -6,6 +6,7 @@ import os
 import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.nn as nn
 import torch.distributed as dist
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,train_test

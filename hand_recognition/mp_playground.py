@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.nn as nn
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
