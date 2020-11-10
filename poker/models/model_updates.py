@@ -6,6 +6,12 @@ import logging
 from prettytable import PrettyTable
 import torch.distributed as dist
 
+def average_gradients(model):
+    size = float(dist.get_world_size())
+    for param in model.parameters():
+        dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM)
+        param.grad.data /= size
+
 def update_critic_batch(data,local_critic,target_critic,params):
     # get the inputs; data is a list of [inputs, targets]
     device = params['device']
@@ -264,6 +270,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     critic_optimizer.zero_grad()
     critic_loss.backward()
+    average_gradients(critic)
     critic_optimizer.step()
     # Actor update #
     target_values = target_critic(obs)['value']
@@ -274,7 +281,8 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
     actor_optimizer.zero_grad()
     policy_loss.backward()
-    torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
+    average_gradients(actor)
     actor_optimizer.step()
     # print('\nprobs,prob,actor action,original action',actor_out['action_probs'].detach(),actor_out['action_prob'].detach(),actor_out['action'],action)
     # print('\nlocal_values,Q_value',local_values,local_values[value_mask].item())
