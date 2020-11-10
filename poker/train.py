@@ -253,40 +253,35 @@ def train_combined(env,model,training_params,learning_params,id):
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
+
 def instantiate_models(id,config,training_params,learning_params,network_params):
     print('instantiate_models',id)
+    network_params['device'] = id
+    learning_params['device'] = id
     seed = network_params['seed']
     nS = network_params['nS']
     nA = network_params['nA']
     nB = network_params['nB']
-    network_params['device'] = id
-    learning_params['device'] = id
-    actor = OmahaActor(seed,nS,nA,nB,network_params)
-    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
+    actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    ddp_actor = DDP(actor,device_ids=[id])
+    ddp_critic = DDP(critic,device_ids=[id])
     latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
     latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-    print('post return_latest_training_model_path')
-    actor = DDP(actor)
-    critic = DDP(critic)
-    load_weights(actor,latest_actor_path,id)
-    load_weights(critic,latest_critic_path,id)
-    print('post load weights')
-    target_actor = OmahaActor(seed,nS,nA,nB,network_params)
-    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params)
-    hard_update(actor,target_actor)
-    hard_update(critic,target_critic)
-    target_actor = DDP(target_actor)
-    target_critic = DDP(target_critic)
-    print('post target')
-    actor_optimizer = optim.Adam(actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
-    critic_optimizer = optim.Adam(critic.parameters(), lr=config.agent_params['critic_lr'])
+    load_weights(ddp_actor,latest_actor_path,id)
+    load_weights(ddp_critic,latest_critic_path,id)
+    # target networks
+    target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(id)
+    target_critic = OmahaObsQCritic(seed,nS,nA,nB,network_params).to(id)
+    ddp_target_actor = DDP(target_actor,device_ids=[id])
+    ddp_target_critic = DDP(target_critic,device_ids=[id])
+    hard_update(ddp_actor,ddp_target_actor)
+    hard_update(ddp_critic,ddp_target_critic)
+    actor_optimizer = optim.Adam(ddp_actor.parameters(), lr=config.agent_params['actor_lr'],weight_decay=config.agent_params['L2'])
+    critic_optimizer = optim.Adam(ddp_critic.parameters(), lr=config.agent_params['critic_lr'])
     learning_params['actor_optimizer'] = actor_optimizer
     learning_params['critic_optimizer'] = critic_optimizer
-    actor = actor.to(id)
-    critic = critic.to(id)
-    target_critic = target_critic.to(id)
-    target_actor = target_actor.to(id)
-    return actor,critic,target_actor,target_critic
+    return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_dual(id,env,training_params,learning_params,network_params,validation_params):
     print('traindual',id)
