@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from models.model_utils import scale_rewards,soft_update,return_value_mask
 import logging
 from prettytable import PrettyTable
+import torch.distributed as dist
 
 def update_critic_batch(data,local_critic,target_critic,params):
     # get the inputs; data is a list of [inputs, targets]
@@ -261,6 +262,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
     critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    dist.barrier()
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
@@ -271,6 +273,7 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
     advantages = (target_values[actor_value_mask] - expected_value).view(-1)
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    dist.barrier()
     actor_optimizer.zero_grad()
     policy_loss.backward()
     torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
