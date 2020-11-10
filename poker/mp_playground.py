@@ -11,7 +11,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from poker_env.config import Config
 
-from train import train_combined,train_dual,dual_learning_update,train_batch,generate_trajectories,combined_learning_update,train_test,instantiate_models
+from train import train_combined,train_dual,dual_learning_update,train_batch,generate_trajectories,combined_learning_update,instantiate_models
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker

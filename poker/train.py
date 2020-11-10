@@ -201,8 +201,6 @@ def dual_learning_update(actor,critic,target_actor,target_critic,params,validati
         soft_update(critic,target_critic,params['device'])
         soft_update(actor,target_actor,params['device'])
     mongo.close()
-    del data
-    return actor,critic,params
 
 def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
@@ -287,7 +285,6 @@ def train_dual(id,env_params,training_params,learning_params,network_params,vali
     print('traindual',id)
     world_size = 2
     setup_world(id,world_size)
-    print('post setup_world')
     config = Config()
     env = Poker(env_params)
     # Setup for dual gpu and mp parallel training
@@ -295,14 +292,17 @@ def train_dual(id,env_params,training_params,learning_params,network_params,vali
     if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(id)
     for e in range(training_params['training_epochs']):
+        print('gen trajs')
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
+        print('post gen')
         # train on trajectories
-        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
+        dual_learning_update(actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        print('post learn')
         # if (e+1) % training_params['save_every'] == 0 and id == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
