@@ -16,7 +16,7 @@ from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
-from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
+from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights,return_value_mask
 from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
 from tournament import tournament,print_stats,eval_latest
 
@@ -79,7 +79,16 @@ def train_example(id,world_size,env_params,training_params,learning_params,netwo
     env = Poker(env_params)
     state,obs,done,action_mask,betsize_mask = env.reset()
     actor_output = ddp_actor(state,action_mask,betsize_mask)
-    critic_output = ddp_critic(obs)
+    critic_output = ddp_critic(obs)['value']
+    # backward
+    reward = torch.tensor([[[1]]])
+    value_mask = return_value_mask(torch.tensor([[[1]]]))
+    # TD_error = local_values[value_mask] - reward
+    # critic_loss = (TD_error**2*0.5).mean()
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
