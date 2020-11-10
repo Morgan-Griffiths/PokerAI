@@ -6,6 +6,8 @@ import os
 import datetime
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
 from torch.nn.parallel import DistributedDataParallel as DDP
+from multiprocessing import Process, Lock
+from multiprocessing.sharedctypes import Value
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
@@ -220,6 +222,7 @@ if __name__ == "__main__":
         # actor.share_memory()
         # critic.share_memory()
         for e in range(training_params['lr_steps']):
+            counter = [0]
             # Clean mongo
             mongo = MongoDB()
             mongo.clean_db()
