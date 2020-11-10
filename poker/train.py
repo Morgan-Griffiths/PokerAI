@@ -219,12 +219,11 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     return actor,critic,params
 
 def train_batch(id,env_params,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
-    
     env = Poker(env_params)
-    # if torch.cuda.device_count() > 1:
-    #     setup_world(id,2)
-    #     actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
-    #     critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
+    if torch.cuda.device_count() > 1:
+        setup_world(id,2)
+        actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
+        critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
@@ -237,8 +236,8 @@ def train_batch(id,env_params,villain,actor,critic,target_actor,target_critic,tr
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    # if torch.cuda.device_count() > 1:
-    #     cleanup()
+    if torch.cuda.device_count() > 1:
+        cleanup()
 
 def train_combined(env,model,training_params,learning_params,id):
     for e in range(training_params['training_epochs']):
@@ -254,7 +253,6 @@ def train_combined(env,model,training_params,learning_params,id):
         learning_params['training_round'] += 1
         if e % training_params['save_every'] == 0 and id == 0:
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
-
 
 def instantiate_models(id,config,training_params,learning_params,network_params):
     print('instantiate_models',id)
@@ -287,7 +285,8 @@ def instantiate_models(id,config,training_params,learning_params,network_params)
 
 def train_dual(id,env_params,training_params,learning_params,network_params,validation_params):
     print('traindual',id)
-    setup_world(id,2)
+    world_size = 2
+    setup_world(id,world_size)
     print('post setup_world')
     config = Config()
     env = Poker(env_params)
