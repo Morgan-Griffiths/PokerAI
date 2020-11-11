@@ -33,7 +33,7 @@ def pad_state(state,maxlen):
 
 def setup_world(rank,world_size):
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size,timeout=1)
 
 def cleanup():
     print('cleanup')
@@ -190,15 +190,19 @@ def combined_learning_update(model,params):
     return model,params
     
 def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,validation_params):
-    query = {'training_round':params['training_round'],'rank':rank}
+    query = {'training_round':params['training_round']}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
-    data = db['game_data'].find(query,projection)
+    count = db.game_data.count_documents({'training_round':params['training_round']}) 
+    print(count,count // 2)
+    if rank == 0:
+        data = db['game_data'].find(query,projection).sort('_id',pymongo.ASCENDING).limit(count // 2)
+    else:
+        data = db['game_data'].find(query,projection).sort('_id',pymongo.DESCENDING).limit(count // 2)
     for i in range(params['learning_rounds']):
         j = 0
         for poker_round in data:
-            print(f'round {j}')
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             j += 1
         soft_update(critic,target_critic,params['device'])
@@ -214,7 +218,6 @@ def batch_learning_update(rank,actor,critic,target_actor,target_critic,params):
     for _ in range(params['learning_rounds']):
         losses = []
         for i,data in enumerate(trainloader):
-            print(f'i {i}')
             critic_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
     mongo.close()
@@ -233,7 +236,6 @@ def train_batch(rank,env_params,training_params,learning_params,network_params,v
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
-        print('post gen')
         actor,critic,learning_params = batch_learning_update(rank,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
@@ -262,7 +264,6 @@ def train_combined(env,model,training_params,learning_params,rank):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def instantiate_models(rank,config,training_params,learning_params,network_params):
-    print('instantiate_models',rank)
     network_params['device'] = rank
     learning_params['device'] = rank
     seed = network_params['seed']
@@ -291,7 +292,6 @@ def instantiate_models(rank,config,training_params,learning_params,network_param
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
-    print('traindual',rank)
     world_size = 2
     setup_world(rank,world_size)
     config = Config()
@@ -301,12 +301,10 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
     if validation_params['koth']:
         villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(rank)
     for e in range(training_params['training_epochs']):
-        print('gen trajs')
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
-        print('post gen')
         # train on trajectories
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
