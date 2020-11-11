@@ -75,7 +75,6 @@ def train_example(rank,world_size,env_params,training_params,learning_params,net
     print('post gen')
     dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
     print('post learn')
-    dist.barrier()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):

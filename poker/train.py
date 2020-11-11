@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import sys
 import numpy as np
 from pymongo import MongoClient
+from pymongo import DESCENDING,ASCENDING
 from collections import defaultdict
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -197,9 +198,9 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     count = db.game_data.count_documents({'training_round':params['training_round']}) 
     print(count,count // 2)
     if rank == 0:
-        data = db['game_data'].find(query,projection).sort('_id',pymongo.ASCENDING).limit(count // 2)
+        data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count // 2)
     else:
-        data = db['game_data'].find(query,projection).sort('_id',pymongo.DESCENDING).limit(count // 2)
+        data = db['game_data'].find(query,projection).sort('_id',DESCENDING).limit(count // 2)
     for i in range(params['learning_rounds']):
         j = 0
         for poker_round in data:
@@ -240,12 +241,10 @@ def train_batch(rank,env_params,training_params,learning_params,network_params,v
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print(f'Epoch {e}, device {rank}')
-        dist.barrier()
         # if e % training_params['save_every'] == 0 and rank == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
     if torch.cuda.device_count() > 1:
-        dist.barrier()
         cleanup()
 
 def train_combined(env,model,training_params,learning_params,rank):
@@ -310,7 +309,6 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print('post learn')
-        dist.barrier()
         # if (e+1) % training_params['save_every'] == 0 and rank == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
