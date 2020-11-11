@@ -121,7 +121,7 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks
     model_names.sort(key=lambda l: int(grep("\d+", l)))
     latest_actor = model_names[-1]
     latest_net = OmahaActor(seed,nS,nA,nB,network_params).to(device)
-    latest_net.load_state_dict(torch.load(weight_paths[latest_actor]))
+    load_weights(latest_net,weight_paths[latest_actor])
     # Build matchups
     last_n_models = min(len(model_names),3)
     matchups = [(latest_actor,model) for model in model_names[-last_n_models:-1]]
@@ -131,7 +131,7 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks
     for match in matchups:
         net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         net2_path = weight_paths[match[1]]
-        net2.load_state_dict(torch.load(net2_path))
+        load_weights(net2,net2_path)
         results,stats = tournament(env,latest_net,net2,match,training_params,duplicate_decks)
         result_array[data_row_dict[match[1]]] = (results[match[0]]['SB'] + results[match[0]]['BB']) - (results[match[1]]['SB'] + results[match[1]]['BB'])
         print_stats(stats)
@@ -291,8 +291,8 @@ if __name__ == "__main__":
             net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             net1_path = weight_paths[match[0]]
             net2_path = weight_paths[match[1]]
-            net1.load_state_dict(torch.load(net1_path))
-            net2.load_state_dict(torch.load(net2_path))
+            load_weights(net1,net1_path)
+            load_weights(net2,net2_path)
             results,stats = tournament(env,net1,net2,match,training_params,duplicate_decks)
             result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
             result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
@@ -305,7 +305,7 @@ if __name__ == "__main__":
         print(table)
     else:
         print(f'Evaluating {model_name}, from {os.path.join(training_params["actor_path"],model_name)}')
-        trained_model.load_state_dict(torch.load(os.path.join(training_params['actor_path'],model_name)))
+        load_weights(trained_model,os.path.join(training_params['actor_path'],model_name))
         if args.baseline == 'hardcoded':
             baseline_evaluation = BetAgent()
         else:
