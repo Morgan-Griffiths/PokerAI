@@ -234,9 +234,9 @@ def train_batch(id,env_params,training_params,learning_params,network_params,val
         actor,critic,learning_params = batch_learning_update(id,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        if e % training_params['save_every'] == 0 and id == 0:
-            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
-            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+        # if e % training_params['save_every'] == 0 and id == 0:
+        #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+        #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
     if torch.cuda.device_count() > 1:
         cleanup()
 
