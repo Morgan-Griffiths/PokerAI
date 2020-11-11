@@ -203,8 +203,8 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     for i in range(params['learning_rounds']):
         j = 0
         for poker_round in data:
-            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             print(j)
+            update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
             j += 1
         if rank == 1:
             soft_update(critic,target_critic,params['device'])
