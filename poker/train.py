@@ -38,7 +38,6 @@ def setup_world(rank,world_size):
     dist.init_process_group("nccl", rank=rank, world_size=world_size,timeout=datetime.timedelta(0, 60))
 
 def cleanup():
-    print('cleanup')
     dist.destroy_process_group()
 
 @torch.no_grad()
@@ -200,20 +199,15 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
         if db.game_data.count_documents({'training_round':params['training_round'],'rank':0}) > 0 and db.game_data.count_documents({'training_round':params['training_round'],'rank':1}) > 0:
             break
     count = db.game_data.count_documents({'training_round':params['training_round']}) // 2
-    print('count',count)
     if rank == 0:
         data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count)
     else:
         data = db['game_data'].find(query,projection).sort('_id',DESCENDING).limit(count)
     for i in range(params['learning_rounds']):
-        j = 0
         for poker_round in data:
-            print(j)
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
-            j += 1
-        if rank == 1:
-            soft_update(critic,target_critic,params['device'])
-            soft_update(actor,target_actor,params['device'])
+        soft_update(critic,target_critic,params['device'])
+        soft_update(actor,target_actor,params['device'])
     client.close()
 
 def batch_learning_update(rank,actor,critic,target_actor,target_critic,params):
@@ -243,11 +237,9 @@ def train_batch(rank,env_params,training_params,learning_params,network_params,v
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
-        dist.barrier()
         actor,critic,learning_params = batch_learning_update(rank,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        print(f'Epoch {e}, device {rank}')
         # if e % training_params['save_every'] == 0 and rank == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
@@ -313,17 +305,15 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
         # train on trajectories
-        dist.barrier()
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        print('post learn')
-        # if (e+1) % training_params['save_every'] == 0 and rank == 0:
-        #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
-        #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    # if rank == 0:
-    #     torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
-    #     torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
-    #     print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
+        if (e+1) % training_params['save_every'] == 0 and rank == 0:
+            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+    if rank == 0:
+        torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
+        print(f"Saved model weights to {os.path.join(config.agent_params['actor_path'],'OmahaActorFinal')} and {os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal')}")
     dist.barrier()
     cleanup()
