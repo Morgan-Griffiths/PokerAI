@@ -41,7 +41,7 @@ def check_ddp(path):
     is_ddp = False
     state_dict = torch.load(path)
     for k in state_dict.keys():
-        if k[7:] == 'module.':
+        if k[:7] == 'module.':
             is_ddp = True
         else:
             is_ddp = False
@@ -53,7 +53,6 @@ def load_weights(net,path,rank=0,ddp=False):
         # check if module is in the dict name
         if ddp:
             map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-            print('is ddp',check_ddp(path))
             if not check_ddp(path):
                 net.load_state_dict(add_module(path))
             else:
