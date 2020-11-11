@@ -266,8 +266,8 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     value_mask = return_value_mask(action)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
-    scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
-    critic_loss = F.smooth_l1_loss(scaled_rewards,local_values[value_mask],reduction='sum')
+    # scaled_rewards = scale_rewards(reward,params['min_reward'],params['max_reward'])
+    critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
