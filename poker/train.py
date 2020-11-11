@@ -198,7 +198,7 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
     db = client['poker']
     data = db['game_data'].find(query,projection)
     for i in range(params['learning_rounds']):
-        j = -
+        j = 0
         for poker_round in data:
             print(f'round {j}')
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
