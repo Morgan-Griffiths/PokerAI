@@ -186,8 +186,10 @@ if __name__ == "__main__":
             # Load pretrained hand recognizer
             copy_weights(actor,network_params['actor_hand_recognizer_path'])
             copy_weights(critic,network_params['critic_hand_recognizer_path'])
-            torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
-            torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
+            ddp_actor = DDP(actor)
+            ddp_critic = DDP(critic)
+            torch.save(ddp_actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
+            torch.save(ddp_critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
     # Set processes
     num_processes = max(1,num_gpus)
     print(f'Number of used processes {num_processes}')
