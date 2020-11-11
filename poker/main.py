@@ -250,7 +250,7 @@ if __name__ == "__main__":
             actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
             load_weights(actor,latest_actor_path)
-            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path']).to(device)
+            villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             if validation_params['koth']:
                 results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
