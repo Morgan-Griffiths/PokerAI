@@ -64,32 +64,29 @@ def main():
         nprocs=world_size,
         join=True)
 
-def train_example(id,world_size,lock,env_params,training_params,learning_params,network_params,validation_params):
+def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
     print('train_example',id)
-    with lock:
-        setup_world(id,world_size)
-        config = Config()
-        actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
-        env = Poker(env_params)
-        # state,obs,done,action_mask,betsize_mask = env.reset()
-        # actor_output = ddp_actor(state,action_mask,betsize_mask)
-        # critic_output = ddp_critic(obs)['value']
-        generate_trajectories(env,target_actor,target_critic,training_params,id)
-        print('post gen')
-        dual_learning_update(id,actor,critic,target_actor,target_critic,learning_params,validation_params)
-        print('post learn')
-        # backward
+    setup_world(id,world_size)
+    config = Config()
+    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    env = Poker(env_params)
+    # state,obs,done,action_mask,betsize_mask = env.reset()
+    # actor_output = ddp_actor(state,action_mask,betsize_mask)
+    # critic_output = ddp_critic(obs)['value']
+    generate_trajectories(env,target_actor,target_critic,training_params,id)
+    print('post gen')
+    dual_learning_update(id,actor,critic,target_actor,target_critic,learning_params,validation_params)
+    print('post learn')
     dist.barrier()
     cleanup()
 
 def train_main(env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
-    lock = Lock()
     mongo = MongoDB()
     mongo.clean_db()
     mongo.close()
     mp.spawn(train_example,
-    args=(world_size,lock,copy.deepcopy(env_params),copy.deepcopy(training_params),copy.deepcopy(learning_params),copy.deepcopy(network_params),copy.deepcopy(validation_params),),
+    args=(world_size,copy.deepcopy(env_params),copy.deepcopy(training_params),copy.deepcopy(learning_params),copy.deepcopy(network_params),copy.deepcopy(validation_params),),
     nprocs=world_size,
     join=True)
 
