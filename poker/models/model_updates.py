@@ -157,7 +157,6 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     # for i in range(target_out['action_probs'].detach().size(0)):
     #     table.add_row([target_out['action_probs'].detach().cpu()[i],post_target_out['action_probs'].detach().cpu()[i],target_diff_max])
     # print(table)
-    return critic_loss.item()
 
 def update_actor(poker_round,actor,target_actor,target_critic,params):
     """With critic batch updates"""
@@ -276,8 +275,6 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     print(f'4 {device}')
     critic_loss.backward()
     print(f'5 {device}')
-    average_gradients(critic)
-    print(f'6 {device}')
     critic_optimizer.step()
     # Actor update #
     print(f'7 {device}')
@@ -298,8 +295,6 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     policy_loss.backward()
     print(f'15 {device}')
     # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
-    average_gradients(actor)
-    print(f'16 {device}')
     actor_optimizer.step()
     # print('\nprobs,prob,actor action,original action',actor_out['action_probs'].detach(),actor_out['action_prob'].detach(),actor_out['action'],action)
     # print('\nlocal_values,Q_value',local_values,local_values[value_mask].item())

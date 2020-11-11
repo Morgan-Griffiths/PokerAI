@@ -231,14 +231,16 @@ def train_batch(id,env_params,training_params,learning_params,network_params,val
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
+        print('post gen')
         actor,critic,learning_params = batch_learning_update(id,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        print(f'Epoch {e}, device {id}')
         # if e % training_params['save_every'] == 0 and id == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    dist.barrier()
     if torch.cuda.device_count() > 1:
+        dist.barrier()
         cleanup()
 
 def train_combined(env,model,training_params,learning_params,id):
@@ -258,8 +260,6 @@ def train_combined(env,model,training_params,learning_params,id):
 
 def instantiate_models(id,config,training_params,learning_params,network_params):
     print('instantiate_models',id)
-    print('network',network_params['device'])
-    print('learning_params',learning_params['device'])
     network_params['device'] = id
     learning_params['device'] = id
     seed = network_params['seed']
