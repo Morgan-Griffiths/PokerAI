@@ -18,10 +18,19 @@ from torch import optim
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from utils.utils import return_latest_training_model_path
+from utils.utils import return_latest_training_model_path,return_latest_baseline_path
 from models.model_utils import soft_update,load_weights,hard_update
 from db import MongoDB
 from poker_env.env import Poker
+
+def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
+    baseline_path = return_latest_baseline_path(baseline_path)
+    if baseline_path:
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        load_weights(villain,baseline_path)
+    else:
+        villain = BetAgent()
+    return villain
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
