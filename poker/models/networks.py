@@ -18,7 +18,7 @@ class BetAgent(object):
     def name(self):
         return 'baseline_evaluation'
 
-    def __call__(self,state,action_mask,betsize_mask):
+    def __call__(self,state,action_mask,betsize_mask,target=False):
         if betsize_mask.sum() > 0:
             action = np.argmax(betsize_mask,axis=-1) + 3
         else:
