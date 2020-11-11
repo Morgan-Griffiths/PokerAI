@@ -213,6 +213,7 @@ def batch_learning_update(id,actor,critic,target_actor,target_critic,params):
     for _ in range(params['learning_rounds']):
         losses = []
         for i,data in enumerate(trainloader):
+            print(f'i {i}')
             critic_loss = update_actor_critic_batch(data,actor,critic,target_actor,target_critic,params)
             losses.append(critic_loss)
     mongo.close()
