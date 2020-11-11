@@ -200,8 +200,8 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
     for i in range(params['learning_rounds']):
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
-    #     soft_update(critic,target_critic,params['device'])
-    #     soft_update(actor,target_actor,params['device'])
+        soft_update(critic,target_critic,params['device'])
+        soft_update(actor,target_actor,params['device'])
     client.close()
 
 def batch_learning_update(id,actor,critic,target_actor,target_critic,params):
@@ -237,6 +237,7 @@ def train_batch(id,env_params,training_params,learning_params,network_params,val
         # if e % training_params['save_every'] == 0 and id == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+    dist.barrier()
     if torch.cuda.device_count() > 1:
         cleanup()
 
