@@ -1,9 +1,7 @@
 import os
 import poker_env.datatypes as pdt
-import models.network_config as ng
 import copy
 import torch
-import torch.nn.functional as F
 import sys
 import numpy as np
 from pymongo import MongoClient
@@ -11,22 +9,19 @@ from pymongo import DESCENDING,ASCENDING
 from collections import defaultdict
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DataParallel
+import torch.autograd.profiler as profiler
+import datetime
 import copy
 import time
 import logging
 from torch import optim
-from poker_env.config import Config
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_updates import update_actor_critic,update_combined,update_critic_batch,update_actor_critic_batch
 from utils.data_loaders import return_trajectoryloader
-from utils.utils import return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
-from models.model_utils import scale_rewards,soft_update,copy_weights,load_weights,hard_update
-from tournament import tournament
+from utils.utils import return_latest_training_model_path
+from models.model_utils import soft_update,load_weights,hard_update
 from db import MongoDB
 from poker_env.env import Poker
-import torch.autograd.profiler as profiler
-import datetime
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
