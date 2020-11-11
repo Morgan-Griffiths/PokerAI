@@ -22,7 +22,7 @@ def strip_module(path):
     state_dict = torch.load(path)
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        if k[:7] == 'module':
+        if k[:7] == 'module.':
             name = k[7:] # remove `module.`
             new_state_dict[name] = v
     return new_state_dict
