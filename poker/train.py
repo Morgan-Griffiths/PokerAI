@@ -195,19 +195,20 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
-    count = db.game_data.count_documents({'training_round':params['training_round']}) 
-    print(count,count // 2)
+    count = db.game_data.count_documents({'training_round':params['training_round']}) // 2
     if rank == 0:
-        data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count // 2)
+        data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count)
     else:
-        data = db['game_data'].find(query,projection).sort('_id',DESCENDING).limit(count // 2)
+        data = db['game_data'].find(query,projection).sort('_id',DESCENDING).limit(count)
     for i in range(params['learning_rounds']):
         j = 0
         for poker_round in data:
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+            print(j)
             j += 1
-        soft_update(critic,target_critic,params['device'])
-        soft_update(actor,target_actor,params['device'])
+        if rank == 1:
+            soft_update(critic,target_critic,params['device'])
+            soft_update(actor,target_actor,params['device'])
     client.close()
 
 def batch_learning_update(rank,actor,critic,target_actor,target_critic,params):
