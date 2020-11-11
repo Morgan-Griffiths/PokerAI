@@ -198,6 +198,10 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     db = client['poker']
     count = db.game_data.count_documents({'training_round':params['training_round']}) // 2
     print('count',count)
+    while True:
+        if len(list(db['game_data'].find_one({'training_round':params['training_round'],'rank':0},projection))) > 0 and \
+            len(list(db['game_data'].find_one({'training_round':params['training_round'],'rank':1},projection))) > 0:
+            break
     if rank == 0:
         data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count)
     else:
