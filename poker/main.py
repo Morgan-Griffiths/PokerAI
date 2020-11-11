@@ -238,8 +238,8 @@ if __name__ == "__main__":
                 mp.spawn(train_batch,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             else:
                 mp.spawn(train_dual,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
-            learning_params['actor_lrscheduler'].step()
-            learning_params['critic_lrscheduler'].step()
+            # learning_params['actor_lrscheduler'].step()
+            # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
             # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
             print(f'Training loop took {(time.time()-tic)/60} minutes')
