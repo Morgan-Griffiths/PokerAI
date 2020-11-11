@@ -69,7 +69,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,rank):
             trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
             trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
-            actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask)
+            actor_outputs = actor_positions[env.current_player](state,action_mask,betsize_mask,target=True)
             if agent_loc[cur_player]:
                 critic_outputs = critic_positions[env.current_player](obs)
                 trajectory[cur_player]['values'].append(critic_outputs['value'])
@@ -106,7 +106,7 @@ def generate_trajectories(env,actor,critic,training_params,rank):
         trajectory[cur_player]['action_masks'].append(copy.copy(action_mask))
         trajectory[cur_player]['betsize_masks'].append(copy.copy(betsize_mask))
         while not done:
-            actor_outputs = actor(state,action_mask,betsize_mask)
+            actor_outputs = actor(state,action_mask,betsize_mask,target=True)
             critic_outputs = critic(obs)
             trajectory[cur_player]['values'].append(critic_outputs['value'])
             trajectory[cur_player]['actions'].append(actor_outputs['action'])
