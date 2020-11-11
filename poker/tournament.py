@@ -5,8 +5,9 @@ import sys
 import numpy as np
 import time
 from itertools import combinations
-from collections import defaultdict
+from collections import defaultdict,deque
 from prettytable import PrettyTable
+from random import shuffle
 
 import models.network_config as ng
 from models.networks import OmahaActor,CombinedNet,BetAgent
@@ -14,11 +15,12 @@ from models.network_config import NetworkConfig
 from models.model_utils import hardcode_handstrength,load_weights
 import poker_env.datatypes as pdt
 from poker_env.config import Config
+
 from poker_env.env import Poker
 from utils.utils import load_paths,grep,return_latest_baseline_path,bin_by_handstrength
 
 @torch.no_grad()
-def tournament(env,agent1,agent2,model_names,training_params):
+def tournament(env,agent1,agent2,model_names,training_params,duplicate_decks):
     hero = model_names[1]
     villain = model_names[0]
     hero_river = defaultdict(lambda:[])
@@ -40,7 +42,7 @@ def tournament(env,agent1,agent2,model_names,training_params):
         else:
             agent_positions = {'SB':agent2,'BB':agent1}
             agent_loc = {'SB':hero,'BB':villain}
-        state,obs,done,action_mask,betsize_mask = env.reset()
+        state,obs,done,action_mask,betsize_mask = env.reset(duplicate_decks[e])
         while not done:
             actor_outputs = agent_positions[env.current_player](state,action_mask,betsize_mask)
             street = pdt.Globals.STREET_DICT[state[:,-1,env.state_mapping['street']][0]]
@@ -112,7 +114,7 @@ def print_stats(stats):
                 table.add_row([street,-1,checks,folds,calls,bets,raises,total_vals])
         print(table)
 
-def eval_latest(env,seed,nS,nA,nB,training_params,network_params):
+def eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks):
     device = network_params['device']
     weight_paths = load_paths(training_params['actor_path'])
     model_names = list(weight_paths.keys())
@@ -130,13 +132,60 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params):
         net2 = OmahaActor(seed,nS,nA,nB,network_params).to(device)
         net2_path = weight_paths[match[1]]
         net2.load_state_dict(torch.load(net2_path))
-        results,stats = tournament(env,latest_net,net2,match,training_params)
+        results,stats = tournament(env,latest_net,net2,match,training_params,duplicate_decks)
         result_array[data_row_dict[match[1]]] = (results[match[0]]['SB'] + results[match[0]]['BB']) - (results[match[1]]['SB'] + results[match[1]]['BB'])
         print_stats(stats)
     # Create Results Table
     table = PrettyTable(["Model Name", *model_names[-last_n_models:-1]])
     table.add_row([latest_actor,*result_array])
     print(table)
+
+def generate_duplicate_decks(epochs):
+    assert epochs % 2 == 0
+    deck = deque(maxlen=52)
+    for i in range(pdt.RANKS.LOW,pdt.RANKS.HIGH):
+        for j in range(pdt.SUITS.LOW,pdt.SUITS.HIGH):
+            deck.append([i,j])
+    first_half = []
+    second_half = []
+    for i in range(epochs // 2):
+        shuffle(deck)
+        first_half.append(deck)
+        reversed_deck = copy.deepcopy(deck)
+        reversed_deck[-1],reversed_deck[-5] = reversed_deck[-5],reversed_deck[-1]
+        reversed_deck[-2],reversed_deck[-6] = reversed_deck[-6],reversed_deck[-2]
+        reversed_deck[-3],reversed_deck[-7] = reversed_deck[-7],reversed_deck[-3]
+        reversed_deck[-4],reversed_deck[-8] = reversed_deck[-8],reversed_deck[-4]
+        second_half.append(reversed_deck)
+    duplicate_decks = first_half + second_half
+    return duplicate_decks
+
+def run_tournament(actor,villain,model_names,params):
+    config = Config()
+    game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
+
+    env_params = {
+        'game':pdt.GameTypes.OMAHAHI,
+        'betsizes': game_object.rule_params['betsizes'],
+        'bet_type': game_object.rule_params['bettype'],
+        'n_players': 2,
+        'pot':game_object.state_params['pot'],
+        'stacksize': game_object.state_params['stacksize'],
+        'cards_per_player': game_object.state_params['cards_per_player'],
+        'starting_street': game_object.starting_street,
+        'global_mapping':config.global_mapping,
+        'state_mapping':config.state_mapping,
+        'obs_mapping':config.obs_mapping,
+        'shuffle':False
+    }
+    print(f'Environment Parameters: Starting street: {env_params["starting_street"]},\
+        Stacksize: {env_params["stacksize"]},\
+        Pot: {env_params["pot"]},\
+        Bettype: {env_params["bet_type"]},\
+        Betsizes: {env_params["betsizes"]}')
+    env = Poker(env_params)
+    duplicate_decks = generate_duplicate_decks(params['epochs'])
+    return tournament(env,actor,villain,model_names,params,duplicate_decks)
 
 if __name__ == "__main__":
     import argparse
@@ -191,7 +240,7 @@ if __name__ == "__main__":
         'global_mapping':config.global_mapping,
         'state_mapping':config.state_mapping,
         'obs_mapping':config.obs_mapping,
-        'shuffle':True
+        'shuffle':False
     }
     print(f'Environment Parameters: Starting street: {env_params["starting_street"]},\
         Stacksize: {env_params["stacksize"]},\
@@ -199,6 +248,7 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     env = Poker(env_params)
+    duplicate_decks = generate_duplicate_decks(args.epochs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     training_params = config.training_params
@@ -223,7 +273,7 @@ if __name__ == "__main__":
     if args.tourney == 'latest':
         """Takes the latest network weights and evals vs all the previous ones or the last N"""
         # load all file paths
-        eval_latest(env,seed,nS,nA,nB,training_params,network_params)
+        eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks)
     elif args.tourney == 'roundrobin':
         """Runs all saved weights (in training_run folder) against each other in a round robin"""
         # load all file paths
@@ -243,7 +293,7 @@ if __name__ == "__main__":
             net2_path = weight_paths[match[1]]
             net1.load_state_dict(torch.load(net1_path))
             net2.load_state_dict(torch.load(net2_path))
-            results,stats = tournament(env,net1,net2,match,training_params)
+            results,stats = tournament(env,net1,net2,match,training_params,duplicate_decks)
             result_array[data_row_dict[match[0]],data_row_dict[match[1]]] = results[match[0]]['SB'] + results[match[0]]['BB']
             result_array[data_row_dict[match[1]],data_row_dict[match[0]]] = results[match[1]]['SB'] + results[match[1]]['BB']
         # Create Results Table
@@ -265,7 +315,7 @@ if __name__ == "__main__":
             load_weights(baseline_evaluation,baseline_path)
             # Get latest baseline
         model_names = ['baseline_evaluation','trained_model']
-        results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params)
+        results,stats = tournament(env,baseline_evaluation,trained_model,model_names,training_params,duplicate_decks)
         print(results)
         print_stats(stats)
 
