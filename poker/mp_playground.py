@@ -23,12 +23,12 @@ from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights,return_value_mask
 from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
 from tournament import tournament,print_stats,eval_latest
-
+import datetime
 from torch import optim
 
 def setup_world(rank,world_size):
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size,timeout=datetime.timedelta(0, 60))
 
 def cleanup():
     print('cleanup')

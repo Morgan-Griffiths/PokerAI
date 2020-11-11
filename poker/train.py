@@ -26,6 +26,7 @@ from tournament import tournament
 from db import MongoDB
 from poker_env.env import Poker
 import torch.autograd.profiler as profiler
+import datetime
 
 def pad_state(state,maxlen):
     N = maxlen - state.shape[1]
@@ -34,7 +35,7 @@ def pad_state(state,maxlen):
 
 def setup_world(rank,world_size):
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size,timeout=1)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size,timeout=datetime.timedelta(0, 60))
 
 def cleanup():
     print('cleanup')
