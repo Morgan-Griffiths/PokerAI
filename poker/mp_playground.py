@@ -112,8 +112,6 @@ if __name__ == '__main__':
 
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-    os.environ['NCCL_ASYNC_ERROR_HANDLING'] = '1'
-    os.environ['NCCL_BLOCKING_WAIT'] = '60'
 
     EPOCHS = 1
 
