@@ -18,7 +18,7 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
-def strip_module(state_dict):
+def strip_module(path):
     state_dict = torch.load(path)
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
