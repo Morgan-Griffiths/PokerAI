@@ -308,6 +308,8 @@ class OmahaActor(Network):
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
         self.device = params['device']
+        self.epsilon = params['epsilon']
+        self.epsilon_weights = params['epsilon_weights']
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
@@ -327,7 +329,7 @@ class OmahaActor(Network):
         # )
         self.fc_final = nn.Linear(5120,self.combined_output)
 
-    def forward(self,state,action_mask,betsize_mask):
+    def forward(self,state,action_mask,betsize_mask,target=False):
         """
         state: B,M,39
         """
@@ -336,27 +338,34 @@ class OmahaActor(Network):
             action_mask = torch.tensor(action_mask,dtype=torch.float32).to(self.device)
             betsize_mask = torch.tensor(betsize_mask,dtype=torch.float32).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-        out = self.process_input(state)
-        B,M,c = out.size()
-        n_padding = self.maxlen - M
-        if n_padding < 0:
-            h = out[:,-self.maxlen:,:]
+        if target and np.random.random() > self.epsilon:
+            out = self.process_input(state)
+            B,M,c = out.size()
+            n_padding = self.maxlen - M
+            if n_padding < 0:
+                h = out[:,-self.maxlen:,:]
+            else:
+                padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+                h = torch.cat((padding,out),dim=1)
+            lstm_out,hidden_states = self.lstm(h)
+            norm = self.batchnorm(lstm_out)
+            # self.attention(out)
+            # blocks_out = self.blocks(lstm_out.view(-1))
+            t_logits = self.fc_final(norm.view(B,-1))
+            category_logits = self.noise(t_logits)
+            # skip connection
+            # category_logits += h
+            action_soft = F.softmax(category_logits,dim=-1)
+            action_probs = norm_frequencies(action_soft,mask)
+            previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
+            m = Categorical(action_probs)
+            action = m.sample()
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-            h = torch.cat((padding,out),dim=1)
-        lstm_out,hidden_states = self.lstm(h)
-        norm = self.batchnorm(lstm_out)
-        # self.attention(out)
-        # blocks_out = self.blocks(lstm_out.view(-1))
-        t_logits = self.fc_final(norm.view(B,-1))
-        category_logits = self.noise(t_logits)
-        # skip connection
-        # category_logits += h
-        action_soft = F.softmax(category_logits,dim=-1)
-        action_probs = norm_frequencies(action_soft,mask)
-        previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
-        m = Categorical(action_probs)
-        action = m.sample()
+            # pick random legal move
+            action_masked = self.epsilon_weights * mask
+            action_probs =  action_masked / action_masked.sum(-1)
+            action = np.random.choice(np.arange(1,6),p=action_probs)
+            m = Categorical(action_probs)
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
         if B > 1:
             # batch training
