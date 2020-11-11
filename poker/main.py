@@ -102,6 +102,7 @@ if __name__ == "__main__":
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     os.environ['NCCL_ASYNC_ERROR_HANDLING'] = '1'
+    os.environ['NCCL_BLOCKING_WAIT'] = '60'
 
     cuda_dict = {0:'cuda:0',1:'cuda:1'}
     num_gpus = torch.cuda.device_count()
