@@ -73,24 +73,24 @@ class Poker(object):
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
-    def reset(self):
+    def reset(self,preset_deck=[]):
         self.global_states.reset()
         self.current_index.reset()
         self.last_aggressor.reset()
         self.players_remaining = self.n_players
-        self.deck = Deck()
+        self.deck = Deck(preset_deck)
         if self.to_shuffle:
             self.deck.shuffle()
         self.street = self.starting_street
         # Pot
         self.pot = self.starting_pot
-        # Board
-        self.initialize_board()
         # Players
         self.players.reset()
         # Hands
         hands = self.deck.deal(self.cards_per_player*self.n_players)
         self.players.initialize_hands(hands)
+        # Board
+        self.initialize_board()
         # Blinds
         if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
