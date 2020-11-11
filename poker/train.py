@@ -23,14 +23,14 @@ from models.model_utils import soft_update,load_weights,hard_update
 from db import MongoDB
 from poker_env.env import Poker
 
-def load_villain(network_params,device,baseline_path):
+def load_villain(rank,network_params,baseline_path):
     baseline_path = return_latest_baseline_path(baseline_path)
     if baseline_path:
         seed = network_params['seed']
         nS = network_params['nS']
         nA = network_params['nA']
         nB = network_params['nB']
-        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(rank)
         load_weights(villain,baseline_path)
     else:
         villain = BetAgent()
@@ -305,7 +305,7 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(rank,training_params,learning_params,network_params)
     if validation_params['koth']:
-        villain = load_villain(network_params,learning_params['device'],training_params['baseline_path']).to(rank)
+        villain = load_villain(rank,network_params,training_params['baseline_path'])
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
