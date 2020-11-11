@@ -29,11 +29,11 @@ def strip_module(path):
             new_state_dict[k] = v
     return new_state_dict
 
-def load_weights(net,path,id=0,ddp=False):
+def load_weights(net,path,rank=0,ddp=False):
     if torch.cuda.is_available():
         # check if module is in the dict name
         if ddp:
-            map_location = {'cuda:%d' % 0: 'cuda:%d' % id}
+            map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
             net.load_state_dict(torch.load(path,map_location=map_location))
         else:
             net.load_state_dict(strip_module(path))

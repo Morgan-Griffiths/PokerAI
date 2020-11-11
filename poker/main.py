@@ -151,7 +151,7 @@ if __name__ == "__main__":
         'generate_epochs':args.generate,
         'training_round':0,
         'game':'Omaha',
-        'id':0,
+        'rank':0,
         'save_every':max(args.epochs // 4,1),
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
         'actor_path':config.agent_params['actor_path'],
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     # learning_params['actor_lrscheduler'] = actor_lrscheduler
     # learning_params['critic_lrscheduler'] = critic_lrscheduler
     # training loop
-    # generate_trajectories(env,actor,critic,training_params,id=0)
+    # generate_trajectories(env,actor,critic,training_params,rank=0)
     # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
     if args.single:
         for e in range(training_params['lr_steps']):

@@ -62,18 +62,18 @@ def main():
         nprocs=world_size,
         join=True)
 
-def train_example(id,world_size,env_params,training_params,learning_params,network_params,validation_params):
-    print('train_example',id)
-    setup_world(id,world_size)
+def train_example(rank,world_size,env_params,training_params,learning_params,network_params,validation_params):
+    print('train_example',rank)
+    setup_world(rank,world_size)
     config = Config()
-    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
+    actor,critic,target_actor,target_critic = instantiate_models(rank,config,training_params,learning_params,network_params)
     env = Poker(env_params)
     # state,obs,done,action_mask,betsize_mask = env.reset()
     # actor_output = ddp_actor(state,action_mask,betsize_mask)
     # critic_output = ddp_critic(obs)['value']
-    generate_trajectories(env,target_actor,target_critic,training_params,id)
+    generate_trajectories(env,target_actor,target_critic,training_params,rank)
     print('post gen')
-    dual_learning_update(id,actor,critic,target_actor,target_critic,learning_params,validation_params)
+    dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
     print('post learn')
     dist.barrier()
     cleanup()
@@ -162,7 +162,7 @@ if __name__ == '__main__':
         'generate_epochs':1,
         'training_round':0,
         'game':'Omaha',
-        'id':0,
+        'rank':0,
         'save_every':max(EPOCHS // 4,1),
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
         'actor_path':config.agent_params['actor_path'],

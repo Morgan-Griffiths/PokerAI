@@ -71,7 +71,7 @@ if __name__ == "__main__":
         'generate_epochs':10,
         'training_round':0,
         'game':'Omaha',
-        'id':0,
+        'rank':0,
         'save_every':max(100 // 4,1),
         'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
         'actor_path':config.agent_params['actor_path'],
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     # print(f'Evaluating {args.network_type}')
-    id = 0
+    rank = 0
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     #     print(f'Generating {val} samples')
     #     tic = time.time()
     #     training_params['generate_epochs'] = val
-    #     train_dual(id,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+    #     train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
     #     toc = time.time()
     #     print(f'{val} samples took {toc-tic} seconds')
     #     times.append(toc-tic)
@@ -135,11 +135,11 @@ if __name__ == "__main__":
     tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
         if args.function == 'train':
-            train_dual(id,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+            train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
         elif args.function == 'learn':
             dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         elif args.function == 'generate':
-            generate_trajectories(env,actor,critic,training_params,id=0)
+            generate_trajectories(env,actor,critic,training_params,rank=0)
         else:
             with torch.no_grad():
                 for i in range(100):
