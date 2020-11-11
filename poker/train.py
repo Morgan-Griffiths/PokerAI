@@ -198,8 +198,11 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
     db = client['poker']
     data = db['game_data'].find(query,projection)
     for i in range(params['learning_rounds']):
+        j = -
         for poker_round in data:
+            print(f'round {j}')
             update_actor_critic(poker_round,critic,target_critic,actor,target_actor,params)
+            j += 1
         soft_update(critic,target_critic,params['device'])
         soft_update(actor,target_actor,params['device'])
     client.close()
@@ -237,6 +240,7 @@ def train_batch(id,env_params,training_params,learning_params,network_params,val
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print(f'Epoch {e}, device {id}')
+        dist.barrier()
         # if e % training_params['save_every'] == 0 and id == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
@@ -310,6 +314,7 @@ def train_dual(id,env_params,training_params,learning_params,network_params,vali
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         print('post learn')
+        dist.barrier()
         # if (e+1) % training_params['save_every'] == 0 and id == 0:
         #     torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
         #     torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
