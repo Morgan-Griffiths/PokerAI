@@ -196,12 +196,11 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
+    while True:
+        if db.game_data.count_documents({'training_round':params['training_round'],'rank':0}) > 0 and db.game_data.count_documents({'training_round':params['training_round'],'rank':1}) > 0:
+            break
     count = db.game_data.count_documents({'training_round':params['training_round']}) // 2
     print('count',count)
-    while True:
-        if len(list(db['game_data'].find_one({'training_round':params['training_round'],'rank':0},projection))) > 0 and \
-            len(list(db['game_data'].find_one({'training_round':params['training_round'],'rank':1},projection))) > 0:
-            break
     if rank == 0:
         data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count)
     else:
