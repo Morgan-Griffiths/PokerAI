@@ -65,9 +65,9 @@ def load_weights(net,path,rank=0,ddp=False):
                 net.load_state_dict(torch.load(path,map_location=map_location))
         else:
             if not is_path_ddp(path):
-                net.load_state_dict(strip_module(path))
-            else:
                 net.load_state_dict(torch.load(path,map_location=map_location))
+            else:
+                net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
