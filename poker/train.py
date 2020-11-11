@@ -240,6 +240,7 @@ def train_batch(rank,env_params,training_params,learning_params,network_params,v
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
+        dist.barrier()
         actor,critic,learning_params = batch_learning_update(rank,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
@@ -309,6 +310,7 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
         # train on trajectories
+        dist.barrier()
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
