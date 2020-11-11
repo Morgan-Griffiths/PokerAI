@@ -196,6 +196,7 @@ def dual_learning_update(rank,actor,critic,target_actor,target_critic,params,val
     client = MongoClient('localhost', 27017,maxPoolSize=10000)
     db = client['poker']
     count = db.game_data.count_documents({'training_round':params['training_round']}) // 2
+    print('count',count)
     if rank == 0:
         data = db['game_data'].find(query,projection).sort('_id',ASCENDING).limit(count)
     else:
