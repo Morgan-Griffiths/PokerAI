@@ -126,7 +126,7 @@ def update_actor_critic_batch(data,local_actor,local_critic,target_actor,target_
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
     params['actor_optimizer'].zero_grad()
     policy_loss.backward()
-    # torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
+    torch.nn.utils.clip_grad_norm_(local_actor.parameters(), params['gradient_clip'])
     params['actor_optimizer'].step()
     soft_update(local_actor,target_actor,device)
     # Check action probs and critic vals

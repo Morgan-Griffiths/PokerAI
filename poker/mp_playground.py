@@ -27,8 +27,6 @@ from tournament import tournament,print_stats,eval_latest
 from torch import optim
 
 def setup_world(rank,world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
     # initialize the process group
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
@@ -111,6 +109,10 @@ if __name__ == '__main__':
                         )
     parser.set_defaults(resume=False)
     args = parser.parse_args()
+
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    os.environ['NCCL_ASYNC_ERROR_HANDLING'] = 1
 
     EPOCHS = 1
 
