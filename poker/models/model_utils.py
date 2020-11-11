@@ -29,12 +29,34 @@ def strip_module(path):
             new_state_dict[k] = v
     return new_state_dict
 
+def add_module(path):
+    state_dict = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = 'module.'+k
+        new_state_dict[name] = v
+    return new_state_dict
+
+def check_ddp(path):
+    is_ddp = False
+    state_dict = torch.load(path)
+    for k in state_dict.keys():
+        if k[7:] == 'module.':
+            is_ddp = True
+        else:
+            is_ddp = False
+        break
+    return is_ddp
+
 def load_weights(net,path,rank=0,ddp=False):
     if torch.cuda.is_available():
         # check if module is in the dict name
         if ddp:
             map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-            net.load_state_dict(torch.load(path,map_location=map_location))
+            if check_ddp(path):
+                net.load_state_dict(add_module(path))
+            else:
+                net.load_state_dict(torch.load(path,map_location=map_location))
         else:
             net.load_state_dict(strip_module(path))
     else: 
