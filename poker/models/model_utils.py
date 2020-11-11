@@ -25,6 +25,8 @@ def strip_module(path):
         if k[:7] == 'module.':
             name = k[7:] # remove `module.`
             new_state_dict[name] = v
+        else:
+            new_state_dict[k] = v
     return new_state_dict
 
 def load_weights(net,path,id=0,ddp=False):
