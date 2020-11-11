@@ -226,7 +226,7 @@ def return_value_mask(actions):
     value_mask = value_mask.bool()
     return value_mask.squeeze(0)
 
-def scale_rewards(reward,min_reward,max_reward,factor=1):
+def scale_rewards(reward,min_reward,max_reward,factor=10):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     span = (max_reward - min_reward) / 2
     sub = (max_reward+min_reward) / 2
