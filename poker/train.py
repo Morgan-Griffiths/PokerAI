@@ -204,9 +204,9 @@ def dual_learning_update(id,actor,critic,target_actor,target_critic,params,valid
     #     soft_update(actor,target_actor,params['device'])
     client.close()
 
-def batch_learning_update(actor,critic,target_actor,target_critic,params):
+def batch_learning_update(id,actor,critic,target_actor,target_critic,params):
     mongo = MongoDB()
-    query = {'training_round':params['training_round']}
+    query = {'training_round':params['training_round'],'id':id}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     db_data = mongo.get_data(query,projection)
     trainloader = return_trajectoryloader(db_data)
@@ -218,18 +218,20 @@ def batch_learning_update(actor,critic,target_actor,target_critic,params):
     mongo.close()
     return actor,critic,params
 
-def train_batch(id,env_params,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
-    env = Poker(env_params)
+def train_batch(id,env_params,training_params,learning_params,network_params,validation_params):
+    world_size = 2
     if torch.cuda.device_count() > 1:
-        setup_world(id,2)
-        actor = DDP(actor,device_ids=[id],find_unused_parameters=True)
-        critic = DDP(critic,device_ids=[id],find_unused_parameters=True)
+        setup_world(id,world_size)
+    config = Config()
+    env = Poker(env_params)
+    # Setup for dual gpu and mp parallel training
+    actor,critic,target_actor,target_critic = instantiate_models(id,config,training_params,learning_params,network_params)
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,id)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,id)
-        actor,critic,learning_params = batch_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        actor,critic,learning_params = batch_learning_update(id,actor,critic,target_actor,target_critic,learning_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
         if e % training_params['save_every'] == 0 and id == 0:
