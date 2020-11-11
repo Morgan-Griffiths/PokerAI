@@ -49,7 +49,7 @@ def is_path_ddp(path):
 def is_net_ddp(net):
     is_ddp = False
     for name,param in net.named_parameters():
-        if name[:k] == 'module.':
+        if name[:7] == 'module.':
             is_ddp = True
         break
     return is_ddp
