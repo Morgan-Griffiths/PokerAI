@@ -18,7 +18,7 @@ from models.network_config import NetworkConfig,CriticType
 from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
 from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
-from tournament import tournament,print_stats,eval_latest
+from tournament import run_tournament,print_stats,eval_latest
 
 from torch import optim
 
@@ -225,7 +225,6 @@ if __name__ == "__main__":
         # actor.share_memory()
         # critic.share_memory()
         for e in range(training_params['lr_steps']):
-            counter = [0]
             # Clean mongo
             mongo = MongoDB()
             mongo.clean_db()
@@ -252,7 +251,7 @@ if __name__ == "__main__":
             load_weights(actor,latest_actor_path)
             villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
             if validation_params['koth']:
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                results,stats = run_tournament(actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it wins 1bb per hand%
                 print_stats(stats)
@@ -264,7 +263,7 @@ if __name__ == "__main__":
                     torch.save(actor.state_dict(), new_baseline_path)
             else:
                 # eval_latest(env,seed,nS,nA,nB,validation_params,network_params)
-                results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                results,stats = run_tournament(actor,villain,['hero','villain'],validation_params)
                 model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                 # if it wins 1bb per hand%
                 print_stats(stats)

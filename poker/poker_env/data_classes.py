@@ -8,6 +8,11 @@ from poker_env.datatypes import Globals,Action,SUITS,RANKS
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
+CARDS = []
+for i in range(RANKS.LOW,RANKS.HIGH):
+    for j in range(SUITS.LOW,SUITS.HIGH):
+        CARDS.append([i,j])
+
 class Status(object):
     PADDING = 'padding'
     ACTIVE = 'active'
@@ -212,15 +217,15 @@ class LastAggression(PlayerIndex):
         return self.aggressive_betsize
 
 class Deck(object):
-    def __init__(self):
-        self.reset()
+    def __init__(self,preset):
+        self.reset(preset)
 
-    def reset(self):
-        self.deck = deque(maxlen=52)
-        for i in range(RANKS.LOW,RANKS.HIGH):
-            for j in range(SUITS.LOW,SUITS.HIGH):
-                self.deck.append([i,j])
-
+    def reset(self,preset):
+        if preset:
+            self.deck = preset
+        else:
+            self.deck = deque(copy.deepcopy(CARDS),maxlen=52)
+    
     def deal(self,N):
         """Returns a list of cards (rank,suit)"""
         cards = []
