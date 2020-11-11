@@ -263,26 +263,43 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     betsize_mask = poker_round['betsize_mask']
     action_mask = poker_round['action_mask']
     ## Critic update ##
+    print('0')
     local_values = critic(obs)['value']
+    print('1')
     value_mask = return_value_mask(action)
     # TD_error = local_values[value_mask] - reward
     # critic_loss = (TD_error**2*0.5).mean()
+    print('2')
     critic_loss = F.smooth_l1_loss(reward,local_values[value_mask],reduction='sum')
+    print('3')
     critic_optimizer.zero_grad()
+    print('4')
     critic_loss.backward()
+    print('5')
     average_gradients(critic)
+    print('6')
     critic_optimizer.step()
     # Actor update #
+    print('7')
     target_values = target_critic(obs)['value']
+    print('8')
     actor_out = actor(state,action_mask,betsize_mask)
+    print('9')
     actor_value_mask = return_value_mask(actor_out['action'])
+    print('10')
     expected_value = (actor_out['action_probs'].view(-1) * target_values.view(-1)).view(actor_value_mask.size()).detach().sum(-1)
+    print('11')
     advantages = (target_values[actor_value_mask] - expected_value).view(-1)
+    print('12')
     policy_loss = (-actor_out['action_prob'].view(-1) * advantages).sum()
+    print('13')
     actor_optimizer.zero_grad()
+    print('14')
     policy_loss.backward()
+    print('15')
     # torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
     average_gradients(actor)
+    print('16')
     actor_optimizer.step()
     # print('\nprobs,prob,actor action,original action',actor_out['action_probs'].detach(),actor_out['action_prob'].detach(),actor_out['action'],action)
     # print('\nlocal_values,Q_value',local_values,local_values[value_mask].item())
