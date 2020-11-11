@@ -138,7 +138,7 @@ if __name__ == "__main__":
     nB = env.betsize_space
     seed = 1235
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    network_params                                = config.network_params
+    network_params           = config.network_params
     network_params['device'] = device
     network_params['seed'] = seed
     network_params['nS'] = nS
@@ -191,9 +191,9 @@ if __name__ == "__main__":
     # Set processes
     num_processes = max(1,num_gpus)
     print(f'Number of used processes {num_processes}')
+    stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
+    milestones = [stepsize*2,stepsize*3,stepsize*4]
     # if validation_params['koth']:
-    #     stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
-    #     milestones = [stepsize*2,stepsize*3,stepsize*4]
     #     actor_lrscheduler = MultiStepLR(actor_optimizer, milestones=milestones, gamma=0.1)
     #     critic_lrscheduler = MultiStepLR(critic_optimizer, milestones=milestones, gamma=0.1)
     # else:
@@ -243,6 +243,9 @@ if __name__ == "__main__":
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
             # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
             print(f'Training loop took {(time.time()-tic)/60} minutes')
+            if e in milestones:
+                network_params['actor_lr'] *= 0.1
+                network_params['critic_lr'] *= 0.1
             # Validate
             actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
