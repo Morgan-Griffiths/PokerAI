@@ -53,6 +53,7 @@ def load_weights(net,path,rank=0,ddp=False):
         # check if module is in the dict name
         if ddp:
             map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+            print('is ddp',check_ddp(path))
             if check_ddp(path):
                 net.load_state_dict(add_module(path))
             else:
