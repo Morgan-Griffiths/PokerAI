@@ -54,7 +54,7 @@ def load_weights(net,path,rank=0,ddp=False):
         if ddp:
             map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
             print('is ddp',check_ddp(path))
-            if check_ddp(path):
+            if not check_ddp(path):
                 net.load_state_dict(add_module(path))
             else:
                 net.load_state_dict(torch.load(path,map_location=map_location))
