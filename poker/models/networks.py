@@ -371,7 +371,9 @@ class OmahaActor(Network):
             action_prob = m.log_prob(action)
         previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
         print('action',action)
+        print('previous_action',previous_action)
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
+        print('action_category',action_category,action_category.item())
         print('betsize_category',betsize_category,betsize_category.item())
         if B > 1:
             # batch training
