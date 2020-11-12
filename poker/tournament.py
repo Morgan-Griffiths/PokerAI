@@ -141,23 +141,21 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks
     print(table)
 
 def generate_duplicate_decks(epochs):
+    """Positions alternate everyhand, so it is sufficient to just keep the deck the same and append twice"""
     assert epochs % 2 == 0
     deck = deque(maxlen=52)
     for i in range(pdt.RANKS.LOW,pdt.RANKS.HIGH):
         for j in range(pdt.SUITS.LOW,pdt.SUITS.HIGH):
             deck.append([i,j])
-    first_half = []
-    second_half = []
+    duplicate_decks = []
     for i in range(epochs // 2):
         shuffle(deck)
-        first_half.append(deck)
-        reversed_deck = copy.deepcopy(deck)
-        reversed_deck[-1],reversed_deck[-5] = reversed_deck[-5],reversed_deck[-1]
-        reversed_deck[-2],reversed_deck[-6] = reversed_deck[-6],reversed_deck[-2]
-        reversed_deck[-3],reversed_deck[-7] = reversed_deck[-7],reversed_deck[-3]
-        reversed_deck[-4],reversed_deck[-8] = reversed_deck[-8],reversed_deck[-4]
-        second_half.append(reversed_deck)
-    duplicate_decks = first_half + second_half
+        duplicate_decks.append(copy.deepcopy(deck))
+        duplicate_decks.append(copy.deepcopy(deck))
+        # reversed_deck[-1],reversed_deck[-5] = reversed_deck[-5],reversed_deck[-1]
+        # reversed_deck[-2],reversed_deck[-6] = reversed_deck[-6],reversed_deck[-2]
+        # reversed_deck[-3],reversed_deck[-7] = reversed_deck[-7],reversed_deck[-3]
+        # reversed_deck[-4],reversed_deck[-8] = reversed_deck[-8],reversed_deck[-4]
     return duplicate_decks
 
 def run_tournament(actor,villain,model_names,params):
