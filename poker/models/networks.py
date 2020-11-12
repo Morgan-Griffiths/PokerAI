@@ -342,7 +342,7 @@ class OmahaActor(Network):
             B = state.size(0)
             # pick random legal move
             action_masked = self.epsilon_weights * mask
-            action_probs =  action_masked / action_masked.sum(-1)
+            action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
             print('epsilon,action_probs',action_probs.size())
             action = action_probs.multinomial(num_samples=1, replacement=False) + 1
             print('action',action.size(),action)
