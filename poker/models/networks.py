@@ -345,7 +345,7 @@ class OmahaActor(Network):
             action_masked = self.epsilon_weights * mask
             action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
             action = action_probs.multinomial(num_samples=1, replacement=False) + 1
-            m = Categorical(action_probs)
+            action_prob = torch.zeros(B,1)
         else:
             print('norm')
             out = self.process_input(state)
@@ -368,7 +368,9 @@ class OmahaActor(Network):
             action_probs = norm_frequencies(action_soft,mask)
             m = Categorical(action_probs)
             action = m.sample()
+            action_prob = m.log_prob(action)
         previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
+        print('action',action)
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
         print('betsize_category',betsize_category,betsize_category.item())
         if B > 1:
@@ -376,7 +378,7 @@ class OmahaActor(Network):
             outputs = {
                 'action':action,
                 'action_category':action_category,
-                'action_prob':m.log_prob(action),
+                'action_prob':,action_prob,
                 'action_probs':action_probs,
                 'betsize':betsize_category
                 }
@@ -385,7 +387,7 @@ class OmahaActor(Network):
             outputs = {
                 'action':action.item(),
                 'action_category':action_category.item(),
-                'action_prob':m.log_prob(action),
+                'action_prob':action_prob,
                 'action_probs':action_probs,
                 'betsize':betsize_category.item()
                 }
