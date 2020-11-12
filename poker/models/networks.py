@@ -309,7 +309,7 @@ class OmahaActor(Network):
         self.maxlen = params['maxlen']
         self.device = params['device']
         self.epsilon = params['epsilon']
-        self.epsilon_weights = params['epsilon_weights']
+        self.epsilon_weights = params['epsilon_weights'].to(self.device)
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
