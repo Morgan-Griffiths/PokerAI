@@ -141,7 +141,7 @@ def eval_latest(env,seed,nS,nA,nB,training_params,network_params,duplicate_decks
     print(table)
 
 def generate_duplicate_decks(epochs):
-    """Positions alternate everyhand, so it is sufficient to just keep the deck the same and append twice"""
+    """Positions alternate everyhand, so it is sufficient to just keep the deck the same and append it"""
     assert epochs % 2 == 0
     deck = deque(maxlen=52)
     for i in range(pdt.RANKS.LOW,pdt.RANKS.HIGH):
