@@ -191,7 +191,7 @@ if __name__ == "__main__":
             torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActor_0'))
             torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCritic_0'))
     # Set processes
-    num_processes = max(1,num_gpus)
+    num_processes = max(1,num_gpus*3)
     print(f'Number of used processes {num_processes}')
     stepsize = (training_params['lr_steps'] * training_params['training_epochs'] // 5)
     milestones = [stepsize*2,stepsize*3,stepsize*4]
