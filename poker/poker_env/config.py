@@ -12,11 +12,11 @@ class Config(object):
         self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.production_critic = os.path.join(os.getcwd(),'checkpoints/production/OmahaCriticFinal')
         self.training_params = {
-                'epochs':2500,
-                'training_round':0,
-                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
-                'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
-                'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
+            'epochs':2500,
+            'training_round':0,
+            'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+            'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+            'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
