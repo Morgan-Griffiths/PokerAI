@@ -339,15 +339,15 @@ class OmahaActor(Network):
             betsize_mask = torch.tensor(betsize_mask,dtype=torch.float32).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
         if target and np.random.random() < self.epsilon:
+            print('esp')
             B = state.size(0)
             # pick random legal move
             action_masked = self.epsilon_weights * mask
             action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
-            print('epsilon,action_probs',action_probs.size())
             action = action_probs.multinomial(num_samples=1, replacement=False) + 1
-            print('action',action.size(),action)
             m = Categorical(action_probs)
         else:
+            print('norm')
             out = self.process_input(state)
             B,M,c = state.size()
             n_padding = self.maxlen - M
@@ -366,12 +366,11 @@ class OmahaActor(Network):
             # category_logits += h
             action_soft = F.softmax(category_logits,dim=-1)
             action_probs = norm_frequencies(action_soft,mask)
-            print('action_probs',action_probs.size())
             m = Categorical(action_probs)
             action = m.sample()
-            print('action',action.size(),action)
         previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
+        print('betsize_category',betsize_category)
         if B > 1:
             # batch training
             outputs = {
