@@ -300,8 +300,8 @@ def instantiate_models(rank,training_params,learning_params,network_params):
 def train_dual(process_id,env_params,training_params,learning_params,network_params,validation_params):
     rank = process_id % 2
     if torch.cuda.device_count() > 1:
-        world_size = 2
-        setup_world(rank,world_size)
+        world_size = 6
+        setup_world(process_id,world_size)
     env = Poker(env_params)
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(rank,training_params,learning_params,network_params)
