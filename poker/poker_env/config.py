@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import torch.tensor as T
 from poker_env.datatypes import GameTypes
 
 class Config(object):
@@ -162,7 +161,7 @@ class Config(object):
             'actor_lr':3e-6,
             'critic_lr':3e-5,
             'epsilon':5e-2,
-            'epsilon_weights':T([0.2,0.2,0.2,0.2,0.2]),
+            'epsilon_weights':np.array([0.2,0.2,0.2,0.2,0.2]),
             'L2': 0.01,
             'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights'),
             'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights')

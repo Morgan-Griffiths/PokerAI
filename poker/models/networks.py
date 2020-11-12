@@ -309,7 +309,7 @@ class OmahaActor(Network):
         self.maxlen = params['maxlen']
         self.device = params['device']
         self.epsilon = params['epsilon']
-        self.epsilon_weights = params['epsilon_weights'].to(self.device)
+        self.epsilon_weights = params['epsilon_weights']
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
@@ -340,9 +340,9 @@ class OmahaActor(Network):
         mask = combined_masks(action_mask,betsize_mask)
         if target and np.random.random() < self.epsilon:
             # pick random legal move
-            action_masked = self.epsilon_weights * mask
+            action_masked = self.epsilon_weights * mask.numpy().cpu()
             action_probs =  action_masked / action_masked.sum(-1)
-            action = np.random.choice(np.arange(1,6),p=action_probs)
+            action = torch.as_tensor(np.random.choice(np.arange(1,6),p=action_probs)).to(self.device)
             m = Categorical(action_probs)
         else:
             out = self.process_input(state)
