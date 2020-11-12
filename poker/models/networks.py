@@ -340,7 +340,7 @@ class OmahaActor(Network):
         mask = combined_masks(action_mask,betsize_mask)
         if target and np.random.random() < self.epsilon:
             # pick random legal move
-            action_masked = self.epsilon_weights * mask.numpy().cpu()
+            action_masked = self.epsilon_weights * mask.cpu().numpy()
             action_probs =  action_masked / action_masked.sum(-1)
             action = torch.as_tensor(np.random.choice(np.arange(1,6),p=action_probs)).to(self.device)
             m = Categorical(action_probs)
