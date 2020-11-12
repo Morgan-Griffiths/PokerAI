@@ -337,6 +337,7 @@ class OmahaActor(Network):
             state = torch.tensor(state,dtype=torch.float32).to(self.device)
             action_mask = torch.tensor(action_mask,dtype=torch.float32).to(self.device)
             betsize_mask = torch.tensor(betsize_mask,dtype=torch.float32).to(self.device)
+        B,M,_ = state.size()
         mask = combined_masks(action_mask,betsize_mask)
         if target and np.random.random() < self.epsilon:
             # pick random legal move
@@ -346,7 +347,6 @@ class OmahaActor(Network):
             m = Categorical(action_probs)
         else:
             out = self.process_input(state)
-            B,M,c = out.size()
             n_padding = self.maxlen - M
             if n_padding < 0:
                 h = out[:,-self.maxlen:,:]
