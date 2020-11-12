@@ -91,7 +91,7 @@ def generate_vs_frozen(env,actor,critic,villain,training_params,rank):
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
-    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],rank,training_params['generate_epochs'])
+    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],training_params['generate_epochs'])
 
 @torch.no_grad()
 def generate_trajectories(env,actor,critic,training_params,rank):
@@ -127,10 +127,10 @@ def generate_trajectories(env,actor,critic,training_params,rank):
             N = len(trajectory[position]['betsize_masks'])
             trajectory[position]['rewards'] = [rewards[position]] * N
             trajectories[position].append(trajectory[position])
-    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],rank,training_params['generate_epochs'])
+    insert_data(trajectories,env.state_mapping,env.obs_mapping,training_params['training_round'],training_params['game'],training_params['generate_epochs'])
 
 
-def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,rank:int,epochs:int):
+def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,gametype:str,epochs:int):
     """
     takes trajectories and inserts them into db for data analysis and learning.
     """
@@ -159,7 +159,6 @@ def insert_data(training_data:dict,mapping:dict,obs_mapping,training_round:int,g
             assert(isinstance(states,list))
             for step,state in enumerate(states):
                 state_json = {
-                    'rank':rank,
                     'training_round':training_round,
                     'poker_round':i + (rank * epochs),
                     'state':state.tolist(),
