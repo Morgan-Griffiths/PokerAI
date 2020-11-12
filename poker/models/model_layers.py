@@ -183,8 +183,9 @@ class ProcessHandBoard(nn.Module):
         return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
-    def __init__(self,critic,params):
+    def __init__(self,critic,params,activation_fc=F.relu):
         super().__init__()
+        self.activation_fc = activation_fc
         self.critic = critic
         self.device = params['device']
         self.street_emb = nn.Embedding(embedding_dim=params['embedding_size']//4, num_embeddings=Street.RIVER+1,padding_idx=0)
@@ -215,8 +216,9 @@ class ProcessOrdinal(nn.Module):
         return torch.cat((street,hero_position,previous_action,last_action_position),dim=-1)
 
 class ProcessContinuous(nn.Module):
-    def __init__(self,critic,params):
+    def __init__(self,critic,params,activation_fc=F.relu):
         super().__init__()
+        self.activation_fc = activation_fc
         self.stack_fc = nn.Linear(1,params['embedding_size']//4)
         self.call_fc = nn.Linear(1,params['embedding_size']//4)
         self.odds_fc = nn.Linear(1,params['embedding_size']//4)
@@ -250,10 +252,10 @@ class ProcessContinuous(nn.Module):
         pot = []
         for i in range(B):
             for j in range(M):
-                stack.append(self.stack_fc(hero_stack[i,j].unsqueeze(-1)))
-                calls.append(self.call_fc(amnt_to_call[i,j].unsqueeze(-1)))
-                odds.append(self.odds_fc(pot_odds[i,j].unsqueeze(-1)))
-                pot.append(self.pot_fc(pot_odds[i,j].unsqueeze(-1)))
+                stack.append(self.activation_fc(self.stack_fc(hero_stack[i,j].unsqueeze(-1))))
+                calls.append(self.activation_fc(self.call_fc(amnt_to_call[i,j].unsqueeze(-1))))
+                odds.append(self.activation_fc(self.odds_fc(pot_odds[i,j].unsqueeze(-1))))
+                pot.append(self.activation_fc(self.pot_fc(pot_odds[i,j].unsqueeze(-1))))
         emb_pot = torch.stack(pot).view(B,M,-1)
         emb_call = torch.stack(calls).view(B,M,-1)
         emb_stack = torch.stack(stack).view(B,M,-1)
