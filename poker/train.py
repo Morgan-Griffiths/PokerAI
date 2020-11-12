@@ -232,7 +232,8 @@ def batch_learning_update(rank,actor,critic,target_actor,target_critic,params):
     mongo.close()
     return actor,critic,params
 
-def train_batch(rank,env_params,training_params,learning_params,network_params,validation_params):
+def train_batch(process_id,env_params,training_params,learning_params,network_params,validation_params):
+    rank = process_id % 2
     world_size = 2
     if torch.cuda.device_count() > 1:
         setup_world(rank,world_size)
@@ -297,7 +298,8 @@ def instantiate_models(rank,training_params,learning_params,network_params):
     learning_params['critic_optimizer'] = critic_optimizer
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
-def train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
+def train_dual(process_id,env_params,training_params,learning_params,network_params,validation_params):
+    rank = process_id % 2
     if torch.cuda.device_count() > 1:
         world_size = 2
         setup_world(rank,world_size)
@@ -316,10 +318,10 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
-        if (e+1) % training_params['save_every'] == 0 and rank == 0:
+        if (e+1) % training_params['save_every'] == 0 and process_id == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
-    if rank == 0:
+    if process_id == 0:
         torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],'OmahaCriticFinal'))
         print(f"Saved model weights to {os.path.join(training_params['actor_path'],'OmahaActorFinal')} and {os.path.join(training_params['critic_path'],'OmahaCriticFinal')}")
