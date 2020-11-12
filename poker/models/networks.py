@@ -378,7 +378,7 @@ class OmahaActor(Network):
             outputs = {
                 'action':action,
                 'action_category':action_category,
-                'action_prob':,action_prob,
+                'action_prob':action_prob,
                 'action_probs':action_probs,
                 'betsize':betsize_category
                 }
