@@ -344,7 +344,7 @@ class OmahaActor(Network):
             # pick random legal move
             action_masked = self.epsilon_weights * mask
             action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
-            action = action_probs.multinomial(num_samples=1, replacement=False) + 1
+            action = action_probs.multinomial(num_samples=1, replacement=False)
             action_prob = torch.zeros(B,1)
         else:
             print('norm')
