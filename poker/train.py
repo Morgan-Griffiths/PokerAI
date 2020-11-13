@@ -297,6 +297,29 @@ def instantiate_models(rank,training_params,learning_params,network_params):
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
+    env = Poker(env_params)
+    # Setup for dual gpu and mp parallel training
+    actor,critic,target_actor,target_critic = instantiate_models(rank,training_params,learning_params,network_params)
+    if validation_params['koth']:
+        villain = load_villain(rank,network_params,training_params['baseline_path'])
+    for e in range(training_params['training_epochs']):
+        if validation_params['koth']:
+            generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
+        else:
+            generate_trajectories(env,target_actor,target_critic,training_params,rank)
+        # train on trajectories
+        dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
+        training_params['training_round'] += 1
+        learning_params['training_round'] += 1
+        if (e+1) % training_params['save_every'] == 0 and rank == 0:
+            torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
+            torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
+    if rank == 0:
+        torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],'OmahaActorFinal'))
+        torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],'OmahaCriticFinal'))
+        print(f"Saved model weights to {os.path.join(training_params['actor_path'],'OmahaActorFinal')} and {os.path.join(training_params['critic_path'],'OmahaCriticFinal')}")
+
+def multi_train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
     world_size = 2
     setup_world(rank,world_size)
     env = Poker(env_params)
