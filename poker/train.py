@@ -297,9 +297,8 @@ def instantiate_models(rank,training_params,learning_params,network_params):
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
-    if torch.cuda.device_count() > 1:
-        world_size = 2
-        setup_world(rank,world_size)
+    world_size = 2
+    setup_world(rank,world_size)
     env = Poker(env_params)
     # Setup for dual gpu and mp parallel training
     actor,critic,target_actor,target_critic = instantiate_models(rank,training_params,learning_params,network_params)
@@ -322,6 +321,6 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],'OmahaCriticFinal'))
         print(f"Saved model weights to {os.path.join(training_params['actor_path'],'OmahaActorFinal')} and {os.path.join(training_params['critic_path'],'OmahaCriticFinal')}")
-    if torch.cuda.device_count() > 1:
-        dist.barrier()
-        cleanup()
+    # if torch.cuda.device_count() > 1:
+    dist.barrier()
+    cleanup()
