@@ -145,7 +145,7 @@ if __name__ == "__main__":
     network_params['nA'] = nA
     network_params['nB'] = nB
     training_params = {
-        'num_gpus':num_gpus,
+        'single':args.single,
         'lr_steps':args.steps,
         'training_epochs':args.epochs,
         'generate_epochs':args.generate,

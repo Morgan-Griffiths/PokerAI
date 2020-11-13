@@ -297,7 +297,7 @@ def instantiate_models(rank,training_params,learning_params,network_params):
     return ddp_actor,ddp_critic,ddp_target_actor,ddp_target_critic
 
 def train_dual(rank,env_params,training_params,learning_params,network_params,validation_params):
-    if training_params['num_gpus'] > 1:
+    if training_params['single']:
         world_size = 2
         setup_world(rank,world_size)
     env = Poker(env_params)
@@ -311,7 +311,7 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
         # train on trajectories
-        if training_params['num_gpus'] > 1:
+        if training_params['single']:
             dist.barrier()
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
@@ -323,6 +323,6 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],'OmahaCriticFinal'))
         print(f"Saved model weights to {os.path.join(training_params['actor_path'],'OmahaActorFinal')} and {os.path.join(training_params['critic_path'],'OmahaCriticFinal')}")
-    if training_params['num_gpus'] > 1:
+    if training_params['single']:
         dist.barrier()
         cleanup()
