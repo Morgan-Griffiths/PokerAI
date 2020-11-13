@@ -241,7 +241,7 @@ if __name__ == "__main__":
             # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
             # learning_params['training_round'] = (e+1) * learning_params['training_epochs']
-            print(f'Training loop took {(time.time()-tic)/60} minutes')
+            print(f'Training loop {e} took {(time.time()-tic)/60} minutes')
             if e in milestones:
                 network_params['actor_lr'] *= 0.1
                 network_params['critic_lr'] *= 0.1
