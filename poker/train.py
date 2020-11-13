@@ -316,6 +316,7 @@ def train_dual(rank,env_params,training_params,learning_params,network_params,va
         dual_learning_update(rank,actor,critic,target_actor,target_critic,learning_params,validation_params)
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
+        print(f'Epoch {e}, device {rank}')
         if (e+1) % training_params['save_every'] == 0 and rank == 0:
             torch.save(actor.state_dict(), os.path.join(training_params['actor_path'],f'OmahaActor_{e}'))
             torch.save(critic.state_dict(), os.path.join(training_params['critic_path'],f'OmahaCritic_{e}'))
