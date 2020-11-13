@@ -9,7 +9,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from multiprocessing import Process, Lock
 from multiprocessing.sharedctypes import Value
 
-from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update,multi_train_dual
+from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
 import poker_env.datatypes as pdt
 from poker_env.env import Poker
@@ -145,6 +145,7 @@ if __name__ == "__main__":
     network_params['nA'] = nA
     network_params['nB'] = nB
     training_params = {
+        'num_gpus':num_gpus,
         'lr_steps':args.steps,
         'training_epochs':args.epochs,
         'generate_epochs':args.generate,
@@ -207,9 +208,9 @@ if __name__ == "__main__":
     if args.single:
         for e in range(training_params['lr_steps']):
             if args.batch:
-                train_batch(0,env,training_params,learning_params,network_params,validation_params)
+                train_batch(0,env_params,training_params,learning_params,network_params,validation_params)
             else:
-                train_dual(0,env,training_params,learning_params,network_params,validation_params)
+                train_dual(0,env_params,training_params,learning_params,network_params,validation_params)
             # Validate
             # if validation_params['koth']:
             #     results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
@@ -236,7 +237,7 @@ if __name__ == "__main__":
             if args.batch:
                 mp.spawn(train_batch,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             else:
-                mp.spawn(multi_train_dual,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
+                mp.spawn(train_dual,args=(env_params,training_params,learning_params,network_params,validation_params),nprocs=num_processes,join=True)
             # learning_params['actor_lrscheduler'].step()
             # learning_params['critic_lrscheduler'].step()
             # training_params['training_round'] = (e+1) * training_params['training_epochs']
