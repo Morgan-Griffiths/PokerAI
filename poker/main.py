@@ -4,7 +4,7 @@ import torch.multiprocessing as mp
 import torch
 import os
 from torch.optim.lr_scheduler import MultiStepLR,StepLR
-from torch.nn import DataParallel
+import datetime
 
 from train import train_combined,train_dual,train_batch,generate_trajectories,dual_learning_update,combined_learning_update
 from poker_env.config import Config
@@ -12,19 +12,21 @@ import poker_env.datatypes as pdt
 from poker_env.env import Poker
 from db import MongoDB
 from models.network_config import NetworkConfig,CriticType
-from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet
+from models.networks import OmahaActor,OmahaQCritic,OmahaObsQCritic,CombinedNet,BetAgent
 from models.model_utils import copy_weights,hard_update,expand_conv2d,load_weights
-from utils.utils import unpack_shared_dict,clean_folder
-from tournament import tournament,print_stats
-from utils.utils import return_latest_baseline_path,return_next_baseline_path
-from models.networks import OmahaActor,BetAgent
+from tournament import print_stats,run_tournament
+from utils.utils import unpack_shared_dict,clean_folder,return_latest_baseline_path,return_next_baseline_path,return_latest_training_model_path
 
 from torch import optim
 
-def load_villain(seed,nS,nA,nB,network_params,device,baseline_path):
+def load_villain(rank,network_params,baseline_path):
     baseline_path = return_latest_baseline_path(baseline_path)
     if baseline_path:
-        villain = OmahaActor(seed,nS,nA,nB,network_params).to(device)
+        seed = network_params['seed']
+        nS = network_params['nS']
+        nA = network_params['nA']
+        nB = network_params['nB']
+        villain = OmahaActor(seed,nS,nA,nB,network_params).to(rank)
         load_weights(villain,baseline_path)
     else:
         villain = BetAgent()
@@ -50,6 +52,11 @@ if __name__ == "__main__":
                         default=10,
                         type=int,
                         help='Number of training rounds')
+    parser.add_argument('--valepochs','-ve',
+                        dest='valepochs',
+                        default=1000,
+                        type=int,
+                        help='Number of validation rounds')
     parser.add_argument('--generate','-g',
                         dest='generate',
                         default=5,
@@ -84,20 +91,15 @@ if __name__ == "__main__":
                         dest='resume',
                         action='store_true',
                         help='Resume training stored weights')
-    parser.add_argument('--actor-path','-ap',
-                        dest='model_paths',
-                        default=None,
-                        type=str,
-                        help='path to actor')
-    parser.add_argument('--critic-path','-ac',
-                        dest='model_paths',
-                        default=None,
-                        type=str,
-                        help='path to critic')
     parser.add_argument('--koth',
                         dest='koth',
                         action='store_true',
                         help='Train by King of the hill')
+    parser.add_argument('--batch',
+                        dest='batch',
+                        action='store_true',
+                        help='Train by batch')
+    parser.set_defaults(batch=False)
     parser.set_defaults(koth=False)
     parser.set_defaults(single=False)
     parser.set_defaults(resume=False)
@@ -145,6 +147,10 @@ if __name__ == "__main__":
     gpu2 = 'cuda:1'
     network_params                                = config.network_params
     network_params['device']                      = device
+    network_params['seed'] = seed
+    network_params['nS'] = nS
+    network_params['nA'] = nA
+    network_params['nB'] = nB
     training_params = {
         'lr_steps':args.steps,
         'training_epochs':args.epochs,
@@ -169,7 +175,8 @@ if __name__ == "__main__":
         'max_reward':env_params['pot']+env_params['stacksize']
     }
     validation_params = {
-        'epochs':5000,
+        'actor_path':config.agent_params['actor_path'],
+        'epochs':args.valepochs,
         'koth':args.koth
     }
     path = training_params['save_dir']
@@ -177,8 +184,9 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.mkdir(directory)
     # Clean training_run folder
-    clean_folder(training_params['actor_path'])
-    clean_folder(training_params['critic_path'])
+    if not args.resume:
+        clean_folder(training_params['critic_path'])	        
+        clean_folder(training_params['actor_path'])
     # Clean mongo
     mongo = MongoDB()
     mongo.clean_db()
@@ -242,7 +250,6 @@ if __name__ == "__main__":
         learning_params['critic_optimizer'] = critic_optimizer
         learning_params['actor_lrscheduler'] = actor_lrscheduler
         learning_params['critic_lrscheduler'] = critic_lrscheduler
-        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
         # training loop
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
@@ -252,23 +259,22 @@ if __name__ == "__main__":
             actor.share_memory()
             critic.share_memory()
             for e in range(training_params['lr_steps']):
-                mp.spawn(train_dual,args=(env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+                mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
                 learning_params['actor_lrscheduler'].step()
                 learning_params['critic_lrscheduler'].step()
                 training_params['training_round'] = (e+1) * training_params['training_epochs']
                 # validate vs baseline
                 if validation_params['koth']:
-                    results,stats = tournament(env,actor,villain,['hero','villain'],validation_params)
+                    villain = load_villain(learning_params['device'],network_params,training_params['baseline_path'])
+                    results,stats = run_tournament(actor,villain,['hero','villain'],validation_params)
                     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                     print(f'model_result {model_result}')
                     print_stats(stats)
                     # if it beats it by 60%
-                    if model_result  > (validation_params['epochs'] * .60):
+                    if model_result > validation_params['epochs']:
                         # save weights as new baseline, otherwise keep training.
                         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                         torch.save(actor.state_dict(), new_baseline_path)
-                        # load new villain
-                        villain = load_villain(seed,nS,nA,nB,network_params,learning_params['device'],training_params['baseline_path'])
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
