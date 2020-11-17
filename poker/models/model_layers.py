@@ -61,6 +61,7 @@ class NetworkFunctions(object):
         int_actions[actions_le_3] = actions[actions_le_3]
         return int_actions,int_betsizes
 
+    @lru_cache(maxsize=30)
     def unwrap_action(self,action:torch.Tensor,previous_action:torch.Tensor):
         """
         Unwraps flat action into action_category and betsize_category
@@ -138,6 +139,9 @@ class ProcessHandBoard(nn.Module):
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
         # self.hand_out = nn.Linear(128,256) #params['lstm_in'] // 3)
+
+    def set_device(self,device):
+        self.device = device
 
     def forward(self,x):
         """
@@ -267,26 +271,6 @@ class ProcessContinuous(nn.Module):
             emb_odds = emb_odds.unsqueeze(0)
         return torch.stack((emb_pot,emb_call,emb_stack,emb_odds),dim=-1).view(B,M,-1)
 
-class EncoderAttention(nn.Module):
-    def __init__(self,in_size,lstm_out):
-        super().__init__()
-        self.context_nn = nn.Linear(lstm_out,in_size)
-        
-    def forward(self,x,hidden_states):
-        context = self.context_nn(hidden_states)
-        scores = F.softmax(context,dim=-1)
-        return scores * x
-
-class VectorAttention(nn.Module):
-    def __init__(self,in_size):
-        super().__init__()
-        self.context_nn = nn.Linear(in_size,in_size)
-        
-    def forward(self,x):
-        context = self.context_nn(x)
-        scores = F.softmax(context,dim=-1)
-        return scores * x
-
 class PreProcessLayer(nn.Module):
     def __init__(self,params,critic=False):
         super().__init__()
@@ -299,6 +283,10 @@ class PreProcessLayer(nn.Module):
         self.hand_board = ProcessHandBoard(params,hand_length)
         self.continuous = ProcessContinuous(critic,params)
         self.ordinal = ProcessOrdinal(critic,params)
+
+    def set_device(self,device):
+        self.device = device
+        self.hand_board.set_device(device)
         
     def forward(self,x):
         B,M,C = x.size()
@@ -339,6 +327,9 @@ class GaussianNoise(nn.Module):
         self.is_relative_detach = is_relative_detach
         self.noise = torch.tensor(0).float().to(device)
 
+    def set_device(self,device):
+        self.noise = self.noise.to(device)
+
     def forward(self, x):
         if self.training and self.sigma != 0:
             #x = x.cpu()
@@ -346,6 +337,26 @@ class GaussianNoise(nn.Module):
             sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
             x = x + sampled_noise
         return x#.cuda()
+
+class EncoderAttention(nn.Module):
+    def __init__(self,in_size,lstm_out):
+        super().__init__()
+        self.context_nn = nn.Linear(lstm_out,in_size)
+        
+    def forward(self,x,hidden_states):
+        context = self.context_nn(hidden_states)
+        scores = F.softmax(context,dim=-1)
+        return scores * x
+
+class VectorAttention(nn.Module):
+    def __init__(self,in_size):
+        super().__init__()
+        self.context_nn = nn.Linear(in_size,in_size)
+        
+    def forward(self,x):
+        context = self.context_nn(x)
+        scores = F.softmax(context,dim=-1)
+        return scores * x
 
 class Embedder(nn.Module):
     def __init__(self,vocab_size,d_model):
