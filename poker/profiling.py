@@ -7,8 +7,8 @@ import os
 from pymongo import MongoClient
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
 import time
-import cProfile
 
 from db import MongoDB
 from poker_env.config import Config
@@ -20,10 +20,23 @@ from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,
 from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
 
-
-
 if __name__ == "__main__":
     import argparse
+
+    parser = argparse.ArgumentParser(
+        description=
+        """
+        Profiling all the function calls
+        """)
+
+    parser.add_argument('--function','-f',
+                        dest='function',
+                        default='dual',
+                        metavar="['generate','learn','train','env']",
+                        type=str,
+                        help='which function to call')
+
+    args = parser.parse_args()
 
     config = Config()
     game_object = pdt.Globals.GameTypeDict[pdt.GameTypes.OMAHAHI]
@@ -55,10 +68,15 @@ if __name__ == "__main__":
     network_params['device'] = device
     training_params = {
         'training_epochs':1,
-        'generate_epochs':11,
+        'generate_epochs':10,
         'training_round':0,
-        'game':pdt.GameTypes.OMAHAHI,
-        'id':0
+        'game':'Omaha',
+        'rank':0,
+        'save_every':max(100 // 4,1),
+        'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+        'actor_path':config.agent_params['actor_path'],
+        'critic_path':config.agent_params['critic_path'],
+        'baseline_path':config.baseline_path
     }
     learning_params = {
         'training_round':0,
@@ -82,6 +100,7 @@ if __name__ == "__main__":
         Bettype: {env_params["bet_type"]},\
         Betsizes: {env_params["betsizes"]}')
     # print(f'Evaluating {args.network_type}')
+    rank = 0
     actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
     critic = OmahaBatchObsQCritic(seed,nS,nA,nB,network_params).to(device)
     target_actor = OmahaActor(seed,nS,nA,nB,network_params).to(device)
@@ -95,28 +114,38 @@ if __name__ == "__main__":
     learning_params['actor_lrscheduler'] = actor_lrscheduler
     learning_params['critic_lrscheduler'] = critic_lrscheduler
     # Clean mongo
-    # mongo = MongoDB()
-    # mongo.clean_db()
-    # mongo.close()
-    # Check env steps
-    # test generate
+    mongo = MongoDB()
+    mongo.clean_db()
+    mongo.close()
+    print(args)
+    # times = []
+    # for i,val in enumerate([1,2,5,10,25,50]):
+    #     print(f'Generating {val} samples')
+    #     tic = time.time()
+    #     training_params['generate_epochs'] = val
+    #     train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+    #     toc = time.time()
+    #     print(f'{val} samples took {toc-tic} seconds')
+    #     times.append(toc-tic)
+    #     mongo = MongoDB()
+    #     mongo.clean_db()
+    #     mongo.close()
+    # plt.scatter([1,2,5,10,25,50],[0.26,0.73,1.75,3,7.9,14.5])
+    # plt.savefig(f'generate_times.png',bbox_inches='tight')
     tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
-        cProfile.run('train_dual(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params,id=0)')
-        # dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
-        # generate_trajectories(env,actor,critic,training_params,id=0)
+        if args.function == 'train':
+            train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+        elif args.function == 'learn':
+            dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        elif args.function == 'generate':
+            generate_trajectories(env,actor,critic,training_params,rank=0)
+        else:
+            with torch.no_grad():
+                for i in range(100):
+                    state,obs,done,action_mask,betsize_mask = env.reset()
+                    while not done:
+                        actor_outputs = actor(state,action_mask,betsize_mask)
+                        state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
     print(f'Computation took {time.time() - tic} seconds')
     print(prof)
-
-
-    # test env
-    # tic = time.time()
-    # with profiler.profile(record_shapes=True) as prof:
-    #     with torch.no_grad():
-    #         for i in range(100):
-    #             state,obs,done,action_mask,betsize_mask = env.reset()
-    #             while not done:
-    #                 actor_outputs = actor(state,action_mask,betsize_mask)
-    #                 state,obs,done,action_mask,betsize_mask = env.step(actor_outputs)
-    # print(f'Computation took {time.time() - tic} seconds')
-    # print(prof)

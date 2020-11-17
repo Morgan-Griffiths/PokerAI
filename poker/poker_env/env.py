@@ -1,4 +1,5 @@
 import copy
+from functools import cached_property,lru_cache
 import numpy as np
 from random import shuffle
 import poker_env.datatypes as pdt
@@ -12,6 +13,19 @@ last_position: int list of positions. last position is the null position. Used f
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
+
+# local vars for speedup
+ACTION_OFFSET = pdt.Action.OFFSET
+ACTION_UNOPENED = pdt.Action.UNOPENED
+ACTION_RAISE = pdt.Action.RAISE
+ACTION_BET = pdt.Action.BET
+ACTION_FOLD = pdt.Action.FOLD
+ACTION_CALL = pdt.Action.CALL
+ACTION_CHECK = pdt.Action.CHECK
+STREET_PREFLOP = pdt.Street.PREFLOP
+STREET_RIVER = pdt.Street.RIVER
+BLIND_POSTED = pdt.Blind.POSTED
+NO_BLIND = pdt.Blind.NO_BLIND
 
 class Poker(object):
     def __init__(self,params):
@@ -54,34 +68,34 @@ class Poker(object):
         self.board[:len(starting_board_cards)] = starting_board_cards
         
     def update_board(self):
-        assert(self.street > pdt.Street.PREFLOP and self.street <= pdt.Street.RIVER), f'Street is outside bounds {self.street}'
+        assert(self.street > STREET_PREFLOP and self.street <= STREET_RIVER), f'Street is outside bounds {self.street}'
         new_board_cards = flatten(self.deck.deal_board(self.street))
         start,end = pdt.Globals.BOARD_UPDATE[self.street]
         self.board[start:end] = new_board_cards
         
-    def reset(self):
+    def reset(self,preset_deck=[]):
         self.global_states.reset()
         self.current_index.reset()
         self.last_aggressor.reset()
         self.players_remaining = self.n_players
-        self.deck = Deck()
+        self.deck = Deck(preset_deck)
         if self.to_shuffle:
             self.deck.shuffle()
         self.street = self.starting_street
         # Pot
         self.pot = self.starting_pot
-        # Board
-        self.initialize_board()
         # Players
         self.players.reset()
         # Hands
         hands = self.deck.deal(self.cards_per_player*self.n_players)
         self.players.initialize_hands(hands)
+        # Board
+        self.initialize_board()
         # Blinds
         if self.starting_street == pdt.Street.PREFLOP:
             self.instantiate_blinds()
         else:
-            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=0)
+            self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=0)
         # Generate state and masks
         state,obs = self.return_state()
         action_mask,betsize_mask = self.return_masks(state)
@@ -92,11 +106,11 @@ class Poker(object):
     def instantiate_blinds(self):
         """Passed predetermined values to update state, until the desired state is reached"""
         SB_post = 0.5
-        SB_action = pdt.Action.BET
-        self.update_state(SB_action,SB_post,blind=pdt.Blind.POSTED)
+        SB_action = ACTION_BET
+        self.update_state(SB_action,SB_post,blind=BLIND_POSTED)
         BB_post = 1.
-        BB_action = pdt.Action.RAISE
-        self.update_state(BB_action,BB_post,blind=pdt.Blind.POSTED)
+        BB_action = ACTION_RAISE
+        self.update_state(BB_action,BB_post,blind=BLIND_POSTED)
     
     def step(self,inputs):
         """
@@ -105,7 +119,7 @@ class Poker(object):
         """
         assert isinstance(inputs['action_category'],int)
         assert isinstance(inputs['betsize'],int)
-        action = inputs['action_category'] + pdt.Action.OFFSET
+        action = inputs['action_category'] + ACTION_OFFSET
         betsize = self.return_betsize(action,inputs['betsize'])
         self.update_state(action,betsize)
         if self.round_over():
@@ -129,15 +143,15 @@ class Poker(object):
             temp_index.increment()
         return flatten(player_data)
     
-    def update_state(self,action,betsize,blind=pdt.Blind.NO_BLIND):
+    def update_state(self,action,betsize,blind=NO_BLIND):
         """Updates the global state. Appends the new global state to storage"""
-        if blind != pdt.Blind.POSTED:
+        if blind != BLIND_POSTED:
             self.players_remaining -= 1
-        if (action == pdt.Action.RAISE or action == pdt.Action.BET):
+        if (action == ACTION_RAISE or action == ACTION_BET):
             self.last_aggressor.update_aggression(self.current_index.value(),action,betsize)
-            if blind != pdt.Blind.POSTED:
+            if blind != BLIND_POSTED:
                 self.players_remaining = self.players.num_active_players - 1 # Current active player won't act again unless action is reopened
-        elif action == pdt.Action.FOLD:
+        elif action == ACTION_FOLD:
             self.players.update_status(self.current_player,Status.FOLDED)
         self.pot += betsize
         self.players.update_stack(-betsize,self.current_player)
@@ -169,7 +183,7 @@ class Poker(object):
     
     def increment_street(self):
         self.street += 1
-        assert not self.street > pdt.Street.RIVER,'Street is greater than river'
+        assert not self.street > STREET_RIVER,'Street is greater than river'
         # clear previous street totals
         self.players.reset_street_totals()
         # update board
@@ -178,13 +192,13 @@ class Poker(object):
         self.players_remaining = self.players.num_active_players
         self.street_starting_index()
         self.last_aggressor.next_street(self.street)
-        self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
+        self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=NO_BLIND)
         # Fast forward to river if allin
         if self.players.to_showdown:
-            for _ in range(pdt.Street.RIVER - self.street):
+            for _ in range(STREET_RIVER - self.street):
                 self.street += 1
                 self.update_board()
-            self.store_global_state(last_position=self.dealer_position,last_action=pdt.Action.UNOPENED,last_betsize=0,blind=pdt.Blind.NO_BLIND)
+            self.store_global_state(last_position=self.dealer_position,last_action=ACTION_UNOPENED,last_betsize=0,blind=NO_BLIND)
 
     def street_starting_index(self):
         self.current_index.next_street(self.street)
@@ -228,12 +242,12 @@ class Poker(object):
         return actives
     
     def round_over(self):
-        if self.players_remaining == 0 and self.street != pdt.Street.RIVER and self.players.num_folded_players != self.n_players - 1:
+        if self.players_remaining == 0 and self.street != STREET_RIVER and self.players.num_folded_players != self.n_players - 1:
             return True
         return False
     
     def game_over(self):
-        if (self.players_remaining == 0 and self.street == pdt.Street.RIVER) or (self.players.num_folded_players == self.n_players - 1):
+        if (self.players_remaining == 0 and self.street == STREET_RIVER) or (self.players.num_folded_players == self.n_players - 1):
             return True
         return False
     
@@ -282,14 +296,14 @@ class Poker(object):
         betsize includes player totals.
         returns categorical betsize, and flat action category
         """
-        actionOffset = action + pdt.Action.OFFSET
+        actionOffset = action + ACTION_OFFSET
         category = np.zeros(self.action_space + self.betsize_space - 2)
         bet_category = np.zeros(self.betsize_space)
-        if actionOffset == pdt.Action.FOLD or actionOffset == pdt.Action.CHECK or actionOffset == pdt.Action.CALL: # fold check call
+        if actionOffset == ACTION_FOLD or actionOffset == ACTION_CHECK or actionOffset == ACTION_CALL: # fold check call
             category[action] = 1
             bet_category[0] = 1
-        elif actionOffset == pdt.Action.RAISE:
-            if self.global_states.last_aggressive_action == pdt.Action.RAISE:
+        elif actionOffset == ACTION_RAISE:
+            if self.global_states.last_aggressive_action == ACTION_RAISE:
                 min_raise = min((self.players[self.current_player].stack+self.players[self.current_player].street_total),max(2,(2*self.players[self.last_aggressor.key].street_total) - self.players[self.current_player].street_total))
             else:
                 min_raise = 2 * self.global_states.last_aggressive_betsize
@@ -320,7 +334,7 @@ class Poker(object):
         possible_betsizes = np.zeros((self.num_betsizes))
         if self.global_states.last_aggressive_betsize > 0:
             # Facing a Raise
-            if self.global_states.last_aggressive_action == pdt.Action.RAISE:
+            if self.global_states.last_aggressive_action == ACTION_RAISE:
                 last_betsize = self.players[self.last_aggressor.key].street_total - self.players[self.current_player].street_total
             else:
                 last_betsize = self.global_states.last_aggressive_betsize
@@ -332,7 +346,7 @@ class Poker(object):
                     possible_betsizes[i] = 1
                     if i == 0 and min_raise >= self.players[self.current_player].stack or max_raise * betsize >= self.players[self.current_player].stack:
                         break
-        elif self.global_states.last_aggressive_action == pdt.Action.UNOPENED or self.global_states.last_aggressive_action == pdt.Action.CHECK:
+        elif self.global_states.last_aggressive_action == ACTION_UNOPENED or self.global_states.last_aggressive_action == ACTION_CHECK:
             for i,betsize in enumerate(self.betsizes,0):
                 possible_betsizes[i] = 1
                 if betsize * self.pot >= self.players[self.current_player].stack:
@@ -344,11 +358,11 @@ class Poker(object):
         """TODO Betsizes should be indexed by street"""
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Action.CALL:
+        if action == ACTION_CALL:
             betsize = min(self.players[self.current_player].stack,self.players[self.last_aggressor.key].street_total - self.players[self.current_player].street_total)
-        elif action == pdt.Action.BET:
+        elif action == ACTION_BET:
             betsize = min(1,self.players[self.current_player].stack)
-        elif action == pdt.Action.RAISE: # Raise can be more than 2 with multiple people
+        elif action == ACTION_RAISE: # Raise can be more than 2 with multiple people
             betsize = min(self.players[self.last_aggressor.key].street_total+1,self.players[self.current_player].stack) - self.players[self.current_player].street_total
         else: # fold or check
             betsize = 0
@@ -363,12 +377,12 @@ class Poker(object):
         """
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Action.CALL:
+        if action == ACTION_CALL:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
-        elif action == pdt.Action.BET: # Bet
+        elif action == ACTION_BET: # Bet
             betsize_value = self.betsizes[betsize_category] * self.pot
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
-        elif action == pdt.Action.RAISE: # Raise
+        elif action == ACTION_RAISE: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
             betsize_value = self.betsizes[betsize_category] * max_raise
             previous_bet = self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total
@@ -381,12 +395,12 @@ class Poker(object):
         """TODO Betsize_category in POTLIMIT is a float [0,1] representing fraction of pot"""
         assert isinstance(action,int)
         assert isinstance(betsize_category,int)
-        if action == pdt.Action.CALL:
+        if action == ACTION_CALL:
             betsize = min(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,self.players[self.current_player].stack)
-        elif action == pdt.Action.BET: # Bet
+        elif action == ACTION_BET: # Bet
             betsize_value = self.betsizes[betsize_category] * self.pot
             betsize = min(max(1,betsize_value),self.players[self.current_player].stack)
-        elif action == pdt.Action.RAISE: # Raise
+        elif action == ACTION_RAISE: # Raise
             max_raise = (2 * self.players[self.last_aggressor.key].street_total) + (self.pot - self.players[self.current_index.key].street_total)
             # min_raise = min(2,self.players[self.current_player].stack)
             previous_bet = max(self.players[self.last_aggressor.key].street_total - self.players[self.current_index.key].street_total,1)
@@ -413,21 +427,26 @@ class Poker(object):
         return self.players[self.current_player].stack
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def action_space(self):
         return 5
-    
+
     @property
+    @lru_cache(maxsize=1,typed=False)
     def state_space(self):
         return 31 + self.n_players * 4
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def betsize_space(self):
         return len(self.betsizes)
     
     @property
+    @lru_cache(maxsize=1,typed=False)
     def observation_space(self):
         return 21 + self.n_players * 4 + self.n_players * 10
 
     @property
+    @lru_cache(maxsize=1,typed=False)
     def global_space(self):
         return 21 + self.n_players * 4
