@@ -187,13 +187,9 @@ if __name__ == "__main__":
     if not args.resume:
         clean_folder(training_params['critic_path'])	        
         clean_folder(training_params['actor_path'])
-    # Clean mongo
-    mongo = MongoDB()
-    mongo.clean_db()
-    mongo.close()
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),6)
+    num_processes = min(mp.cpu_count(),3)
     print(f'Number of used processes {num_processes}')
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
@@ -256,12 +252,20 @@ if __name__ == "__main__":
         # generate_trajectories(env,actor,critic,training_params,id=0)
         # actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         if args.single:
-            train_dual(0,env,villain,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
+            train_dual(0,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
         else:
             actor.share_memory()
             critic.share_memory()
             for e in range(training_params['lr_steps']):
+                # Clean mongo
+                mongo = MongoDB()
+                mongo.clean_db()
+                mongo.close()
+                now = datetime.datetime.now()
+                print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
+                tic = time.time()
                 mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
+                print(f'Training completed in {(toc-tic)/60} minutes') 	    
                 learning_params['actor_lrscheduler'].step()
                 learning_params['critic_lrscheduler'].step()
                 training_params['training_round'] = (e+1) * training_params['training_epochs']
@@ -272,11 +276,11 @@ if __name__ == "__main__":
                     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
                     print(f'model_result {model_result}')
                     print_stats(stats)
-                    # if it beats it by 60%
+                    # if it beats it by x%
                     if model_result > validation_params['epochs']:
                         # save weights as new baseline, otherwise keep training.
                         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                        torch.save(actor.state_dict(), new_baseline_path)
+                        torch.save(actor.state_dict(), new_baseline_path)toc = time.time()
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))

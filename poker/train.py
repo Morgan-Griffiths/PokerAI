@@ -189,10 +189,10 @@ def combined_learning_update(model,params):
     mongo.close()
     return model,params
 
-def dual_learning_update(actor,critic,target_actor,target_critic,params):
+def dual_learning_update(actor,critic,target_actor,target_critic,params,rank):
     mongo = MongoDB()
     actor.train()
-    query = {'training_round':params['training_round']}
+    query = {'training_round':params['training_round'],'rank':rank}
     projection = {'obs':1,'state':1,'betsize_mask':1,'action_mask':1,'action':1,'reward':1,'_id':0}
     data = mongo.get_data(query,projection)
     for i in range(params['learning_rounds']):
@@ -265,12 +265,12 @@ def train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
         # train on trajectories
-        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
+        actor,critic,learning_params = dual_learning_update(actor,critic,target_actor,target_critic,learning_params,rank)
         if rank == 0:
             sys.stdout.write('\r')
             sys.stdout.write("[%-60s] %d%%" % ('='*(60*(e+1)//training_params['training_epochs']), (100*(e+1)//training_params['training_epochs'])))
             sys.stdout.flush()
-            sys.stdout.write(f", epoch {(e+1):.2f}, Training round {training_params['training_round']}, RANK: {rank}")
+            sys.stdout.write(f", epoch {(e+1):.2f}")
             sys.stdout.flush()
         training_params['training_round'] += 1
         learning_params['training_round'] += 1
