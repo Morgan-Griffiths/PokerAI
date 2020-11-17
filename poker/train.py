@@ -258,16 +258,6 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
-    gpu = rank % 2
-    actor = actor.to(gpu)
-    critic = critic.to(gpu)
-    target_actor = target_actor.to(gpu)
-    target_critic = target_critic.to(gpu)
-    actor.set_device(gpu)
-    critic.set_device(gpu)
-    target_actor.set_device(gpu)
-    target_critic.set_device(gpu)
-    learning_params['device'] = gpu
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
             villain = load_villain(learning_params['device'],network_params,training_params['baseline_path'])
