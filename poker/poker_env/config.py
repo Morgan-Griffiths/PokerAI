@@ -1,21 +1,22 @@
 import os
 import numpy as np
+import torch.tensor as T
 from poker_env.datatypes import GameTypes
 
 class Config(object):
     def __init__(self):
         self.act_dict = {'SB':0,'BB':1}
         self.agent = 'actor_critic'
-        self.maxlen = 10
+        self.maxlen = 20
         self.baseline_path = os.path.join(os.getcwd(),'checkpoints/baselines')
         self.production_actor = os.path.join(os.getcwd(),'checkpoints/production/OmahaActorFinal')
         self.production_critic = os.path.join(os.getcwd(),'checkpoints/production/OmahaCriticFinal')
         self.training_params = {
-                'epochs':2500,
-                'training_round':0,
-                'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
-                'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
-                'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
+            'epochs':2500,
+            'training_round':0,
+            'save_dir':os.path.join(os.getcwd(),'checkpoints/training_run'),
+            'actor_path':os.path.join(os.getcwd(),'checkpoints/training_run/actor'),
+            'critic_path':os.path.join(os.getcwd(),'checkpoints/training_run/critic'),
             }
         self.agent_params = {
             'BUFFER_SIZE':10000,
@@ -38,7 +39,7 @@ class Config(object):
             'actor_network':None,
             'critic_type':'q',
             'embedding_size': 32,
-            'actor_lr':3e-5,
+            'actor_lr':3e-6,
             'critic_lr':3e-4,
             'frozen_layer_path' : os.path.join(os.getcwd(),'checkpoints/PartialHandRegression'),
             'frozen_layer' : False,
@@ -105,8 +106,8 @@ class Config(object):
             'player3_stacksize':40,
             'player3_street_total':41,
             'player3_status':42,
-            'ordinal': [0,20,21,22,23,24,25,27,30,31,34],
-            'continuous': [1,23,26,28,29,32,33],
+            'ordinal': [0,20,21,22,24,25,27,31,34],
+            'continuous': [1,23,26,28,29,30,32,33],
             'hand_board':[2,3,4,5,6,7,8,9] + [10,11,12,13,14,15,16,17,18,19]
         }
         self.obs_mapping = {
@@ -142,8 +143,8 @@ class Config(object):
             'player2_stacksize':46,
             'player2_street_total':47,
             'player2_status':48,
-            'ordinal': [0,10,30,31,32,34,35,37,40,41,44],
-            'continuous': [1,23,25,26,28,29,31,32,36,38,39,42,43],
+            'ordinal': [0,10,30,31,32,34,35,37,41,44],
+            'continuous': [1,11,33,36,38,39,40,42,43],
             'hand_board':[2,3,4,5,6,7,8,9] + [20,21,22,23,24,25,26,27,28,29],
             'villain_board':[12,13,14,15,16,17,18,19] + [20,21,22,23,24,25,26,27,28,29],
             'hands_and_board':[2,3,4,5,6,7,8,9] + [12,13,14,15,16,17,18,19] + [20,21,22,23,24,25,26,27,28,29],
@@ -154,10 +155,15 @@ class Config(object):
             'state_mapping':self.state_mapping,
             'obs_mapping':self.obs_mapping,
             'embedding_size':128,
-            'transformer_in':352,
+            'transformer_in':384,
             'transformer_out':128,
-            'lstm_in':352,
+            'lstm_in':384,
             'lstm_out':128,
+            'actor_lr':3e-6,
+            'critic_lr':3e-4,
+            'epsilon':5e-2,
+            'epsilon_weights':T([0.2,0.2,0.2,0.2,0.2]),
+            'L2': 0.01,
             'actor_hand_recognizer_path'  : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights'),
             'critic_hand_recognizer_path' : os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights')
         }

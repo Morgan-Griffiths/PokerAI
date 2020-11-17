@@ -8,7 +8,7 @@ from poker_env.datatypes import Action
 from models.model_utils import padding_index,count_parameters
 from models.buffers import PriorityReplayBuffer,PriorityTree
 
-from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessPokerInputs,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
+from models.model_layers import EncoderAttention,VectorAttention,Embedder,GaussianNoise,PreProcessLayer,CTransformer,NetworkFunctions,IdentityBlock
 from models.model_utils import mask_,hard_update,combined_masks,norm_frequencies,strip_padding,copy_weights
 
 class BetAgent(object):
@@ -18,7 +18,7 @@ class BetAgent(object):
     def name(self):
         return 'baseline_evaluation'
 
-    def __call__(self,state,action_mask,betsize_mask):
+    def __call__(self,state,action_mask,betsize_mask,target=False):
         if betsize_mask.sum() > 0:
             action = np.argmax(betsize_mask,axis=-1) + 3
         else:
@@ -53,7 +53,7 @@ class HoldemBaseline(Network):
         self.combined_output = nA - 2 + nB
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
-        self.process_input = PreProcessPokerInputs(params)
+        self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
@@ -111,7 +111,7 @@ class HoldemBaselineCritic(Network):
         # self.seed = torch.manual_seed(seed)
         self.mapping = params['mapping']
 
-        self.process_input = PreProcessPokerInputs(params,critic=True)
+        self.process_input = PreProcessLayer(params,critic=True)
         self.fc1 = nn.Linear(304,hidden_dims[0])
         self.fc2 = nn.Linear(hidden_dims[0],hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1],nA)
@@ -166,7 +166,7 @@ class HoldemQCritic(Network):
         self.nO = nO
         self.nA = nA
         
-        self.process_input = PreProcessPokerInputs(params)
+        self.process_input = PreProcessLayer(params)
         self.maxlen = params['maxlen']
         self.mapping = params['mapping']
         emb = 1248
@@ -196,7 +196,6 @@ class HoldemQCritic(Network):
 ################################################
 #                Omaha Networks                #
 ################################################
-
 
 class OmahaBatchActor(Network):
     def __init__(self,seed,nS,nA,nB,params,hidden_dims=(64,64),activation=F.leaky_relu):
@@ -309,6 +308,8 @@ class OmahaActor(Network):
         self.helper_functions = NetworkFunctions(self.nA,self.nB)
         self.maxlen = params['maxlen']
         self.device = params['device']
+        self.epsilon = params['epsilon']
+        self.epsilon_weights = params['epsilon_weights'].to(self.device)
         self.process_input = PreProcessLayer(params)
         
         # self.seed = torch.manual_seed(seed)
@@ -326,51 +327,54 @@ class OmahaActor(Network):
         #     IdentityBlock(hidden_dims=(2560,2560,512),activation=F.leaky_relu),
         #     IdentityBlock(hidden_dims=(512,512,256),activation=F.leaky_relu),
         # )
-        self.fc_final = nn.Linear(2560,self.combined_output)
-        self.dropout = nn.Dropout(0.5)
-        
-    def forward(self,state,action_mask,betsize_mask):
+        self.fc_final = nn.Linear(5120,self.combined_output)
+
+    def forward(self,state,action_mask,betsize_mask,target=False):
         """
         state: B,M,39
         """
-        x = state
-        if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32).to(self.device)
-            action_mask = torch.tensor(action_mask,dtype=torch.float).to(self.device)
-            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float).to(self.device)
+        if not isinstance(state,torch.Tensor):
+            state = torch.tensor(state,dtype=torch.float32).to(self.device)
+            action_mask = torch.tensor(action_mask,dtype=torch.float32).to(self.device)
+            betsize_mask = torch.tensor(betsize_mask,dtype=torch.float32).to(self.device)
         mask = combined_masks(action_mask,betsize_mask)
-        out = self.process_input(x)
-        B,M,c = out.size()
-        n_padding = self.maxlen - M
-        if n_padding < 0:
-            h = out[:,-self.maxlen:,:]
+        if target and np.random.random() < self.epsilon:
+            B = state.size(0)
+            # pick random legal move
+            action_masked = self.epsilon_weights * mask
+            action_probs =  action_masked / action_masked.sum(-1).unsqueeze(-1)
+            action = action_probs.multinomial(num_samples=1, replacement=False)
+            action_prob = torch.zeros(B,1)
         else:
-            padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
-            h = torch.cat((padding,out),dim=1)
-        lstm_out,hidden_states = self.lstm(h)
-        norm = self.batchnorm(lstm_out)
-        # self.attention(out)
-        # blocks_out = self.blocks(lstm_out.view(-1))
-        t_logits = self.fc_final(norm.view(B,-1))
-        category_logits = self.noise(t_logits)
-        # skip connection
-        # category_logits += h
-        action_soft = F.softmax(category_logits,dim=-1)
-        # if torch.cuda.is_available():
-        #     action_probs = norm_frequencies(action_soft,mask.cuda())
-        #     previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).cuda()#.to(self.device)
-        # else:
-        action_probs = norm_frequencies(action_soft,mask)
+            out = self.process_input(state)
+            B,M,c = state.size()
+            n_padding = self.maxlen - M
+            if n_padding < 0:
+                h = out[:,-self.maxlen:,:]
+            else:
+                padding = torch.zeros(B,n_padding,out.size(-1)).to(self.device)
+                h = torch.cat((padding,out),dim=1)
+            lstm_out,hidden_states = self.lstm(h)
+            norm = self.batchnorm(lstm_out)
+            # self.attention(out)
+            # blocks_out = self.blocks(lstm_out.view(-1))
+            t_logits = self.fc_final(norm.view(B,-1))
+            category_logits = self.noise(t_logits)
+            # skip connection
+            # category_logits += h
+            action_soft = F.softmax(category_logits,dim=-1)
+            action_probs = norm_frequencies(action_soft,mask)
+            m = Categorical(action_probs)
+            action = m.sample()
+            action_prob = m.log_prob(action)
         previous_action = torch.as_tensor(state[:,-1,self.state_mapping['last_action']]).to(self.device)
-        m = Categorical(action_probs)
-        action = m.sample()
         action_category,betsize_category = self.helper_functions.batch_unwrap_action(action,previous_action)
         if B > 1:
             # batch training
             outputs = {
                 'action':action,
                 'action_category':action_category,
-                'action_prob':m.log_prob(action),
+                'action_prob':action_prob,
                 'action_probs':action_probs,
                 'betsize':betsize_category
                 }
@@ -379,7 +383,7 @@ class OmahaActor(Network):
             outputs = {
                 'action':action.item(),
                 'action_category':action_category.item(),
-                'action_prob':m.log_prob(action),
+                'action_prob':action_prob,
                 'action_probs':action_probs,
                 'betsize':betsize_category.item()
                 }
@@ -436,7 +440,6 @@ class OmahaObsQCritic(Network):
         self.mapping = params['state_mapping']
         self.device = params['device']
         # self.emb = params['embedding_size']
-        # self.lstm = nn.LSTM(1280, 128)
         emb = params['transformer_in']
         n_heads = 8
         depth = 2
@@ -446,10 +449,9 @@ class OmahaObsQCritic(Network):
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
     def forward(self,obs):
-        x = obs
-        if not isinstance(x,torch.Tensor):
-            x = torch.tensor(x,dtype=torch.float32)#.to(self.device)
-        out = self.process_input(x)
+        if not isinstance(obs,torch.Tensor):
+            obs = torch.tensor(obs,dtype=torch.float32).to(self.device)
+        out = self.process_input(obs)
         # context = self.attention(out)
         q_input = self.transformer(out)
         a = self.advantage_output(q_input)

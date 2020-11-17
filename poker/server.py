@@ -59,7 +59,7 @@ class API(object):
     def instantiate_network_params(self):
         device = 'cpu'
         network_params = copy.deepcopy(self.config.network_params)
-        network_params['maxlen'] = 10
+        network_params['maxlen'] = self.config.maxlen
         network_params['device'] = device
         return network_params
 
