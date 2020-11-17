@@ -329,6 +329,10 @@ class OmahaActor(Network):
         # )
         self.fc_final = nn.Linear(5120,self.combined_output)
 
+    def set_device(self,device):
+        self.device = device
+        self.process_input.set_device(device)
+
     def forward(self,state,action_mask,betsize_mask,target=False):
         """
         state: B,M,39
@@ -410,6 +414,10 @@ class OmahaQCritic(Network):
         self.value_output = nn.Linear(params['transformer_out'],1)
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
+    def set_device(self,device):
+        self.device = device
+        self.process_input.set_device(device)
+        
     def forward(self,state):
         x = torch.tensor(state,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
