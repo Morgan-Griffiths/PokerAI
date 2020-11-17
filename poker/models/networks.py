@@ -417,7 +417,7 @@ class OmahaQCritic(Network):
     def set_device(self,device):
         self.device = device
         self.process_input.set_device(device)
-        
+
     def forward(self,state):
         x = torch.tensor(state,dtype=torch.float32).to(self.device)
         out = self.process_input(x)
@@ -456,6 +456,10 @@ class OmahaObsQCritic(Network):
         self.value_output = nn.Linear(params['transformer_out'],1)
         self.advantage_output = nn.Linear(params['transformer_out'],self.combined_output)
 
+    def set_device(self,device):
+        self.device = device
+        self.process_input.set_device(device)
+        
     def forward(self,obs):
         if not isinstance(obs,torch.Tensor):
             obs = torch.tensor(obs,dtype=torch.float32).to(self.device)
