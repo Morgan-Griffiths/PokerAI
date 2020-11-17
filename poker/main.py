@@ -232,8 +232,8 @@ if __name__ == "__main__":
         if args.resume:
             latest_actor_path = return_latest_training_model_path(training_params['actor_path'])
             latest_critic_path = return_latest_training_model_path(training_params['critic_path'])
-            load_weights(actor,latest_actor_path,rank,ddp=False)
-            load_weights(critic,latest_critic_path,rank,ddp=False)
+            load_weights(actor,latest_actor_path,0,ddp=False)
+            load_weights(critic,latest_critic_path,0,ddp=False)
         elif args.frozen:
             # Load pretrained hand recognizer
             copy_weights(actor,network_params['actor_hand_recognizer_path'])
