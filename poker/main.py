@@ -54,7 +54,7 @@ if __name__ == "__main__":
                         help='Number of training rounds')
     parser.add_argument('--valepochs','-ve',
                         dest='valepochs',
-                        default=1000,
+                        default=2000,
                         type=int,
                         help='Number of validation rounds')
     parser.add_argument('--generate','-g',
