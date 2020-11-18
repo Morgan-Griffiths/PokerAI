@@ -265,7 +265,7 @@ if __name__ == "__main__":
                 print (f'Current date and time : {now.strftime("%Y-%m-%d %H:%M:%S")}')
                 tic = time.time()
                 mp.spawn(train_dual,args=(env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params),nprocs=num_processes)
-                print(f'Training completed in {(toc-tic)/60} minutes') 	    
+                print(f'Training completed in {(time.time()-tic)/60} minutes') 	    
                 learning_params['actor_lrscheduler'].step()
                 learning_params['critic_lrscheduler'].step()
                 training_params['training_round'] = (e+1) * training_params['training_epochs']
@@ -280,7 +280,7 @@ if __name__ == "__main__":
                     if model_result > validation_params['epochs']:
                         # save weights as new baseline, otherwise keep training.
                         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
-                        torch.save(actor.state_dict(), new_baseline_path)toc = time.time()
+                        torch.save(actor.state_dict(), new_baseline_path)
         # save weights
         torch.save(actor.state_dict(), os.path.join(config.agent_params['actor_path'],'OmahaActorFinal'))
         torch.save(critic.state_dict(), os.path.join(config.agent_params['critic_path'],'OmahaCriticFinal'))
