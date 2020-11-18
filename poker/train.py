@@ -258,9 +258,9 @@ def train_combined(env,model,training_params,learning_params,id):
             torch.save(model.state_dict(), os.path.join(training_params['save_dir'],f'OmahaCombined_{e}'))
 
 def train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params):
+    villain = load_villain(learning_params['device'],network_params,training_params['baseline_path'])
     for e in range(training_params['training_epochs']):
         if validation_params['koth']:
-            villain = load_villain(learning_params['device'],network_params,training_params['baseline_path'])
             generate_vs_frozen(env,target_actor,target_critic,villain,training_params,rank)
         else:
             generate_trajectories(env,target_actor,target_critic,training_params,rank)
