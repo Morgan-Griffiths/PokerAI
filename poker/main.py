@@ -278,6 +278,7 @@ if __name__ == "__main__":
                     print(f'model_result {model_result}')
                     # if it beats it by x%
                     if model_result > validation_params['epochs']:
+                        print(f'Model succeeded, Saving new baseline')
                         # save weights as new baseline, otherwise keep training.
                         new_baseline_path = return_next_baseline_path(training_params['baseline_path'])
                         torch.save(actor.state_dict(), new_baseline_path)
