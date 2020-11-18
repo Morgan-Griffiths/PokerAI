@@ -186,7 +186,7 @@ if __name__ == "__main__":
     # Clean training_run folder
     if not args.resume:
         clean_folder(training_params['critic_path'])	        
-        clean_folder(training_params['actor_path'])
+        clean_folder(training_params['actor_path']) 
     # Set processes
     mp.set_start_method('spawn')
     num_processes = min(mp.cpu_count(),3)
@@ -274,8 +274,8 @@ if __name__ == "__main__":
                     villain = load_villain(learning_params['device'],network_params,training_params['baseline_path'])
                     results,stats = run_tournament(actor,villain,['hero','villain'],validation_params)
                     model_result = (results['hero']['SB'] + results['hero']['BB']) - (results['villain']['SB'] + results['villain']['BB'])
-                    print(f'model_result {model_result}')
                     print_stats(stats)
+                    print(f'model_result {model_result}')
                     # if it beats it by x%
                     if model_result > validation_params['epochs']:
                         # save weights as new baseline, otherwise keep training.
