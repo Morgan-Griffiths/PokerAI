@@ -27,10 +27,26 @@ def grep(pat, txt):
     r = re.search(pat, txt)
     return r.group(0) if r else 1e+10
 
+def return_latest_training_model_path(path):
+    training_paths = load_paths(path)
+    model_type = os.path.basename(path).capitalize()
+    if training_paths:
+        highest_number = 0
+        agents = {}
+        for k,p in training_paths.items():
+            if 'Final' in k:
+                return p
+            number = int(k.split('Omaha'+model_type+'_')[-1])
+            agents[number] = p
+            highest_number = max(highest_number,number)
+        return agents[highest_number]
+    else:
+        raise ValueError('No saved weights to load')
+
 def return_next_baseline_path(path):
     baselines_path = return_latest_baseline_path(path)
     if baselines_path:
-        max_num = path.rsplit('baseline')[-1]
+        max_num = baselines_path.rsplit('baseline')[-1]
         return os.path.join(path,f'baseline{int(max_num)+1}')
     else:
         return os.path.join(path,'baseline1')

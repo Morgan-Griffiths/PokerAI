@@ -3,6 +3,7 @@ import numpy as np
 from prettytable import PrettyTable
 from itertools import combinations
 from utils.cardlib import hand_rank,encode
+from collections import OrderedDict
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -17,9 +18,56 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
-def load_weights(net,path):
+def strip_module(path):
+    state_dict = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k[:7] == 'module.':
+            name = k[7:] # remove `module.`
+            new_state_dict[name] = v
+        else:
+            new_state_dict[k] = v
+    return new_state_dict
+
+def add_module(path):
+    state_dict = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = 'module.'+k
+        new_state_dict[name] = v
+    return new_state_dict
+
+def is_path_ddp(path):
+    is_ddp = False
+    state_dict = torch.load(path)
+    for k in state_dict.keys():
+        if k[:7] == 'module.':
+            is_ddp = True
+        break
+    return is_ddp
+
+def is_net_ddp(net):
+    is_ddp = False
+    for name,param in net.named_parameters():
+        if name[:7] == 'module.':
+            is_ddp = True
+        break
+    return is_ddp
+
+def load_weights(net,path,rank=0,ddp=False):
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     if torch.cuda.is_available():
-        net.load_state_dict(torch.load(path))
+        # check if module is in the dict name
+        if is_net_ddp(net):
+            if not is_path_ddp(path):
+                net.load_state_dict(add_module(path))
+            else:
+                net.load_state_dict(torch.load(path,map_location=map_location))
+        else:
+            if not is_path_ddp(path):
+                net.load_state_dict(torch.load(path,map_location=map_location))
+            else:
+                net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
@@ -106,7 +154,7 @@ def copy_weights(network,path):
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
 
-def soft_update(local,target,device,tau=1e-1):
+def soft_update(local,target,device,tau=5e-2):
     for local_param,target_param in zip(local.parameters(),target.parameters()):
         target_param.data.copy_(tau*local_param.data.to(device) + (1-tau)*target_param.data)
 
@@ -187,7 +235,7 @@ def return_value_mask(actions):
     value_mask = value_mask.bool()
     return value_mask.squeeze(0)
 
-def scale_rewards(reward,min_reward,max_reward,factor=1):
+def scale_rewards(reward,min_reward,max_reward,factor=10):
     """Scales rewards between -1 and 1, with optional factor to increase valuation differences"""
     span = (max_reward - min_reward) / 2
     sub = (max_reward+min_reward) / 2

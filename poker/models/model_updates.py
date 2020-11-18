@@ -264,7 +264,6 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
-    soft_update(critic,target_critic,device)
     # Actor update #
     target_values = target_critic(obs)['value']
     actor_out = actor(np.array(state),np.array(action_mask),np.array(betsize_mask))
@@ -276,7 +275,6 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     policy_loss.backward()
     torch.nn.utils.clip_grad_norm_(actor.parameters(), params['gradient_clip'])
     actor_optimizer.step()
-    soft_update(actor,target_actor,device)
     # print('\nprobs,prob,actor action,original action',actor_out['action_probs'].detach(),actor_out['action_prob'].detach(),actor_out['action'],action)
     # print('\nlocal_values,Q_value',local_values,local_values[value_mask].item())
     # print('\ntarget_values,target_Q_value',target_values,target_values[value_mask].item())
@@ -285,4 +283,3 @@ def update_actor_critic(poker_round,critic,target_critic,actor,target_actor,para
     # print('\nadvantages',advantages)
     # print('\nreward',reward)
     # print('\npolicy_loss',policy_loss)
-    return critic_loss.item(),policy_loss.item()
