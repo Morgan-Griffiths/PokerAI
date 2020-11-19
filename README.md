@@ -61,10 +61,8 @@ Additionally there is a sub library in hand_recognition if you want to test netw
 
 # Using the library
 
-```cd src```
-
-Build the data and all the folders by ```python setup.py```
-
+Build the data and all the folders by ```python setup.py -d```
+Build only the folders by ```python setup.py```
 Build a specific dataset with ```python build_dataset.py -d <dataset>```
 
 Modify poker/models/network_config.py to change which network to train. Add or modify poker/models/networks.py to try different models.
