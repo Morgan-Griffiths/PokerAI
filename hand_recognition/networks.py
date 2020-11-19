@@ -940,10 +940,10 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
-        self.output_layers = nn.ModuleList()
-        for i in range(len(self.output_dims)-1):
-            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(15360,self.nA)
+        # self.output_layers = nn.ModuleList()
+        # for i in range(len(self.output_dims)-1):
+        #     self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.small_category_out = nn.Linear(15361,self.nA)
 
     def forward(self,x):
         x = x.unsqueeze(0)
@@ -979,8 +979,8 @@ class SmalldeckClassification(nn.Module):
         # print(baseline)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
-        for output_layer in self.output_layers:
-            raw_results = self.activation_fc(output_layer(raw_results))
+        # for output_layer in self.output_layers:
+        #     raw_results = self.activation_fc(output_layer(raw_results))
         # (B,M,60,512)
         # o = self.hand_out(raw_results.view(B,M,-1))
         final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
