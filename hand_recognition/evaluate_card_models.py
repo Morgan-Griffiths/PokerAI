@@ -71,7 +71,8 @@ def is_net_ddp(net):
         break
     return is_ddp
 
-def load_weights(net,path,rank=0,ddp=False):
+def load_weights(net,rank=0,ddp=False):
+    path = examine_params['load_path']
     map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     if torch.cuda.is_available():
         # check if module is in the dict name
