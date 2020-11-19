@@ -349,6 +349,7 @@ if __name__ == "__main__":
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
+        'device' : torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
