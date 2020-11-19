@@ -66,7 +66,7 @@ class Globals(object):
         DataTypes.NINECARD:9,
         DataTypes.HANDRANKSFIVE:7463,
         DataTypes.HANDRANKSNINE:7463,
-        DataTypes.SMALLDECK:1820,
+        DataTypes.SMALLDECK:7463,
         DataTypes.BLOCKERS:1,
         DataTypes.THIRTEENCARD:1,
         DataTypes.TENCARD:1,
@@ -81,7 +81,7 @@ class Globals(object):
         DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
-        DataTypes.SMALLDECK: {i:i for i in range(0,1820)},
+        DataTypes.SMALLDECK: {i:i for i in range(1,7463)},
     }
     TARGET_SET = {
         DataTypes.THIRTEENCARD:set(range(-1,2)),
@@ -92,7 +92,7 @@ class Globals(object):
         DataTypes.NINECARD:set(range(9)),
         DataTypes.FIVECARD:set(range(9)),
         DataTypes.BLOCKERS:set(range(2)),
-        DataTypes.SMALLDECK:set(range(0,1820)),
+        DataTypes.SMALLDECK:set(range(1,7463)),
     }
     # 7462-6185 High card
     # 6185-3325 Pair

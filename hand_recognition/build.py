@@ -235,16 +235,26 @@ class CardDataset(object):
         return X,y
 
     def build_smalldeck(self):
-        """Classification on early streets with small deck to test hand+board concept"""
-        smalldeck = []
-        for r in range(2,10):
-            for s in range(1,3):
-                smalldeck.append([r,s])
-        hero_hands = np.array(list(combinations(smalldeck,4)))
-        assert len(hero_hands) == 1820
-        zero_padding = np.zeros((1820,5,2))
-        X = np.concatenate([hero_hands,zero_padding],axis=1).reshape(1820,-1)
-        y = np.arange(1820)
+        """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
+        X = []
+        y = []
+        for _ in range(250):
+            five_hands = straight_flushes()
+            for hand in five_hands:
+                hero_hands = hero_5_cards(hand)
+                for h in hero_hands:
+                    en_hand = [encode(c) for c in h]
+                    X.append(np.transpose(sort_hand(np.transpose(h))))
+                    y.append(rank(en_hand))
+        five_hands = straights()
+        for hand in five_hands:
+            hero_hands = hero_5_cards(hand)
+            for h in hero_hands:
+                en_hand = [encode(c) for c in h]
+                X.append(np.transpose(sort_hand(np.transpose(h))))
+                y.append(rank(en_hand))
+        X = np.stack(X)
+        y = np.stack(y)
         return X,y
         
     def build_hand_ranks_five(self,reduce_suits=True,valset=False):
