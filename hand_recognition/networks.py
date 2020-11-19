@@ -881,6 +881,8 @@ class HandRankClassificationFC(nn.Module):
 
         self.hand_fc = nn.Linear(self.emb_size,32)
         self.board_fc = nn.Linear(self.emb_size,32)
+        self.hand_suit_fc = nn.Linear(self.emb_size,32)
+        self.board_suit_fc = nn.Linear(self.emb_size,32)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -904,15 +906,21 @@ class HandRankClassificationFC(nn.Module):
         emb_ranks = self.rank_emb(ranks) * math.sqrt(self.emb_size)
         emb_suits = self.suit_emb(suits) * math.sqrt(self.emb_size)
         # Split off the hand for one fc, board for other fc
-        hand_emb = emb_ranks[:,:2,:] + emb_suits[:,:2,:]
-        board_emb = emb_ranks[:,2:,:] + emb_suits[:,2:,:]
+        hand_emb = emb_ranks[:,:2,:]# + emb_suits[:,:2,:]
+        board_emb = emb_ranks[:,2:,:] #+ emb_suits[:,2:,:]
+        hand_suit = emb_suits[:,:2,:]
+        board_suit = emb_suits[:,2:,:]
         # hand_ranks_hot = hot_ranks[:,:2,:]
         # board_ranks_hot = hot_ranks[:,2:,:]
         # hand_suits_hot = hot_suits[:,:2,:]
         # board_suits_hot = hot_suits[:,2:,:]
         hand = self.activation_fc(self.hand_fc(hand_emb))
         board = self.activation_fc(self.board_fc(board_emb))
-        x = torch.cat((hand,board),dim=1)
+        hand_suit = self.activation_fc(self.hand_suit_fc(hand_suit))
+        board_suit = self.activation_fc(self.board_suit_fc(board_suit))
+        x_rank = torch.cat((hand,board),dim=1)
+        x_suit = torch.cat((hand_suit,board_suit),dim=1)
+        x = torch.cat((x_rank,x_suit),dim=-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
