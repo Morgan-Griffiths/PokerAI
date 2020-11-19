@@ -12,7 +12,7 @@ import sys
 import copy
 from torch import optim
 from random import shuffle
-from collections import deque
+from collections import deque,OrderedDict
 
 from plot import plot_data
 from data_loader import return_trainloader
