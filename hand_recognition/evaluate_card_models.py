@@ -72,8 +72,6 @@ def train_network(data_dict,agent_params,training_params):
             if training_params['one_hot'] == True:
                 inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
-            print(targets.shape)
-            print(outputs.shape)
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
