@@ -35,11 +35,58 @@ def setup_world(rank,world_size):
 def cleanup():
     dist.destroy_process_group()
 
-def load_weights(net):
+def strip_module(path):
+    state_dict = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k[:7] == 'module.':
+            name = k[7:] # remove `module.`
+            new_state_dict[name] = v
+        else:
+            new_state_dict[k] = v
+    return new_state_dict
+
+def add_module(path):
+    state_dict = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = 'module.'+k
+        new_state_dict[name] = v
+    return new_state_dict
+
+def is_path_ddp(path):
+    is_ddp = False
+    state_dict = torch.load(path)
+    for k in state_dict.keys():
+        if k[:7] == 'module.':
+            is_ddp = True
+        break
+    return is_ddp
+
+def is_net_ddp(net):
+    is_ddp = False
+    for name,param in net.named_parameters():
+        if name[:7] == 'module.':
+            is_ddp = True
+        break
+    return is_ddp
+
+def load_weights(net,path,rank=0,ddp=False):
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     if torch.cuda.is_available():
-        net.load_state_dict(torch.load(examine_params['load_path']))
+        # check if module is in the dict name
+        if is_net_ddp(net):
+            if not is_path_ddp(path):
+                net.load_state_dict(add_module(path))
+            else:
+                net.load_state_dict(torch.load(path,map_location=map_location))
+        else:
+            if not is_path_ddp(path):
+                net.load_state_dict(torch.load(path,map_location=map_location))
+            else:
+                net.load_state_dict(strip_module(path))
     else: 
-        net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
+        net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
 def train_network(id,data_dict,agent_params,training_params):
     setup_world(id,2)
