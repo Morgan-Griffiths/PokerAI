@@ -866,7 +866,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(32,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(64,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = params['device']
