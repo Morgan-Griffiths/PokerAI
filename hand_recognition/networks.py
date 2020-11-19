@@ -897,8 +897,8 @@ class HandRankClassificationFC(nn.Module):
         emb_ranks = self.rank_emb(ranks)
         emb_suits = self.suit_emb(suits)
         # Split off the hand for one fc, board for other fc
-        hand_emb = emb_ranks[:,:2,:] + emb_suits[:,:2,:]
-        board_emb = emb_ranks[:,2:,:] + emb_suits[:,2:,:]
+        hand_emb = emb_ranks[:,:2,:] - emb_suits[:,:2,:]
+        board_emb = emb_ranks[:,2:,:] - emb_suits[:,2:,:]
         hand = self.activation_fc(self.hand_fc(hand_emb))
         board = self.activation_fc(self.board_fc(board_emb))
         x = torch.cat((hand,board),dim=1)
