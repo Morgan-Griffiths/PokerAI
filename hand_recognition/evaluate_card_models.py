@@ -133,8 +133,6 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 100:
-                break
         if id == 0:
             print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:10]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10]}')
             print('targets',targets[:10])
