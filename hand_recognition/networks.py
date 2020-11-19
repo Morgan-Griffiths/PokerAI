@@ -864,24 +864,27 @@ class HandRankClassificationFive(nn.Module):
             x = self.activation_fc(hidden_layer(x))
         return self.categorical_output(x.view(M,-1))
 
-
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(32,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
+        self.device = params['device']
         self.nA = params['nA']
         self.activation_fc = activation_fc
+        self.emb_size = 16
         self.seed = torch.manual_seed(params['seed'])
-        self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,64)
-        self.suits_emb = nn.Embedding(dt.SUITS.HIGH+1,64)
+        self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
+        self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
 
+        self.hand_fc = nn.Linear(self.emb_size,32)
+        self.board_fc = nn.Linear(self.emb_size,32)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(4096,self.nA)
+        self.categorical_output = nn.Linear(160,self.nA)
 
     def forward(self,x):
         """
@@ -889,19 +892,16 @@ class HandRankClassificationFC(nn.Module):
         """
         # Input is (b,5,2)
         M,c,h = x.size()
-        ranks = x[:,:,0].long()
-        suits = x[:,:,1].long()
-        hot_ranks = self.one_hot_ranks[ranks]
-        hot_suits = self.one_hot_suits[suits]
-        # hot_ranks is (b,5,15)
-        # hot_ranks is (b,5,5)
-        if torch.cuda.is_available():
-            s = self.suit_conv(hot_suits.float().cuda())
-            r = self.rank_conv(hot_ranks.float().cuda())
-        else:
-            s = self.suit_conv(hot_suits.float())
-            r = self.rank_conv(hot_ranks.float())
-        x = torch.cat((r,s),dim=-1)
+        ranks = x[:,:,0].long().to(self.device)
+        suits = x[:,:,1].long().to(self.device)
+        emb_ranks = self.rank_emb(ranks)
+        emb_suits = self.suit_emb(suits)
+        # Split off the hand for one fc, board for other fc
+        hand_emb = emb_ranks[:,:2,:] + emb_suits[:,:2,:]
+        board_emb = emb_ranks[:,2:,:] + emb_suits[:,2:,:]
+        hand = self.activation_fc(self.hand_fc(hand_emb))
+        board = self.activation_fc(self.board_fc(board_emb))
+        x = torch.cat((hand,board),dim=1)
         # x (b, 64, 16)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
@@ -954,7 +954,6 @@ class SmalldeckClassification(nn.Module):
         hot_suits = self.one_hot_suits[suits].float().to(self.device)
         # hot_ranks torch.Size([1, 2, 60, 5, 15])
         # hot_suits torch.Size([1, 2, 60, 5, 5])
-        # torch.set_printoptions(threshold=7500)
         raw_activations = []
         activations = []
         for i in range(B):
