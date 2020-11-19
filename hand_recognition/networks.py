@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import datatypes as dt
 import numpy as np
+import math
 from itertools import combinations
 from prettytable import PrettyTable
 
@@ -875,6 +876,8 @@ class HandRankClassificationFC(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
         self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
         self.hand_fc = nn.Linear(self.emb_size,32)
         self.board_fc = nn.Linear(self.emb_size,32)
@@ -894,11 +897,19 @@ class HandRankClassificationFC(nn.Module):
         M,c,h = x.size()
         ranks = x[:,:,0].long().to(self.device)
         suits = x[:,:,1].long().to(self.device)
-        emb_ranks = self.rank_emb(ranks)
-        emb_suits = self.suit_emb(suits)
+        # hot_ranks = self.one_hot_ranks[ranks]
+        # hot_suits = self.one_hot_suits[suits]
+        # hot_ranks is (b,5,15)
+        # hot_ranks is (b,5,5)
+        emb_ranks = self.rank_emb(ranks) * math.sqrt(self.emb_size)
+        emb_suits = self.suit_emb(suits) * math.sqrt(self.emb_size)
         # Split off the hand for one fc, board for other fc
         hand_emb = emb_ranks[:,:2,:] + emb_suits[:,:2,:]
         board_emb = emb_ranks[:,2:,:] + emb_suits[:,2:,:]
+        # hand_ranks_hot = hot_ranks[:,:2,:]
+        # board_ranks_hot = hot_ranks[:,2:,:]
+        # hand_suits_hot = hot_suits[:,:2,:]
+        # board_suits_hot = hot_suits[:,2:,:]
         hand = self.activation_fc(self.hand_fc(hand_emb))
         board = self.activation_fc(self.board_fc(board_emb))
         x = torch.cat((hand,board),dim=1)
