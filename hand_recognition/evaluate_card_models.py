@@ -85,6 +85,8 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
+            if i == 100:
+                break
         print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:100]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:100]}')
         print('targets',targets[:100])
         lr_stepper.step()
@@ -120,7 +122,7 @@ def train_network(id,data_dict,agent_params,training_params):
     # Save graphs
     loss_data = [scores,val_scores]
     loss_labels = ['Training_loss','Validation_loss']
-    plot_data(f'{network.__name__}_Handtype_categorization',loss_data,loss_labels)
+    plot_data(f'{net.__name__}_Handtype_categorization',loss_data,loss_labels)
     # check each hand type
     if 'y_handtype_indexes' in data_dict:
         net.eval()
