@@ -45,6 +45,7 @@ def train_network(id,data_dict,agent_params,training_params):
     setup_world(id,2)
     agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
+    name = f'{net.__name__}_Handtype_categorization'
     if training_params['resume']:
         load_weights(net)
     count_parameters(net)
@@ -122,7 +123,7 @@ def train_network(id,data_dict,agent_params,training_params):
     # Save graphs
     loss_data = [scores,val_scores]
     loss_labels = ['Training_loss','Validation_loss']
-    plot_data(f'{net.__name__}_Handtype_categorization',loss_data,loss_labels)
+    plot_data(name,loss_data,loss_labels)
     # check each hand type
     if 'y_handtype_indexes' in data_dict:
         net.eval()
