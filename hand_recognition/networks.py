@@ -943,7 +943,7 @@ class SmalldeckClassification(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(7463,self.nA)
+        self.small_category_out = nn.Linear(7464,self.nA)
 
     def forward(self,x):
         x = x.unsqueeze(0)
