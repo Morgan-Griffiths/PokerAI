@@ -135,8 +135,9 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             if i == 100:
                 break
-        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:10]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10]}')
-        print('targets',targets[:10])
+        if id == 0:
+            print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:10]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10]}')
+            print('targets',targets[:10])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -160,13 +161,14 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             if i == 100:
                 break
-        print('\nguesses',torch.argmax(val_preds,dim=-1)[:10])
-        print('targets',targets[:10])
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
         net.train()
-        print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
-        torch.save(net.state_dict(), training_params['save_path'])
+        if id == 0:
+            print('\nguesses',torch.argmax(val_preds,dim=-1)[:10])
+            print('targets',targets[:10])
+            print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
+            torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
     # loss_data = [scores,val_scores]
