@@ -917,7 +917,7 @@ class HandRankClassificationFC(nn.Module):
         # board_suits_hot = hot_suits[:,2:,:]
         hand = self.activation_fc(self.hand_fc(hand_emb))
         board = self.activation_fc(self.board_fc(board_emb))
-        suit_out = self.activation_fc(self.suit_fc(suits))
+        suit_out = self.activation_fc(self.suit_fc(emb_suits))
         # hand_suit = self.activation_fc(self.hand_suit_fc(hand_suit))
         # board_suit = self.activation_fc(self.board_suit_fc(board_suit))
         x_rank = torch.cat((hand,board),dim=1)
