@@ -912,7 +912,7 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,15360),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -943,7 +943,7 @@ class SmalldeckClassification(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(128,self.nA)
+        self.small_category_out = nn.Linear(15360,self.nA)
 
     def forward(self,x):
         x = x.unsqueeze(0)
