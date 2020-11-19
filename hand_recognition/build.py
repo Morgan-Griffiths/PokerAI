@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import os
 from random import shuffle
+from itertools import combinations
 
 import datatypes as dt
 from data_utils import save_data,save_all
@@ -233,6 +234,19 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
+    def build_smalldeck(self):
+        """Classification on early streets with small deck to test hand+board concept"""
+        smalldeck = []
+        for r in range(2,10):
+            for s in range(1,3):
+                smalldeck.append([r,s])
+        hero_hands = np.array(list(combinations(smalldeck,4)))
+        assert len(hero_hands) == 1820
+        zero_padding = np.zeros((1820,5,2))
+        X = np.concatenate([hero_hands,zero_padding],axis=1).reshape(1820,-1)
+        y = np.arange(1820)
+        return X,y
+        
     def build_hand_ranks_five(self,reduce_suits=True,valset=False):
         """
         rank 5 card hands

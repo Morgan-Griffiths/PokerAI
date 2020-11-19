@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import datatypes as dt
+import numpy as np
+from itertools import combinations
 from prettytable import PrettyTable
 
 def count_parameters(model):
@@ -16,6 +18,48 @@ def count_parameters(model):
     print(table)
     print(f"Total Trainable Params: {total_params}")
     return total_params
+
+UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
+
+def unspool(X):
+    """
+    Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
+    sorts them with hand and board, and returns (B,M,60,5) vector
+    """
+    # Size of (B,M,18)
+    ranks = X[:,:,::2]
+    suits = X[:,:,1::2]
+    hand_ranks = ranks[:,:,:4]
+    hand_suits = suits[:,:,:4]
+    board_ranks = ranks[:,:,4:]
+    board_suits = suits[:,:,4:]
+    # sort by suit
+    hand_suit_index = torch.argsort(hand_suits)
+    board_suit_index = torch.argsort(board_suits)
+    hand_ranks = torch.gather(hand_ranks,-1,hand_suit_index)
+    hand_suits = torch.gather(hand_suits,-1,hand_suit_index)
+    board_ranks = torch.gather(board_ranks,-1,board_suit_index)
+    board_suits = torch.gather(board_suits,-1,board_suit_index)
+    # sort by rank
+    hand_index = torch.argsort(hand_ranks)
+    board_index = torch.argsort(board_ranks)
+    ranks = torch.cat((torch.gather(hand_ranks,-1,hand_index),torch.gather(board_ranks,-1,board_index)),dim=-1).long()
+    suits = torch.cat((torch.gather(hand_suits,-1,hand_index),torch.gather(board_suits,-1,board_index)),dim=-1).long()
+    sequence_ranks = ranks[:,:,UNSPOOL_INDEX]
+    sequence_suits = suits[:,:,UNSPOOL_INDEX]
+    # sequence_suits = swap_batch_suits(sequence_suits)
+    return sequence_ranks,sequence_suits
+
+def copy_weights(network,path):
+    if torch.cuda.is_available():
+        layer_weights = torch.load(path)
+    else:
+        layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    for name, param in network.named_parameters():
+        if name in layer_weights:
+            print('copying weights',name)
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
 
 ################################################
 #           13 card winner prediction          #
@@ -862,6 +906,85 @@ class HandRankClassificationFC(nn.Module):
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
         return self.categorical_output(x.view(M,-1))
+
+################################################
+#            Smalldeck Classification          #
+################################################
+
+class SmalldeckClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        self.device = params['device']
+        self.output_dims = output_dims
+        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
+        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
+
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.suit_conv = nn.Sequential(
+            nn.Conv1d(5, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.rank_conv = nn.Sequential(
+            nn.Conv1d(5, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(inplace=True),
+        )
+        self.hidden_layers = nn.ModuleList()
+        self.bn_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+            # self.bn_layers.append(nn.BatchNorm1d(64))
+        self.categorical_output = nn.Linear(512,7463)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.small_category_out = nn.Linear(128,self.nA)
+
+    def forward(self,x):
+        x = x.unsqueeze(0)
+        B,M,C = x.size()
+        ranks,suits = unspool(x)
+        # Shape of B,M,60,5
+        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
+        hot_suits = self.one_hot_suits[suits].float().to(self.device)
+        # hot_ranks torch.Size([1, 2, 60, 5, 15])
+        # hot_suits torch.Size([1, 2, 60, 5, 5])
+        # torch.set_printoptions(threshold=7500)
+        raw_activations = []
+        activations = []
+        for i in range(B):
+            raw_combinations = []
+            combinations = []
+            for j in range(M):
+                s = self.suit_conv(hot_suits[i,j,:,:,:])
+                r = self.rank_conv(hot_ranks[i,j,:,:,:])
+                out = torch.cat((r,s),dim=-1)
+                raw_combinations.append(out)
+                # out: (b,64,16)
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
+                out = self.categorical_output(out.view(60,-1))
+                combinations.append(torch.argmax(out,dim=-1))
+            activations.append(torch.stack(combinations))
+            raw_activations.append(torch.stack(raw_combinations))
+        # baseline = hardcode_handstrength(x)
+        results = torch.stack(activations)
+        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # print(best_hand)
+        # print(baseline)
+        raw_results = torch.stack(raw_activations).view(B,M,-1)
+        # (B,M,60,7463)
+        for output_layer in self.output_layers:
+            raw_results = self.activation_fc(output_layer(raw_results))
+        # (B,M,60,512)
+        # o = self.hand_out(raw_results.view(B,M,-1))
+        final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
+        return self.small_category_out(final_out.view(M,-1))
 
 ################################################
 #            Partial hand regression           #

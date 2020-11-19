@@ -38,6 +38,9 @@ def train_network(data_dict,agent_params,training_params):
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
         load_weights(net)
+    if data_dict['preload']:
+        weight_path = '../poker/checkpoints/frozen_layers/hand_board_weights'
+        copy_weights(net,weight_path)
     count_parameters(net)
     # if torch.cuda.device_count() > 1:
     #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -69,6 +72,8 @@ def train_network(data_dict,agent_params,training_params):
             if training_params['one_hot'] == True:
                 inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
+            print(targets.shape)
+            print(outputs.shape)
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
@@ -137,12 +142,16 @@ def train_classification(dataset_params,agent_params,training_params):
     valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
     data_dict = {
         'trainloader':trainloader,
-        'valloader':valloader
+        'valloader':valloader,
+        'preload': False
         # 'y_handtype_indexes':y_handtype_indexes
     }
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
+    elif dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
+        data_dict['preload'] = True
+
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
     # dataset['valY'] = dataset['valY'].long()
@@ -331,6 +340,7 @@ if __name__ == "__main__":
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
+        'device': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
