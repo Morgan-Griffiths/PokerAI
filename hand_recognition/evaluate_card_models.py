@@ -97,11 +97,12 @@ def train_network(id,data_dict,agent_params,training_params):
         for i, data in enumerate(data_dict['valloader'], 1):
             sys.stdout.write('\r')
             inputs, targets = data.values()
-            targets = targets.cuda() if torch.cuda.is_available() else targets
             if training_params['five_card_conversion'] == True:
                 inputs = unspool(inputs)
             if training_params['one_hot'] == True:
                 inputs = torch.nn.functional.one_hot(inputs)
+            inputs = inputs.to(id)
+            targets = targets.to(id)
             val_preds = net(inputs)
             val_loss = criterion(val_preds, targets)
             val_losses.append(val_loss.item())
