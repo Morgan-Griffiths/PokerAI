@@ -26,6 +26,14 @@ Creating a hand dataset for training and evaluating networks.
 Full deck
 Omaha
 """
+def setup_world(rank,world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
 
 def load_weights(net):
     if torch.cuda.is_available():
@@ -33,21 +41,17 @@ def load_weights(net):
     else: 
         net.load_state_dict(torch.load(examine_params['load_path'],map_location=torch.device('cpu')))
 
-def train_network(data_dict,agent_params,training_params):
-    device = agent_params['network_params']['gpu1']
+def train_network(id,data_dict,agent_params,training_params):
+    setup_world(id,2)
+    agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
         load_weights(net)
-    if data_dict['preload']:
-        weight_path = '../poker/checkpoints/frozen_layers/hand_board_weights'
-        copy_weights(net,weight_path)
     count_parameters(net)
-    # if torch.cuda.device_count() > 1:
-    #     dist.init_process_group("gloo", rank=rank, world_size=world_size)
-    #     net = DDP(net)
-    net.to(device)
+    net = DDP(net)
+    net.to(id)
     if 'category_weights' in data_dict:
-        criterion = training_params['criterion'](data_dict['category_weights'].to(device))
+        criterion = training_params['criterion'](data_dict['category_weights'].to(id))
     else:
         criterion = training_params['criterion']()
     optimizer = optim.Adam(net.parameters(), lr=0.003)
@@ -63,7 +67,8 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.write('\r')
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            targets = targets.cuda() if torch.cuda.is_available() else targets
+            inputs = inputs.to(id)
+            targets = targets.to(id)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -80,8 +85,7 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-        print('outputs',outputs.shape)
-        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)}')
+        print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:100]}, Location {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:100]}')
         print('targets',targets[:100])
         lr_stepper.step()
         score_window.append(loss.item())
@@ -132,7 +136,7 @@ def train_network(data_dict,agent_params,training_params):
                 val_loss = criterion(val_preds, data_dict['valY'][mask])
                 print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
         net.train()
-    # cleanup()
+    cleanup()
 
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
@@ -140,16 +144,12 @@ def train_classification(dataset_params,agent_params,training_params):
     valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
     data_dict = {
         'trainloader':trainloader,
-        'valloader':valloader,
-        'preload': False
+        'valloader':valloader
         # 'y_handtype_indexes':y_handtype_indexes
     }
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
-    elif dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
-        data_dict['preload'] = True
-
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
     # dataset['valY'] = dataset['valY'].long()
@@ -157,7 +157,11 @@ def train_classification(dataset_params,agent_params,training_params):
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
 
     # print('Target values',np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
-    train_network(data_dict,agent_params,training_params)
+    world_size = torch.cuda.device_count()
+    mp.spawn(train_network,
+        args=(data_dict,agent_params,training_params,),
+        nprocs=world_size,
+        join=True)
 
 def train_regression(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
@@ -170,7 +174,11 @@ def train_regression(dataset_params,agent_params,training_params):
         'trainloader':trainloader,
         'valloader':valloader
     }
-    train_network(data_dict,agent_params,training_params)
+    world_size = torch.cuda.device_count()
+    mp.spawn(train_network,
+        args=(data_dict,agent_params,training_params,),
+        nprocs=world_size,
+        join=True)
 
 def validate_network(dataset_params,params):
     device = params['network_params']['gpu1']
@@ -183,7 +191,7 @@ def validate_network(dataset_params,params):
     bad_outputs = []
     bad_labels = []
     dataset = load_data(dataset_params['data_path'])
-    trainloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
+    trainloader = return_trainloader(dataset['trainX'],dataset['trainY'],category='classification')
     # valloader = return_trainloader(dataset['valX'],dataset['valY'],category='classification')
     for i, data in enumerate(trainloader, 1):
         sys.stdout.write('\r')
@@ -338,7 +346,6 @@ if __name__ == "__main__":
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
-        'device': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     }
