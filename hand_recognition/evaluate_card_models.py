@@ -45,7 +45,6 @@ def train_network(id,data_dict,agent_params,training_params):
     setup_world(id,2)
     agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
-    name = f'{net.__name__}_Handtype_categorization'
     if training_params['resume']:
         load_weights(net)
     count_parameters(net)
@@ -121,24 +120,24 @@ def train_network(id,data_dict,agent_params,training_params):
         torch.save(net.state_dict(), training_params['save_path'])
     print('')
     # Save graphs
-    loss_data = [scores,val_scores]
-    loss_labels = ['Training_loss','Validation_loss']
-    plot_data(name,loss_data,loss_labels)
-    # check each hand type
-    if 'y_handtype_indexes' in data_dict:
-        net.eval()
-        for handtype in data_dict['y_handtype_indexes'].keys():
-            mask = data_dict['y_handtype_indexes'][handtype]
-            inputs = data_dict['valX'][mask]
-            if training_params['five_card_conversion'] == True:
-                inputs = unspool(inputs)
-            if training_params['one_hot'] == True:
-                inputs = torch.nn.functional.one_hot(inputs)
-            if inputs.size(0) > 0:
-                val_preds = net(inputs)
-                val_loss = criterion(val_preds, data_dict['valY'][mask])
-                print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
-        net.train()
+    # loss_data = [scores,val_scores]
+    # loss_labels = ['Training_loss','Validation_loss']
+    # plot_data(name,loss_data,loss_labels)
+    # # check each hand type
+    # if 'y_handtype_indexes' in data_dict:
+    #     net.eval()
+    #     for handtype in data_dict['y_handtype_indexes'].keys():
+    #         mask = data_dict['y_handtype_indexes'][handtype]
+    #         inputs = data_dict['valX'][mask]
+    #         if training_params['five_card_conversion'] == True:
+    #             inputs = unspool(inputs)
+    #         if training_params['one_hot'] == True:
+    #             inputs = torch.nn.functional.one_hot(inputs)
+    #         if inputs.size(0) > 0:
+    #             val_preds = net(inputs)
+    #             val_loss = criterion(val_preds, data_dict['valY'][mask])
+    #             print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
+    #     net.train()
     cleanup()
 
 def train_classification(dataset_params,agent_params,training_params):
