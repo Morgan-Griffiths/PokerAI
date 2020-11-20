@@ -900,14 +900,14 @@ class HandRankClassificationFC(nn.Module):
         for i in range(M):
             hand_key = x[i,0].long().to(self.device)
             board_key = x[i,1].long().to(self.device)
-            hkey = self.hand_dict[hand_key]
-            bkey = self.board_dict[board_key]
+            hkey = self.hand_dict[hand_key.item())]
+            bkey = self.board_dict[board_key.item())]
             print('hkey',hkey)
             print('hand_key',hand_key)
             print('bkey',bkey)
             print('board_key',board_key)
-            hand_embs = self.hand_emb(hkey.item())
-            board_embs = self.board_emb(bkey.item())
+            hand_embs = self.hand_emb(hkey)
+            board_embs = self.board_emb(bkey)
         # ranks = x[:,:,0].long().to(self.device)
         # suits = x[:,:,1].long().to(self.device)
         # hot_ranks = self.one_hot_ranks[ranks]
