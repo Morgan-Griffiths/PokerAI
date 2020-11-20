@@ -247,6 +247,7 @@ class CardDataset(object):
         for func in [straights,straight_flushes]:
             five_hands = func()
             for hand in five_hands:
+                # Run through all padded versions
                 hero_hands = hero_5_cards(hand)
                 for h in hero_hands:
                     en_hand = [encode(c) for c in h]
