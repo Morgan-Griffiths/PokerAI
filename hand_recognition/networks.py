@@ -898,8 +898,8 @@ class HandRankClassificationFC(nn.Module):
         # Input is (b,5) each card is a 53 digit, 0 is padding.
         M,c = x.size()
         for i in range(M):
-            hand_key = x[i,0]
-            board_key = x[i,1]
+            hand_key = x[i,0].long().to(self.device)
+            board_key = x[i,1].long().to(self.device)
             hkey = self.hand_dict[hand_key]
             bkey = self.board_dict[board_key]
             print('hkey',hkey)
