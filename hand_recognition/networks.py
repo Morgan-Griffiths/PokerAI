@@ -906,8 +906,8 @@ class HandRankClassificationFC(nn.Module):
             print('hand_key',hand_key)
             print('bkey',bkey)
             print('board_key',board_key)
-            hand_embs = self.hand_emb(hkey)
-            board_embs = self.board_emb(bkey)
+            hand_embs = self.hand_emb(hkey.item())
+            board_embs = self.board_emb(bkey.item())
         # ranks = x[:,:,0].long().to(self.device)
         # suits = x[:,:,1].long().to(self.device)
         # hot_ranks = self.one_hot_ranks[ranks]
