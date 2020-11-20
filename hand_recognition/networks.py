@@ -867,13 +867,13 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(256,256,256),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(512,512,512),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = params['device']
         self.nA = params['nA']
         self.activation_fc = activation_fc
-        self.emb_size = 128
+        self.emb_size = 256
         self.seed = torch.manual_seed(params['seed'])
         self.hand_emb = nn.Embedding(1327,self.emb_size,padding_idx=0)
         self.board_emb = nn.Embedding(22101 ,self.emb_size,padding_idx=0)
