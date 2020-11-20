@@ -7,7 +7,7 @@ from itertools import combinations
 import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits,build_52_key
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits,build_52_key,save_obj
 from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards,sort_hand
 
 class CardDataset(object):
@@ -238,10 +238,12 @@ class CardDataset(object):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         X = []
         y = []
+        hand_sparse_array = np.zeros(2756)
+        board_sparse_array = np.zeros(143311)
         hand_dict = {}
         board_dict = {}
-        h = 0
-        b = 0
+        i = 0
+        j = 0
         for func in [straights,straight_flushes]:
             five_hands = func()
             for hand in five_hands:
@@ -252,14 +254,18 @@ class CardDataset(object):
                     compressed = to_52_vector(flat_hand) + 1
                     hkey = build_52_key(compressed[:2])
                     bkey = build_52_key(compressed[2:])
-                    hand_dict[hkey] = h
-                    board_dict[bkey] = b
+                    if hkey not in hand_dict:
+                        hand_dict[hkey] = i
+                        hand_sparse_array[hkey] = i
+                        i += 1
+                    if bkey not in board_dict:
+                        board_dict[bkey] = j
+                        board_sparse_array[bkey] = j
+                        j += 1
                     X.append(np.array([hkey,bkey]))
                     y.append(rank(en_hand))
-                    b += 1
-                    h += 1
-        np.save('hand_dict.npy', hand_dict) 
-        np.save('board_dict.npy', board_dict) 
+        np.save('hand_dict.npy', hand_sparse_array) 
+        np.save('board_dict.npy', board_sparse_array) 
         X = np.stack(X)
         y = np.stack(y)
         return X,y

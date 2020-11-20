@@ -73,7 +73,7 @@ def save_valset(valX,valY,parent_dir,y_dtype='uint8'):
     np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype('uint8'))
     np.save(f"{os.path.join(parent_dir,'val')}/valY",np.array(valY).astype(y_dtype))
 
-def save_all(trainX,trainY,valX,valY,parent_dir,y_dtype='uint8'):
+def save_all(trainX,trainY,valX,valY,parent_dir,x_dtype='uint8',y_dtype='uint8'):
     """
     saves train,test folder numpy data from parent dir
     """
@@ -83,9 +83,9 @@ def save_all(trainX,trainY,valX,valY,parent_dir,y_dtype='uint8'):
         os.makedirs(train_dir)
     if not os.path.isdir(test_dir):
         os.makedirs(test_dir)
-    np.save(f"{os.path.join(parent_dir,'train')}/trainX",np.array(trainX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'train')}/trainX",np.array(trainX).astype(x_dtype))
     np.save(f"{os.path.join(parent_dir,'train')}/trainY",np.array(trainY).astype(y_dtype))
-    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype('uint8'))
+    np.save(f"{os.path.join(parent_dir,'val')}/valX",np.array(valX).astype(x_dtype))
     np.save(f"{os.path.join(parent_dir,'val')}/valY",np.array(valY).astype(y_dtype))
 
 def save_data(data,path):

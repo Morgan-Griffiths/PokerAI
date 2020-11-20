@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import pickle
 from datatypes import SUITS,RANKS
 
 SUIT_DICT = {
@@ -9,6 +10,13 @@ SUIT_DICT = {
     4:'c'
 }
 REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
+def save_obj(path,obj):
+    with open(f'{path}.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(path):
+    with open(f'{path}.pkl', 'rb') as f:
+        return pickle.load(f)
 
 def build_52_key(digits):
     """takes a series of 52 digit cards"""

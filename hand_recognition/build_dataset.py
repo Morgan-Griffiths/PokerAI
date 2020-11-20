@@ -72,7 +72,7 @@ if __name__ == "__main__":
     if dataset_params['datatype'] == dt.DataTypes.SMALLDECK:
         trainX,trainY = dataset.build_smalldeck()
         valX,valY = dataset.build_smalldeck()
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],x_dtype='int32',y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
         trainX,trainY = dataset.build_hand_ranks_nine(200)
         valX,valY = dataset.build_hand_ranks_nine(20)

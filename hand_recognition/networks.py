@@ -6,6 +6,7 @@ import numpy as np
 import math
 from itertools import combinations
 from prettytable import PrettyTable
+from card_utils import load_obj
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -866,7 +867,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(64,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(32,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = params['device']
@@ -874,22 +875,17 @@ class HandRankClassificationFC(nn.Module):
         self.activation_fc = activation_fc
         self.emb_size = 16
         self.seed = torch.manual_seed(params['seed'])
-        self.hand_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
-        self.board_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
-        self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
-        self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
-        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-        self.hand_dict = np.load('hand_dict.npy',allow_pickle='TRUE').item()
-        self.board_dict = np.load('board_dict.npy',allow_pickle='TRUE').item()
-        self.hand_fc = nn.Linear(self.emb_size,32)
+        self.hand_emb = nn.Embedding(1327,self.emb_size,padding_idx=0)
+        self.board_emb = nn.Embedding(22101 ,self.emb_size,padding_idx=0)
+        self.hand_dict = np.load('hand_dict.npy')
+        self.board_dict = np.load('board_dict.npy')
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(160,self.nA)
+        self.categorical_output = nn.Linear(32,self.nA)
 
     def forward(self,x):
         """
@@ -897,42 +893,14 @@ class HandRankClassificationFC(nn.Module):
         """
         # Input is (b,5) each card is a 53 digit, 0 is padding.
         M,c = x.size()
-        for i in range(M):
-            hand_key = x[i,0].long().to(self.device)
-            board_key = x[i,1].long().to(self.device)
-            hkey = self.hand_dict[hand_key.item())]
-            bkey = self.board_dict[board_key.item())]
-            print('hkey',hkey)
-            print('hand_key',hand_key)
-            print('bkey',bkey)
-            print('board_key',board_key)
-            hand_embs = self.hand_emb(hkey)
-            board_embs = self.board_emb(bkey)
-        # ranks = x[:,:,0].long().to(self.device)
-        # suits = x[:,:,1].long().to(self.device)
-        # hot_ranks = self.one_hot_ranks[ranks]
-        # hot_suits = self.one_hot_suits[suits]
-        # hot_ranks is (b,5,15)
-        # hot_ranks is (b,5,5)
-        emb_ranks = self.rank_emb(ranks) * math.sqrt(self.emb_size)
-        emb_suits = self.suit_emb(suits) * math.sqrt(self.emb_size)
-        # Split off the hand for one fc, board for other fc
-        # hand_emb = emb_ranks[:,:2,:]# + emb_suits[:,:2,:]
-        # board_emb = emb_ranks[:,2:,:] #+ emb_suits[:,2:,:]
-        # hand_suit = emb_suits[:,:2,:]
-        # board_suit = emb_suits[:,2:,:]
-        # hand_ranks_hot = hot_ranks[:,:2,:]
-        # board_ranks_hot = hot_ranks[:,2:,:]
-        # hand_suits_hot = hot_suits[:,:2,:]
-        # board_suits_hot = hot_suits[:,2:,:]
-        # hand = self.activation_fc(self.hand_fc(hand_emb))
-        # board = self.activation_fc(self.board_fc(board_emb))
-        x_rank = self.activation_fc(self.rank_fc(emb_ranks))
-        x_suit = self.activation_fc(self.suit_fc(emb_suits))
-        # hand_suit = self.activation_fc(self.hand_suit_fc(hand_suit))
-        # board_suit = self.activation_fc(self.board_suit_fc(board_suit))
-        # x_rank = torch.cat((hand,board),dim=1)
-        x = torch.cat((x_rank,x_suit),dim=-1)
+        embs = []
+        hand_key = x[:,0].long().to(self.device)
+        board_key = x[:,1].long().to(self.device)
+        hkey = self.hand_dict[hand_key.cpu().numpy()]
+        bkey = self.board_dict[board_key.cpu().numpy()]
+        hand_embs = self.hand_emb(torch.as_tensor(hkey,dtype=torch.long))
+        board_embs = self.board_emb(torch.as_tensor(bkey,dtype=torch.long))
+        x = torch.cat((hand_embs,board_embs),dim=-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
