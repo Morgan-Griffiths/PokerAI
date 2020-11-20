@@ -896,10 +896,10 @@ class HandRankClassificationFC(nn.Module):
         embs = []
         hand_key = x[:,0].long().to(self.device)
         board_key = x[:,1].long().to(self.device)
-        hkey = self.hand_dict[hand_key.cpu().numpy()]
-        bkey = self.board_dict[board_key.cpu().numpy()]
-        hand_embs = self.hand_emb(torch.as_tensor(hkey,dtype=torch.long))
-        board_embs = self.board_emb(torch.as_tensor(bkey,dtype=torch.long))
+        hkey = torch.as_tensor(self.hand_dict[hand_key.cpu().numpy()],dtype=torch.long).to(self.device)
+        bkey = torch.as_tensor(self.board_dict[board_key.cpu().numpy()],dtype=torch.long).to(self.device)
+        hand_embs = self.hand_emb(hkey)
+        board_embs = self.board_emb(bkey)
         x = torch.cat((hand_embs,board_embs),dim=-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
