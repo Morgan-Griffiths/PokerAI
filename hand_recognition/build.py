@@ -244,7 +244,7 @@ class CardDataset(object):
         board_dict = {}
         i = 0
         j = 0
-        for func in [straights,straight_flushes]:
+        for func in [straights,straight_flushes,flushes,high_cards]:
             five_hands = func()
             for hand in five_hands:
                 # Run through all padded versions
