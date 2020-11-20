@@ -282,6 +282,7 @@ def check_network(dataset_params,params):
         dt.DataTypes.FIVECARD:{i:i for i in range(9)},
         dt.DataTypes.HANDRANKSNINE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.HANDRANKSFIVE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.SMALLDECK:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},
