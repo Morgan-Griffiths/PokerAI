@@ -874,17 +874,15 @@ class HandRankClassificationFC(nn.Module):
         self.activation_fc = activation_fc
         self.emb_size = 16
         self.seed = torch.manual_seed(params['seed'])
+        self.hand_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        self.board_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         self.rank_emb = nn.Embedding(dt.RANKS.HIGH+1,self.emb_size)
         self.suit_emb = nn.Embedding(dt.SUITS.HIGH+1,self.emb_size)
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-
+        self.hand_dict = np.load('hand_dict.npy')
+        self.board_dict = np.load('board_dict.npy')
         self.hand_fc = nn.Linear(self.emb_size,32)
-        self.board_fc = nn.Linear(self.emb_size,32)
-        self.hand_suit_fc = nn.Linear(self.emb_size,32)
-        self.board_suit_fc = nn.Linear(self.emb_size,32)
-        self.rank_fc = nn.Linear(self.emb_size,32)
-        self.suit_fc = nn.Linear(self.emb_size,32)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -897,10 +895,21 @@ class HandRankClassificationFC(nn.Module):
         """
         Emb and process hand, emb and process hand.
         """
-        # Input is (b,5,2)
-        M,c,h = x.size()
-        ranks = x[:,:,0].long().to(self.device)
-        suits = x[:,:,1].long().to(self.device)
+        # Input is (b,5) each card is a 53 digit, 0 is padding.
+        M,c = x.size()
+        for i in range(M):
+            hand_key = x[i,0]
+            board_key = x[i,1]
+            hkey = self.hand_dict[hand_key]
+            bkey = self.board_dict[board_key]
+            print('hkey',hkey)
+            print('hand_key',hand_key)
+            print('bkey',bkey)
+            print('board_key',board_key)
+            hand_embs = self.hand_emb(hkey)
+            board_embs = self.board_emb(bkey)
+        # ranks = x[:,:,0].long().to(self.device)
+        # suits = x[:,:,1].long().to(self.device)
         # hot_ranks = self.one_hot_ranks[ranks]
         # hot_suits = self.one_hot_suits[suits]
         # hot_ranks is (b,5,15)

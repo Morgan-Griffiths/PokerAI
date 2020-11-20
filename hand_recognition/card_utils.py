@@ -10,6 +10,18 @@ SUIT_DICT = {
 }
 REVERSE_SUIT_DICT = {v:k for k,v in SUIT_DICT.items()}
 
+def build_52_key(digits):
+    """takes a series of 52 digit cards"""
+    key = 0
+    for i,digit in enumerate(digits,0):
+        key += digit*(52**i)
+    return key
+
+def convert_flat_to_52(cards):
+    new_cards = []
+    for i in range(0,len(cards)-1,2):
+        new_cards.append(cards[i]*cards[i+1])
+    return new_cards
 
 def swap_suits(cards):
   """

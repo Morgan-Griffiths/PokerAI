@@ -7,7 +7,7 @@ from itertools import combinations
 import datatypes as dt
 from data_utils import save_data,save_all
 from cardlib import encode,decode,winner,hand_rank,rank
-from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits
+from card_utils import to_2d,suits_to_str,convert_numpy_to_rust,convert_numpy_to_2d,to_52_vector,swap_suits,build_52_key
 from create_hands import straight_flushes,quads,full_houses,flushes,straights,trips,two_pairs,one_pairs,high_cards,hero_5_cards,sort_hand
 
 class CardDataset(object):
@@ -238,21 +238,28 @@ class CardDataset(object):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         X = []
         y = []
-        for _ in range(250):
-            five_hands = straight_flushes()
+        hand_dict = {}
+        board_dict = {}
+        h = 0
+        b = 0
+        for func in [straights,straight_flushes]:
+            five_hands = func()
             for hand in five_hands:
                 hero_hands = hero_5_cards(hand)
                 for h in hero_hands:
                     en_hand = [encode(c) for c in h]
-                    X.append(np.transpose(sort_hand(np.transpose(h))))
+                    flat_hand = np.transpose(sort_hand(np.transpose(h)))
+                    compressed = to_52_vector(flat_hand) + 1
+                    hkey = build_52_key(compressed[:2])
+                    bkey = build_52_key(compressed[2:])
+                    hand_dict[hkey] = h
+                    board_dict[bkey] = b
+                    X.append(np.array([hkey,bkey]))
                     y.append(rank(en_hand))
-        five_hands = straights()
-        for hand in five_hands:
-            hero_hands = hero_5_cards(hand)
-            for h in hero_hands:
-                en_hand = [encode(c) for c in h]
-                X.append(np.transpose(sort_hand(np.transpose(h))))
-                y.append(rank(en_hand))
+                    b += 1
+                    h += 1
+        np.save('hand_dict.npy', hand_dict) 
+        np.save('board_dict.npy', board_dict) 
         X = np.stack(X)
         y = np.stack(y)
         return X,y
