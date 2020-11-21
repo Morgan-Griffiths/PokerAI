@@ -867,7 +867,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(384,384,384),hand_dims=(256,256,128),board_dims=(384,384,256),activation_fc=F.leaky_relu):
+    def __init__(self,params,hidden_dims=(320,320,320),hand_dims=(128,128,128),board_dims=(192,192,192),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.device = params['device']
@@ -888,7 +888,7 @@ class HandRankClassificationFC(nn.Module):
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(384,self.nA)
+        self.categorical_output = nn.Linear(320,self.nA)
 
     def forward(self,x):
         """
@@ -899,11 +899,12 @@ class HandRankClassificationFC(nn.Module):
         cards = self.card_emb(x.long())
         hero_cards = cards[:,:2,:].view(B,-1)
         board_cards = cards[:,2:,:].view(B,-1)
-        for i,hidden_layer in enumerate(self.hidden_layers):
+        for hidden_layer in self.hand_layers:
             hero_cards = self.activation_fc(hidden_layer(hero_cards))
-        for i,hidden_layer in enumerate(self.hidden_layers):
+        for hidden_layer in self.board_layers:
             board_cards = self.activation_fc(hidden_layer(board_cards))
         x = torch.cat((hero_cards,board_cards),dim=-1)
+        print(x.size())
         # x = cards.view(B,-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
