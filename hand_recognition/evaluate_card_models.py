@@ -305,9 +305,9 @@ def check_network(dataset_params,params):
     net.eval()
 
     dataset = load_data(dataset_params['data_path'])
-    valX = dataset['valX']
-    valY = dataset['valY']
-    y_handtype_indexes = return_ylabel_dict(valX,valY,target)
+    trainX = dataset['trainX']
+    trainY = dataset['trainY']
+    y_handtype_indexes = return_ylabel_dict(trainX,trainY,target)
 
     while 1:
         human_input = input(message)
