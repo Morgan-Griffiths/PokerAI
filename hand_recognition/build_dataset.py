@@ -71,7 +71,7 @@ if __name__ == "__main__":
     dataset = CardDataset(dataset_params)
     if dataset_params['datatype'] == dt.DataTypes.SMALLDECK:
         trainX,trainY = dataset.build_smalldeck()
-        valX,valY = dataset.build_smalldeck()
+        valX,valY = dataset.build_smalldeck(val=True)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],x_dtype='int32',y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
         trainX,trainY = dataset.build_hand_ranks_nine(200)

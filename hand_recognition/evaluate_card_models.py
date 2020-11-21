@@ -198,7 +198,7 @@ def train_classification(dataset_params,agent_params,training_params):
         'valloader':valloader
         # 'y_handtype_indexes':y_handtype_indexes
     }
-    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)

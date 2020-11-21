@@ -234,17 +234,11 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
-    def build_smalldeck(self):
+    def build_smalldeck(self,val=False):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         X = []
         y = []
-        hand_sparse_array = np.zeros(2756)
-        board_sparse_array = np.zeros(143311)
-        hand_dict = {}
-        board_dict = {}
-        i = 0
-        j = 0
-        for func in [straights,straight_flushes,flushes,high_cards]:
+        for func in [straight_flushes,quads,full_houses,straights,flushes,trips,two_pairs,one_pairs,high_cards]:
             five_hands = func()
             for hand in five_hands:
                 # Run through all padded versions
@@ -253,23 +247,14 @@ class CardDataset(object):
                     en_hand = [encode(c) for c in h]
                     flat_hand = np.transpose(sort_hand(np.transpose(h)))
                     compressed = to_52_vector(flat_hand) + 1
-                    hkey = build_52_key(compressed[:2])
-                    bkey = build_52_key(compressed[2:])
-                    if hkey not in hand_dict:
-                        hand_dict[hkey] = i
-                        hand_sparse_array[hkey] = i
-                        i += 1
-                    if bkey not in board_dict:
-                        board_dict[bkey] = j
-                        board_sparse_array[bkey] = j
-                        j += 1
-                    X.append(np.array([hkey,bkey]))
+                    X.append(compressed)
                     y.append(rank(en_hand))
-        np.save('hand_dict.npy', hand_sparse_array) 
-        np.save('board_dict.npy', board_sparse_array) 
+                if val:
+                    break
         X = np.stack(X)
         y = np.stack(y)
-        return X,y
+        mask = np.random.shuffle(np.arange(len(y)))
+        return X[mask,:],y[mask]
         
     def build_hand_ranks_five(self,reduce_suits=True,valset=False):
         """
