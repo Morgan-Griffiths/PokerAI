@@ -893,7 +893,6 @@ class HandRankClassificationFC(nn.Module):
         # Input is (b,5) each card is a 53 digit, 0 is padding.
         B,M = x.size()
         cards = self.card_emb(x.long())
-        print(cards.size())
         hero_cards = cards[:,:2,:].view(B,-1)
         board_cards = cards[:,2:,:].view(B,-1)
         hero = self.activation_fc(self.hero_fc(hero_cards))
