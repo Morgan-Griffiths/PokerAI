@@ -90,13 +90,17 @@ def load_weights(net,rank=0,ddp=False):
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
 def train_network(id,data_dict,agent_params,training_params):
-    setup_world(id,2)
+    if torch.cuda.device_count() > 1:
+        setup_world(id,2)
+    if torch.cuda.device_count() == 0:
+        id = 'cpu'
     agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
         load_weights(net)
     count_parameters(net)
-    net = DDP(net)
+    if torch.cuda.device_count() > 1:
+        net = DDP(net)
     net.to(id)
     if 'category_weights' in data_dict:
         criterion = training_params['criterion'](data_dict['category_weights'].to(id))
@@ -117,6 +121,8 @@ def train_network(id,data_dict,agent_params,training_params):
             inputs, targets = data.values()
             inputs = inputs.to(id)
             targets = targets.to(id)
+            print('inputs',inputs.shape)
+            print('targets',targets.shape)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
@@ -187,7 +193,8 @@ def train_network(id,data_dict,agent_params,training_params):
     #             val_loss = criterion(val_preds, data_dict['valY'][mask])
     #             print(f'test performance on {training_params["labels"][handtype]}: {val_loss}')
     #     net.train()
-    cleanup()
+    if torch.cuda.device_count() > 1:
+        cleanup()
 
 def train_classification(dataset_params,agent_params,training_params):
     dataset = load_data(dataset_params['data_path'])
@@ -208,7 +215,7 @@ def train_classification(dataset_params,agent_params,training_params):
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
 
     # print('Target values',np.unique(dataset['trainY'],return_counts=True),np.unique(dataset['valY'],return_counts=True))
-    world_size = torch.cuda.device_count()
+    world_size = max(torch.cuda.device_count(),1)
     mp.spawn(train_network,
         args=(data_dict,agent_params,training_params,),
         nprocs=world_size,
@@ -225,7 +232,7 @@ def train_regression(dataset_params,agent_params,training_params):
         'trainloader':trainloader,
         'valloader':valloader
     }
-    world_size = torch.cuda.device_count()
+    world_size = max(torch.cuda.device_count(),1)
     mp.spawn(train_network,
         args=(data_dict,agent_params,training_params,),
         nprocs=world_size,

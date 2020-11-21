@@ -876,6 +876,8 @@ class HandRankClassificationFC(nn.Module):
         self.emb_size = 128
         self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        self.hero_fc = nn.Linear(256,128)
+        self.board_fc = nn.Linear(384,128)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -890,16 +892,19 @@ class HandRankClassificationFC(nn.Module):
         """
         # Input is (b,5) each card is a 53 digit, 0 is padding.
         B,M = x.size()
-        cards = self.card_emb(x)
-        hero_cards = cards[:,:2,:].view(B,M,-1)
-        board_cards = cards[:,2:,:].view(B,M,-1)
+        print(x.size())
+        cards = self.card_emb(x.long())
+        print(cards.size())
+        hero_cards = cards[:,:2,:].view(B,-1)
+        board_cards = cards[:,2:,:].view(B,-1)
         hero = self.activation_fc(self.hero_fc(hero_cards))
         board = self.activation_fc(self.board_fc(board_cards))
         x = torch.cat((hero,board),dim=-1)
+        print('combined size',x.size())
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
-        return self.categorical_output(x.view(M,-1))
+        return self.categorical_output(x)
 
 ################################################
 #            Smalldeck Classification          #

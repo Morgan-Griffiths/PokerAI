@@ -254,7 +254,7 @@ class CardDataset(object):
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
-        return X[mask,:],y[mask]
+        return X[mask,:].reshape(X.shape),y[mask].reshape(y.shape)
         
     def build_hand_ranks_five(self,reduce_suits=True,valset=False):
         """
