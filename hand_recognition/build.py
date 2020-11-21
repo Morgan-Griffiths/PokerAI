@@ -238,7 +238,7 @@ class CardDataset(object):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         X = []
         y = []
-        for func in [straight_flushes,quads,full_houses,straights,flushes,trips,two_pairs,one_pairs,high_cards]:
+        for func in [straight_flushes,straights]:
             five_hands = func()
             for hand in five_hands:
                 # Run through all padded versions
@@ -249,8 +249,6 @@ class CardDataset(object):
                     compressed = to_52_vector(flat_hand) + 1
                     X.append(compressed)
                     y.append(rank(en_hand))
-                if val:
-                    break
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
