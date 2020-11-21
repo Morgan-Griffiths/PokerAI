@@ -895,8 +895,8 @@ class HandRankClassificationFC(nn.Module):
         cards = self.card_emb(x.long())
         hero_cards = cards[:,:2,:].view(B,-1)
         board_cards = cards[:,2:,:].view(B,-1)
-        hero = self.activation_fc(self.hero_fc(hero_cards))
-        board = self.activation_fc(self.board_fc(board_cards))
+        hero = self.hero_fc(hero_cards)
+        board = self.board_fc(board_cards)
         x = torch.cat((hero,board),dim=-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
