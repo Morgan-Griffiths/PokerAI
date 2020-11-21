@@ -899,8 +899,6 @@ class HandRankClassificationFC(nn.Module):
         cards = self.card_emb(x.long())
         hero_cards = cards[:,:2,:].view(B,-1)
         board_cards = cards[:,2:,:].view(B,-1)
-        print(hero_cards.size())
-        print(board_cards.size())
         for hidden_layer in self.hand_layers:
             hero_cards = self.activation_fc(hidden_layer(hero_cards))
         for hidden_layer in self.board_layers:
