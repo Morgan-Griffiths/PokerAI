@@ -249,7 +249,7 @@ class CardDataset(object):
         }
         # if you want to make up for the samples
         repeats = {
-            0:200,
+            0:250,
             1:4,
             2:10,
             3:4,
