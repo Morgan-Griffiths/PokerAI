@@ -249,7 +249,7 @@ class CardDataset(object):
         }
         # if you want to make up for the samples
         repeats = {
-            0:250,
+            0:10,
             1:4,
             2:10,
             3:4,
@@ -261,7 +261,7 @@ class CardDataset(object):
         }
         X = []
         y = []
-        for category in [0,4]:
+        for category in range(0,9):
             five_hands = switcher[category]()
             for _ in range(repeats[category]):
                 for hand in five_hands:
