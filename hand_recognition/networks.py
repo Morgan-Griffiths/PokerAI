@@ -875,10 +875,7 @@ class HandRankClassificationFC(nn.Module):
         self.activation_fc = activation_fc
         self.emb_size = 128
         self.seed = torch.manual_seed(params['seed'])
-        self.hand_emb = nn.Embedding(1327,self.emb_size,padding_idx=0)
-        self.board_emb = nn.Embedding(22101 ,self.emb_size,padding_idx=0)
-        self.hand_dict = np.load('hand_dict.npy')
-        self.board_dict = np.load('board_dict.npy')
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
@@ -892,15 +889,13 @@ class HandRankClassificationFC(nn.Module):
         Emb and process hand, emb and process hand.
         """
         # Input is (b,5) each card is a 53 digit, 0 is padding.
-        M,c = x.size()
-        embs = []
-        hand_key = x[:,0].long().to(self.device)
-        board_key = x[:,1].long().to(self.device)
-        hkey = torch.as_tensor(self.hand_dict[hand_key.cpu().numpy()],dtype=torch.long).to(self.device)
-        bkey = torch.as_tensor(self.board_dict[board_key.cpu().numpy()],dtype=torch.long).to(self.device)
-        hand_embs = self.hand_emb(hkey)
-        board_embs = self.board_emb(bkey)
-        x = torch.cat((hand_embs,board_embs),dim=-1)
+        B,M = x.size()
+        cards = self.card_emb(x)
+        hero_cards = cards[:,:2,:].view(B,M,-1)
+        board_cards = cards[:,2:,:].view(B,M,-1)
+        hero = self.activation_fc(self.hero_fc(hero_cards))
+        board = self.activation_fc(self.board_fc(board_cards))
+        x = torch.cat((hero,board),dim=-1)
         # x (b, 64, 32)
         for i,hidden_layer in enumerate(self.hidden_layers):
             x = self.activation_fc(hidden_layer(x))
