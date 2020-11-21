@@ -867,7 +867,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(256,256,256),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(320,320,320),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.device = params['device']
@@ -877,14 +877,14 @@ class HandRankClassificationFC(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         self.hero_fc = nn.Linear(256,128)
-        self.board_fc = nn.Linear(384,128)
+        self.board_fc = nn.Linear(384,192)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hidden_layers = nn.ModuleList()
         self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(256,self.nA)
+        self.categorical_output = nn.Linear(320,self.nA)
 
     def forward(self,x):
         """
