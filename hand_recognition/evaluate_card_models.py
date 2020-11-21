@@ -121,8 +121,6 @@ def train_network(id,data_dict,agent_params,training_params):
             inputs, targets = data.values()
             inputs = inputs.to(id)
             targets = targets.to(id)
-            print('inputs',inputs.shape)
-            print('targets',targets.shape)
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
