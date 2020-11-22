@@ -212,7 +212,6 @@ def train_classification(dataset_params,agent_params,training_params):
     # dataset['valY'] = dataset['valY'].long()
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
-
     print(f"Target values, Trainset: {np.unique(dataset['trainY'],return_counts=True)}, Valset: {np.unique(dataset['valY'],return_counts=True)}")
     world_size = max(torch.cuda.device_count(),1)
     mp.spawn(train_network,

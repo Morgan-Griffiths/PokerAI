@@ -876,8 +876,6 @@ class HandRankClassificationFC(nn.Module):
         self.emb_size = 64
         self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
-        self.hero_fc = nn.Linear(256,256)
-        self.board_fc = nn.Linear(384,384)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
         for i in range(len(hand_dims)-1):
