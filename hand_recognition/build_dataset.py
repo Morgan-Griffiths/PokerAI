@@ -69,10 +69,14 @@ if __name__ == "__main__":
     #     print(f'Hand {hand}, Category {handtype}')
     tic = time.time()
     dataset = CardDataset(dataset_params)
-    if dataset_params['datatype'] == dt.DataTypes.SMALLDECK:
+    if dataset_params['datatype'] == dt.DataTypes.FLUSH:
+        trainX,trainY = dataset.build_flush()
+        valX,valY = dataset.build_flush()
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+    elif dataset_params['datatype'] == dt.DataTypes.SMALLDECK:
         trainX,trainY = dataset.build_smalldeck()
         valX,valY = dataset.build_smalldeck(val=True)
-        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],x_dtype='int32',y_dtype='int32')
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
         trainX,trainY = dataset.build_hand_ranks_nine(200)
         valX,valY = dataset.build_hand_ranks_nine(20)

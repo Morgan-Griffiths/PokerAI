@@ -234,6 +234,25 @@ class CardDataset(object):
         y = np.stack(y)[:,None]
         return X,y
 
+    def build_flush(self):
+        X = []
+        y = []
+        for func in [straight_flushes,straights]:
+            five_hands = func()
+            for hand in five_hands:
+                # Run through all padded versions
+                hero_hands = hero_5_cards(hand)
+                for h in hero_hands:
+                    en_hand = [encode(c) for c in h]
+                    flat_hand = np.transpose(sort_hand(np.transpose(h)))
+                    compressed = to_52_vector(flat_hand) + 1
+                    X.append(compressed)
+                    y.append(rank(en_hand))
+        X = np.stack(X)
+        y = np.stack(y)
+        mask = np.random.shuffle(np.arange(len(y)))
+        return X[mask,:].reshape(X.shape),y[mask].reshape(y.shape)
+
     def build_smalldeck(self,val=False):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         switcher = {

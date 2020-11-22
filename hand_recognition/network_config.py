@@ -12,7 +12,8 @@ class NetworkConfig(object):
             dt.DataTypes.BLOCKERS : BlockerClassification,
             dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFC,
             dt.DataTypes.HANDRANKSNINE : HandRankClassificationNine,
-            dt.DataTypes.SMALLDECK : HandRankClassificationFC
+            dt.DataTypes.SMALLDECK : HandRankClassificationFC,
+            dt.DataTypes.FLUSH : HandRankClassificationFC
         }
     LossFunctions = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:CrossEntropyLoss,
