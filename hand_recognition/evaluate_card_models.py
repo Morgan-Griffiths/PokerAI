@@ -255,19 +255,18 @@ def validate_network(dataset_params,params):
         targets = targets.cuda() if torch.cuda.is_available() else targets
         outputs = net(inputs)
         bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
-        print(bool_mask.any())
         if bool_mask.any():
             print(outputs[bool_mask])
             print(targets[bool_mask])
-            bad_outputs.append(output[bool_mask])
+            bad_outputs.append(outputs[bool_mask])
             bad_labels.append(targets[bool_mask])
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
-    print(f'Number of incorrect guesses {len(bad_outputs)}')
-    print(f'Bad guesses {bad_labels}')
-    print(f'Missed labels {bad_labels}')
+    print(f'\nNumber of incorrect guesses {len(bad_outputs)}')
+    print(f'\nBad guesses {bad_labels}')
+    print(f'\nMissed labels {bad_labels}')
 
 
 def check_network(dataset_params,params):
@@ -287,6 +286,7 @@ def check_network(dataset_params,params):
         dt.DataTypes.HANDRANKSNINE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.HANDRANKSFIVE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.SMALLDECK:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.FLUSH:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.PARTIAL:{i:i-1 for i in range(0,3)},

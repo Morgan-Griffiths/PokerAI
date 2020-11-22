@@ -50,6 +50,8 @@ if __name__ == '__main__':
         Path('hand_recognition/data/multiclass_categorization/handranksfive/val').mkdir(parents=True, exist_ok=True)
         Path('hand_recognition/data/multiclass_categorization/smalldeck/train').mkdir(parents=True, exist_ok=True)
         Path('hand_recognition/data/multiclass_categorization/smalldeck/val').mkdir(parents=True, exist_ok=True)
+        Path('hand_recognition/data/multiclass_categorization/flush/train').mkdir(parents=True, exist_ok=True)
+        Path('hand_recognition/data/multiclass_categorization/flush/val').mkdir(parents=True, exist_ok=True)
         Path('hand_recognition/data/regression/tencard/train').mkdir(parents=True, exist_ok=True)
         Path('hand_recognition/data/regression/tencard/val').mkdir(parents=True, exist_ok=True)
         Path('hand_recognition/data/regression/thirteencard/train').mkdir(parents=True, exist_ok=True)
