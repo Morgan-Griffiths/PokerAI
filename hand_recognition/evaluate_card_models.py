@@ -96,6 +96,7 @@ def train_network(id,data_dict,agent_params,training_params):
     agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
+        print(f'Loading weights from {training_params['load_path']}')
         load_weights(net,training_params['load_path'])
     count_parameters(net)
     if torch.cuda.device_count() > 1:
@@ -170,6 +171,7 @@ def train_network(id,data_dict,agent_params,training_params):
             print('\nguesses',torch.argmax(val_preds,dim=-1)[:10])
             print('targets',targets[:10])
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
+            print(f'Saving weights to {training_params['load_path']}')
             torch.save(net.state_dict(), training_params['load_path'])
     print('')
     # Save graphs
@@ -261,7 +263,7 @@ def validate_network(dataset_params,params):
             print(targets[bool_mask])
             bad_outputs.append(outputs[bool_mask])
             bad_labels.append(targets[bool_mask])
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//dataset['trainX'].shape[0]), (100*(i+1)//dataset['trainX'].shape[0])))
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
