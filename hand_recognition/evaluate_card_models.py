@@ -252,7 +252,7 @@ def validate_network(dataset_params,params):
         sys.stdout.write('\r')
         # get the inputs; data is a list of [inputs, targets]
         inputs, targets = data.values()
-        targets = targets.cuda() if torch.cuda.is_available() else targets
+        inputs = inputs.to(device)
         outputs = net(inputs)
         bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
         if bool_mask.any():
