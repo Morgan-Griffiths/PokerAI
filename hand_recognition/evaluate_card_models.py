@@ -96,7 +96,7 @@ def train_network(id,data_dict,agent_params,training_params):
     agent_params['network_params']['device'] = id
     net = training_params['network'](agent_params['network_params'])
     if training_params['resume']:
-        load_weights(net,training_params['network_path'])
+        load_weights(net,training_params['load_path'])
     count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DDP(net)
@@ -170,7 +170,7 @@ def train_network(id,data_dict,agent_params,training_params):
             print('\nguesses',torch.argmax(val_preds,dim=-1)[:10])
             print('targets',targets[:10])
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
-            torch.save(net.state_dict(), training_params['network_path'])
+            torch.save(net.state_dict(), training_params['load_path'])
     print('')
     # Save graphs
     # loss_data = [scores,val_scores]
@@ -239,7 +239,7 @@ def validate_network(dataset_params,params):
     device = params['network_params']['gpu1']
     examine_params = params['examine_params']
     net = examine_params['network'](params['network_params'])
-    load_weights(net,params['network_path'])
+    load_weights(net,params['load_path'])
     net.to(device)
     net.eval()
 
@@ -299,7 +299,7 @@ def check_network(dataset_params,params):
     examine_params = params['examine_params']
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     net = examine_params['network'](params['network_params'])
-    load_weights(net,examine_params['network_path'])
+    load_weights(net,examine_params['load_path'])
     net = net.to(device)
     net.eval()
 
@@ -402,6 +402,7 @@ if __name__ == "__main__":
         'kernel':2,
         'batchnorm':True,
         'conv_layers':1,
+        'load_path':network_path,
         'device' : torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -413,7 +414,7 @@ if __name__ == "__main__":
         'one_hot':False,
         'criterion':NetworkConfig.LossFunctions[dataset_params['learning_category']],
         'network': network,
-        'network_path':network_path,
+        'load_path':network_path,
         'labels':dt.Globals.LABEL_DICT[args.datatype],
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu"),
