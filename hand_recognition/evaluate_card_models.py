@@ -253,6 +253,7 @@ def validate_network(dataset_params,params):
         # get the inputs; data is a list of [inputs, targets]
         inputs, targets = data.values()
         inputs = inputs.to(device)
+        targets = targets.to(device)
         outputs = net(inputs)
         bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
         if bool_mask.any():
