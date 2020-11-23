@@ -260,12 +260,11 @@ def validate_network(dataset_params,params):
         print(targets[:10])
         print(torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10])
         print((torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets)[:10])
-        asdf
         bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
         if bool_mask.any():
-            bad_outputs.append(torch.argmax(outputs[bool_mask],dim=-1))
+            bad_outputs.append(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1))
             bad_labels.append(targets[bool_mask])
-        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//dataset['trainX'].shape[0]), (100*(i+1)//dataset['trainX'].shape[0])))
+        sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
