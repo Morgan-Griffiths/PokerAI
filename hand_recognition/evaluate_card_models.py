@@ -98,6 +98,8 @@ def train_network(id,data_dict,agent_params,training_params):
     if training_params['resume']:
         print(f"Loading weights from {training_params['load_path']}")
         load_weights(net,training_params['load_path'])
+    if training_params['frozen']:
+        copy_weights(net,)
     count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DDP(net)
@@ -208,6 +210,8 @@ def train_classification(dataset_params,agent_params,training_params):
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
+    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}':
+        training_params['frozen'] = True
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
     # dataset['valY'] = dataset['valY'].long()
@@ -415,6 +419,7 @@ if __name__ == "__main__":
         'epochs':args.epochs,
         'five_card_conversion':False,
         'one_hot':False,
+        'frozen':False,
         'criterion':NetworkConfig.LossFunctions[dataset_params['learning_category']],
         'network': network,
         'load_path':network_path,

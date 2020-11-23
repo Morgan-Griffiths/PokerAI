@@ -23,6 +23,27 @@ def count_parameters(model):
 
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
+
+def flat_unspool(X):
+    """
+    Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
+    sorts them with hand and board, and returns (B,M,60,5) vector
+    """
+    # Size of (B,M,18)
+    ranks = X[:,:,::2]
+    suits = X[:,:,1::2]
+    cards = (ranks-1) * suits
+    hand = cards[:,:,:4]
+    board = cards[:,:,4:]
+    # sort hand and board
+    hand_index = torch.argsort(hand)
+    board_index = torch.argsort(board)
+    hand_sorted = torch.gather(hand,-1,hand_index)
+    board_sorted = torch.gather(board,-1,board_index)
+    combined = torch.cat((hand_sorted,board_sorted),dim=-1).long()
+    sequence = combined[:,:,UNSPOOL_INDEX]
+    return sequence
+
 def unspool(X):
     """
     Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
@@ -938,26 +959,26 @@ class SmalldeckClassification(nn.Module):
     def forward(self,x):
         x = x.unsqueeze(0)
         B,M,C = x.size()
-        ranks,suits = unspool(x)
-        # Shape of B,M,60,5
-        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
-        hot_suits = self.one_hot_suits[suits].float().to(self.device)
-        # hot_ranks torch.Size([1, 2, 60, 5, 15])
-        # hot_suits torch.Size([1, 2, 60, 5, 5])
+        cards = flat_unspool(x)
+        emb_cards = self.card_emb(cards)
+        # Shape of B,M,60,5,64
         raw_activations = []
         activations = []
         for i in range(B):
             raw_combinations = []
             combinations = []
             for j in range(M):
-                s = self.suit_conv(hot_suits[i,j,:,:,:])
-                r = self.rank_conv(hot_ranks[i,j,:,:,:])
-                out = torch.cat((r,s),dim=-1)
+                hero_cards = cards[i,j,:,:2,:].view(60,-1)
+                board_cards = cards[i,j,:,2:,:].view(60,-1)
+                for hidden_layer in self.hand_layers:
+                    hero_cards = self.activation_fc(hidden_layer(hero_cards))
+                for hidden_layer in self.board_layers:
+                    board_cards = self.activation_fc(hidden_layer(board_cards))
+                out = torch.cat((hero_cards,board_cards),dim=-1)
                 raw_combinations.append(out)
-                # out: (b,64,16)
-                for hidden_layer in self.hidden_layers:
+                # x (b, 64, 32)
+                for i,hidden_layer in enumerate(self.hidden_layers):
                     out = self.activation_fc(hidden_layer(out))
-                out = self.categorical_output(out.view(60,-1))
                 combinations.append(torch.argmax(out,dim=-1))
             activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
