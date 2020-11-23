@@ -958,6 +958,8 @@ class SmalldeckClassification(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.categorical_output = nn.Linear(256,self.nA)
+        self.small_category_out = nn.Linear(output_dims[-1],self.nA)
 
     def forward(self,x):
         B = 1
@@ -983,7 +985,7 @@ class SmalldeckClassification(nn.Module):
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                combinations.append(torch.argmax(out,dim=-1))
+                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
             activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
         # baseline = hardcode_handstrength(x)
@@ -996,8 +998,8 @@ class SmalldeckClassification(nn.Module):
         for output_layer in self.output_layers:
             raw_results = self.activation_fc(output_layer(raw_results))
         # (B,M,60,512)
-        final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
-        return self.small_category_out(final_out.view(M,-1))
+        # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
+        return self.small_category_out(raw_results.view(M,-1))
 
 ################################################
 #            Partial hand regression           #
