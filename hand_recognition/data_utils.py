@@ -118,15 +118,15 @@ def generate_category_weights():
         7:2860,
         8:1277
     }
-    straight_flush_weight = 0.0016
-    quad_weight = 0.0240
-    full_house_weight = 0.1441
-    flush_weight = 0.1965
-    straight_weight = 0.3925
-    trip_weight = 2.1128
-    two_pair = 4.7539
-    one_pair = 42.2569
-    high_card = 50.1177
+    straight_flush_weight = 1/0.0016
+    quad_weight = 1/0.0240
+    full_house_weight = 1/0.1441
+    flush_weight = 1/0.1965
+    straight_weight = 1/0.3925
+    trip_weight = 1/2.1128
+    two_pair = 1/4.7539
+    one_pair = 1/42.2569
+    high_card = 1/50.1177
     weight_categories = [straight_flush_weight,quad_weight,full_house_weight,flush_weight,straight_weight,trip_weight,two_pair,one_pair,high_card]
     weights = torch.empty(7463,dtype=torch.float)
     weights[:Number_of_examples[0]] = weight_categories[0]
