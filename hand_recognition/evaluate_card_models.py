@@ -243,7 +243,7 @@ def validate_network(dataset_params,params):
     net = examine_params['network'](params['network_params'])
     load_weights(net,params['load_path'])
     net.to(device)
-    # net.eval()
+    net.eval()
 
     bad_outputs = []
     bad_labels = []

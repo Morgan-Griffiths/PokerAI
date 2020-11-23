@@ -912,7 +912,7 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,7463),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(1024,512,256),hand_dims=(128,512,512),board_dims=(192,512,512),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -920,30 +920,20 @@ class SmalldeckClassification(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         self.device = params['device']
         self.output_dims = output_dims
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
-        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-
+        self.emb_size = 64
+        self.seed = torch.manual_seed(params['seed'])
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
-        self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 16, kernel_size=1, stride=1),
-            nn.BatchNorm1d(16),
-            nn.ReLU(inplace=True),
-        )
-        self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 16, kernel_size=5, stride=1),
-            nn.BatchNorm1d(16),
-            nn.ReLU(inplace=True),
-        )
+        self.hand_layers = nn.ModuleList()
+        for i in range(len(hand_dims)-1):
+            self.hand_layers.append(nn.Linear(hand_dims[i],hand_dims[i+1]))
+        self.board_layers = nn.ModuleList()
+        for i in range(len(board_dims)-1):
+            self.board_layers.append(nn.Linear(board_dims[i],board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        self.bn_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(512,7463)
-        self.output_layers = nn.ModuleList()
-        for i in range(len(self.output_dims)-1):
-            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(7464,self.nA)
+        self.categorical_output = nn.Linear(256,self.nA)
 
     def forward(self,x):
         x = x.unsqueeze(0)
