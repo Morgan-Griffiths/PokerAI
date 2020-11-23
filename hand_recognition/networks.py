@@ -23,7 +23,6 @@ def count_parameters(model):
 
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
-
 def flat_unspool(X):
     """
     Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
@@ -40,8 +39,9 @@ def flat_unspool(X):
     board_index = torch.argsort(board)
     hand_sorted = torch.gather(hand,-1,hand_index)
     board_sorted = torch.gather(board,-1,board_index)
-    combined = torch.cat((hand_sorted,board_sorted),dim=-1).long()
-    sequence = combined[:,:,UNSPOOL_INDEX]
+    combined = torch.cat((hand_sorted,board_sorted),dim=-1).squeeze(-1).long()
+    # B,5
+    sequence = combined[:,UNSPOOL_INDEX]
     return sequence
 
 def unspool(X):
@@ -933,7 +933,7 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(1024,512,256),hand_dims=(128,512,512),board_dims=(192,512,512),activation_fc=F.leaky_relu):
+    def __init__(self,params,hidden_dims=(1024,512,256),hand_dims=(128,512,512),board_dims=(192,512,512),output_dims=(61440,512,256,127),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -955,12 +955,16 @@ class SmalldeckClassification(nn.Module):
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
         self.categorical_output = nn.Linear(256,self.nA)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
 
     def forward(self,x):
-        x = x.unsqueeze(0)
-        B,M,C = x.size()
+        B = 1
+        M = x.size(0)
         cards = flat_unspool(x)
-        emb_cards = self.card_emb(cards)
+        # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
+        emb_cards = self.card_emb(cards).unsqueeze(0)
         # Shape of B,M,60,5,64
         raw_activations = []
         activations = []
@@ -968,8 +972,8 @@ class SmalldeckClassification(nn.Module):
             raw_combinations = []
             combinations = []
             for j in range(M):
-                hero_cards = cards[i,j,:,:2,:].view(60,-1)
-                board_cards = cards[i,j,:,2:,:].view(60,-1)
+                hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
+                board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
                 for hidden_layer in self.hand_layers:
                     hero_cards = self.activation_fc(hidden_layer(hero_cards))
                 for hidden_layer in self.board_layers:
@@ -977,7 +981,7 @@ class SmalldeckClassification(nn.Module):
                 out = torch.cat((hero_cards,board_cards),dim=-1)
                 raw_combinations.append(out)
                 # x (b, 64, 32)
-                for i,hidden_layer in enumerate(self.hidden_layers):
+                for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
                 combinations.append(torch.argmax(out,dim=-1))
             activations.append(torch.stack(combinations))

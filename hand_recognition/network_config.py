@@ -10,8 +10,8 @@ class NetworkConfig(object):
             dt.DataTypes.THIRTEENCARD : ThirteenCardV2,
             dt.DataTypes.PARTIAL : PartialHandRegression,
             dt.DataTypes.BLOCKERS : BlockerClassification,
-            dt.DataTypes.HANDRANKSFIVE : SmalldeckClassification,
-            dt.DataTypes.HANDRANKSNINE : HandRankClassificationNine,
+            dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFC,
+            dt.DataTypes.HANDRANKSNINE : SmalldeckClassification,
             dt.DataTypes.SMALLDECK : HandRankClassificationFC,
             dt.DataTypes.FLUSH : HandRankClassificationFC
         }
