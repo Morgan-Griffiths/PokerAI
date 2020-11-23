@@ -235,19 +235,43 @@ class CardDataset(object):
         return X,y
 
     def build_flush(self):
+        switcher = {
+            0: straight_flushes,
+            1: quads,
+            2: full_houses,
+            3: flushes,
+            4: straights,
+            5: trips,
+            6: two_pairs,
+            7: one_pairs,
+            8: high_cards
+        }
+        # if you want to make up for the samples
+        repeats = {
+            0:250,
+            1:4,
+            2:10,
+            3:4,
+            4:1,
+            5:1,
+            6:1,
+            7:1,
+            8:1
+        }
         X = []
         y = []
-        for func in [straight_flushes,straights]:
-            five_hands = func()
-            for hand in five_hands:
-                # Run through all padded versions
-                hero_hands = hero_5_cards(hand)
-                for h in hero_hands:
-                    en_hand = [encode(c) for c in h]
-                    flat_hand = np.transpose(sort_hand(np.transpose(h)))
-                    compressed = to_52_vector(flat_hand) + 1
-                    X.append(compressed)
-                    y.append(rank(en_hand))
+        for category in [0,4]:
+            for _ in range(repeats[category]):
+                five_hands = switcher[category]()
+                for hand in five_hands:
+                    # Run through all padded versions
+                    hero_hands = hero_5_cards(hand)
+                    for h in hero_hands:
+                        en_hand = [encode(c) for c in h]
+                        flat_hand = np.transpose(sort_hand(np.transpose(h)))
+                        compressed = to_52_vector(flat_hand) + 1
+                        X.append(compressed)
+                        y.append(rank(en_hand))
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
