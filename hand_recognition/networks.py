@@ -888,7 +888,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(1024,512,256),hand_dims=(128,512,512),board_dims=(192,512,512),activation_fc=F.leaky_relu):
+    def __init__(self,params,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.device = params['device']
@@ -907,7 +907,7 @@ class HandRankClassificationFC(nn.Module):
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(256,self.nA)
+        self.categorical_output = nn.Linear(128,self.nA)
 
     def forward(self,x):
         """
