@@ -257,11 +257,10 @@ def validate_network(dataset_params,params):
         inputs = inputs.to(device)
         targets = targets.to(device)
         outputs = net(inputs)
-        print(targets[:10])
-        print(torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10])
-        print((torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets)[:10])
         bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
         if bool_mask.any():
+            print(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1)[:10])
+            print(targets[bool_mask][:10])
             bad_outputs.append(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1))
             bad_labels.append(targets[bool_mask])
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
