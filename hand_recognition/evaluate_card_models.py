@@ -89,6 +89,7 @@ def load_weights(net,path,rank=0,ddp=False):
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
 
 def train_network(id,data_dict,agent_params,training_params):
+    print(f'Process {id}')
     if torch.cuda.device_count() > 1:
         setup_world(id,2)
     if torch.cuda.device_count() == 0:
@@ -207,7 +208,7 @@ def train_classification(dataset_params,agent_params,training_params):
         'valloader':valloader
         # 'y_handtype_indexes':y_handtype_indexes
     }
-    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}' or dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSNINE}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSNINE}':
@@ -219,6 +220,7 @@ def train_classification(dataset_params,agent_params,training_params):
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
     print(f"Target values, Trainset: {np.unique(dataset['trainY'],return_counts=True)}, Valset: {np.unique(dataset['valY'],return_counts=True)}")
     world_size = max(torch.cuda.device_count(),1)
+    print(f'World size {world_size}')
     mp.spawn(train_network,
         args=(data_dict,agent_params,training_params,),
         nprocs=world_size,
