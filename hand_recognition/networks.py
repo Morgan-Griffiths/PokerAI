@@ -1032,7 +1032,7 @@ class SmalldeckClassificationFlat(nn.Module):
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(128,self.nA)
+        self.categorical_output = nn.Linear(128,7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
@@ -1043,9 +1043,9 @@ class SmalldeckClassificationFlat(nn.Module):
         x = x.unsqueeze(0)
         B,M,C = x.size()
         ranks,suits = unspool(x)
-        cards = (ranks-1)*suits
+        cards = ((ranks-1)*suits)
         # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
-        emb_cards = self.card_emb(cards).unsqueeze(0)
+        emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
         raw_activations = []
         activations = []
