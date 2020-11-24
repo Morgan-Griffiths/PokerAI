@@ -317,7 +317,7 @@ class ProcessHandBoard(nn.Module):
         for output_layer in self.output_layers:
             raw_results = self.activation_fc(output_layer(raw_results))
         # (B,M,60,512)
-        return torch.cat(raw_results.view(M,-1),best_hand(M,-1),dim=-1)
+        return torch.cat((raw_results.view(B,M,-1),best_hand.view(B,M,-1).float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params,activation_fc=F.relu):
