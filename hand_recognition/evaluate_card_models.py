@@ -87,7 +87,7 @@ def load_weights(net,path,rank=0,ddp=False):
                 net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
-
+@profile
 def train_network(id,data_dict,agent_params,training_params):
     print(f'Process {id}')
     if torch.cuda.device_count() > 1:
@@ -141,6 +141,8 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
+            if i == 5:
+                break
         if id == 0:
             print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:10]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10]}')
             print('targets',targets[:10])
@@ -165,7 +167,7 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", validation sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 100:
+            if i == 5:
                 break
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
@@ -221,6 +223,7 @@ def train_classification(dataset_params,agent_params,training_params):
     print(f"Target values, Trainset: {np.unique(dataset['trainY'],return_counts=True)}, Valset: {np.unique(dataset['valY'],return_counts=True)}")
     world_size = max(torch.cuda.device_count(),1)
     print(f'World size {world_size}')
+    # train_network(0,data_dict,agent_params,training_params)
     mp.spawn(train_network,
         args=(data_dict,agent_params,training_params,),
         nprocs=world_size,
@@ -238,6 +241,7 @@ def train_regression(dataset_params,agent_params,training_params):
         'valloader':valloader
     }
     world_size = max(torch.cuda.device_count(),1)
+    # train_network(0,data_dict,agent_params,training_params)
     mp.spawn(train_network,
         args=(data_dict,agent_params,training_params,),
         nprocs=world_size,
@@ -357,7 +361,7 @@ if __name__ == "__main__":
         """)
 
     parser.add_argument('-d','--datatype',
-                        default=dt.DataTypes.FIVECARD,type=str,
+                        default=dt.DataTypes.HANDRANKSNINE,type=str,
                         metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train on')
     parser.add_argument('-m','--mode',
@@ -372,7 +376,7 @@ if __name__ == "__main__":
                         default=dt.Encodings.TWO_DIMENSIONAL,type=str)
     parser.add_argument('-e','--epochs',
                         help='Number of training epochs',
-                        default=10,type=int)
+                        default=1,type=int)
     parser.add_argument('--resume',
                         help='resume training from an earlier run',
                         action='store_true')
