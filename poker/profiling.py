@@ -19,6 +19,7 @@ from train import generate_trajectories,dual_learning_update,train_dual
 from models.networks import CombinedNet,OmahaActor,OmahaQCritic,OmahaObsQCritic,OmahaBatchActor,OmahaBatchObsQCritic
 from models.model_updates import update_combined,update_actor_critic,update_critic,update_actor,update_critic_batch,update_actor_batch,update_actor_critic_batch
 from models.model_utils import scale_rewards,soft_update,hard_update,return_value_mask,copy_weights
+from models.model_layers import HandBoardClassification,ProcessHandBoard
 
 if __name__ == "__main__":
     import argparse
@@ -31,7 +32,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--function','-f',
                         dest='function',
-                        default='dual',
+                        default='generate',
                         metavar="['generate','learn','train','env']",
                         type=str,
                         help='which function to call')
@@ -132,7 +133,6 @@ if __name__ == "__main__":
     #     mongo.close()
     # plt.scatter([1,2,5,10,25,50],[0.26,0.73,1.75,3,7.9,14.5])
     # plt.savefig(f'generate_times.png',bbox_inches='tight')
-    tic = time.time()
     with profiler.profile(record_shapes=True) as prof:
         if args.function == 'train':
             train_dual(rank,env,actor,critic,target_actor,target_critic,training_params,learning_params,network_params,validation_params)
@@ -140,6 +140,25 @@ if __name__ == "__main__":
             dual_learning_update(actor,critic,target_actor,target_critic,learning_params)
         elif args.function == 'generate':
             generate_trajectories(env,actor,critic,training_params,rank=0)
+        elif args.function == 'handboard':
+            hand_board_params = {
+                'nA':7463,
+                'device':'cpu',
+                'seed':435
+            }
+            handboard1 = HandBoardClassification(hand_board_params)
+            handboard2 = ProcessHandBoard(network_params,4)
+            state,obs,done,action_mask,betsize_mask = env.reset()
+            net_input = torch.as_tensor(state[:,:,config.state_mapping['hand_board']].reshape(1,2,18))
+            print(net_input.size())
+            tic = time.time()
+            out = handboard1(net_input)
+            toc = time.time()
+            print(f'handboard1 Forward pass took {toc-tic}')
+            tic = time.time()
+            out = handboard2(net_input)
+            toc = time.time()
+            print(f'handboard2 Forward pass took {toc-tic}')
         else:
             with torch.no_grad():
                 for i in range(100):
