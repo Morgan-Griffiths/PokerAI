@@ -11,7 +11,7 @@ class NetworkConfig(object):
             dt.DataTypes.PARTIAL : PartialHandRegression,
             dt.DataTypes.BLOCKERS : BlockerClassification,
             dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFC,
-            dt.DataTypes.HANDRANKSNINE : SmalldeckClassification,
+            dt.DataTypes.HANDRANKSNINE : HandRankClassificationNine,
             dt.DataTypes.SMALLDECK : SmalldeckClassification,
             dt.DataTypes.FLATDECK : HandRankClassificationFC,
             dt.DataTypes.FLUSH : HandRankClassificationFC
