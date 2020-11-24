@@ -195,6 +195,27 @@ def swap_batch_suits(suit_vector):
                 suit_vector[b,s,i,:] = swap_suit_vector(suit_vector[b,s,i,:])
     return suit_vector
 
+def flat_unspool(X):
+    """
+    Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
+    sorts them with hand and board, and returns (B,M,60,5) vector
+    """
+    # Size of (B,M,18)
+    ranks = X[:,:,::2]
+    suits = X[:,:,1::2]
+    cards = (ranks-1) * suits
+    hand = cards[:,:,:4]
+    board = cards[:,:,4:]
+    # sort hand and board
+    hand_index = torch.argsort(hand)
+    board_index = torch.argsort(board)
+    hand_sorted = torch.gather(hand,-1,hand_index)
+    board_sorted = torch.gather(board,-1,board_index)
+    combined = torch.cat((hand_sorted,board_sorted),dim=-1).squeeze(-1).long()
+    # B,5
+    sequence = combined[:,:,UNSPOOL_INDEX]
+    return sequence
+
 def unspool(X):
     """
     Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
