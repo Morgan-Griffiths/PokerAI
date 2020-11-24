@@ -100,6 +100,7 @@ def train_network(id,data_dict,agent_params,training_params):
         print(f"Loading weights from {training_params['load_path']}")
         load_weights(net,training_params['load_path'])
     if training_params['frozen']:
+        print('Loading frozen layer')
         conv_path = '../poker/checkpoints/frozen_layers/hand_board_weights_conv'
         fc_path = 'checkpoints/multiclass_categorization/HandRankClassificationFC'
         copy_weights(net,fc_path)
