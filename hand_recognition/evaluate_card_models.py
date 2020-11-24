@@ -109,7 +109,7 @@ def train_network(id,data_dict,agent_params,training_params):
         criterion = training_params['criterion'](data_dict['category_weights'].to(id),reduction='sum')
     else:
         criterion = training_params['criterion']()
-    optimizer = optim.Adam(net.parameters(), lr=0.003)
+    optimizer = optim.Adam(net.parameters(), lr=agent_params['learning_rate'])
     lr_stepsize = training_params['epochs'] // 5
     lr_stepper = MultiStepLR(optimizer=optimizer,milestones=[lr_stepsize*2,lr_stepsize*3,lr_stepsize*4],gamma=0.1)
     scores = []
@@ -374,6 +374,10 @@ if __name__ == "__main__":
     parser.add_argument('--resume',
                         help='resume training from an earlier run',
                         action='store_true')
+    parser.add_argument('-lr',
+                        help='resume training from an earlier run',
+                        type=float,
+                        default=0.003)
     parser.set_defaults(resume=False)
 
 
@@ -398,7 +402,7 @@ if __name__ == "__main__":
         'data_path':os.path.join('data',dt.Globals.DatasetCategories[args.datatype],args.datatype)
     }
     agent_params = {
-        'learning_rate':2e-3,
+        'learning_rate':args.lr,
         'network':NetworkConfig.DataModels[args.datatype],
         'save_dir':'checkpoints',
         'save_path':network_path,
