@@ -51,6 +51,19 @@ def return_next_baseline_path(path):
     else:
         return os.path.join(path,'baseline1')
 
+def return_weighted_baseline_path(path):
+    """TODO select opponent based on some probability dist"""
+    baselines_paths = load_paths(path)
+    if baselines_paths:
+        agents = {}
+        highest_number = 0
+        for name,b_path in baselines_paths.items():
+            number = int(name.split('baseline')[-1])
+            agents[number] = b_path
+            highest_number = max(highest_number,number)
+        return agents[highest_number]
+    return ''
+
 def return_latest_baseline_path(path):
     baselines_paths = load_paths(path)
     if baselines_paths:

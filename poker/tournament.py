@@ -19,6 +19,14 @@ from poker_env.config import Config
 from poker_env.env import Poker
 from utils.utils import load_paths,grep,return_latest_baseline_path,bin_by_handstrength
 
+def ELO(A_rating,A_score,B_rating,B_score,K=32):
+    A_expected_score = 1 / 1 + 10**((A-B)/400)
+    B_expected_score = 1 / 1 + 10**((B-A)/400)
+    A_new_rating = A_rating + K * (A_score-A_expected_score)
+    B_new_rating = B_rating + K * (B_score-B_expected_score)
+    return A_new_rating,B_new_rating
+
+
 @torch.no_grad()
 def tournament(env,agent1,agent2,model_names,training_params,duplicate_decks):
     hero = model_names[1]
