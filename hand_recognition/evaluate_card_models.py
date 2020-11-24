@@ -87,7 +87,7 @@ def load_weights(net,path,rank=0,ddp=False):
                 net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
-@profile
+        
 def train_network(id,data_dict,agent_params,training_params):
     print(f'Process {id}')
     if torch.cuda.device_count() > 1:
