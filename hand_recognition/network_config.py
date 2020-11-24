@@ -12,7 +12,8 @@ class NetworkConfig(object):
             dt.DataTypes.BLOCKERS : BlockerClassification,
             dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFC,
             dt.DataTypes.HANDRANKSNINE : SmalldeckClassification,
-            dt.DataTypes.SMALLDECK : HandRankClassificationFC,
+            dt.DataTypes.SMALLDECK : SmalldeckClassification,
+            dt.DataTypes.FLATDECK : HandRankClassificationFC,
             dt.DataTypes.FLUSH : HandRankClassificationFC
         }
     LossFunctions = {

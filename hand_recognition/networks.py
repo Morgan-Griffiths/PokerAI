@@ -820,8 +820,12 @@ class HandRankClassificationNine(nn.Module):
     def forward(self,x):
         # Input is (b,9,2)
         M,c,h = x.size()
-        ranks = x[:,:,0].long()
-        suits = x[:,:,1].long()
+        ranks = x[:,:,0]
+        suits = x[:,:,1]
+        interleaved = torch.empty((M,c*h))
+        interleaved[:,0::2] = ranks
+        interleaved[:,1::2] = suits
+        ranks,suits = unspool(interleaved)
         hot_ranks = self.one_hot_ranks[ranks]
         hot_suits = self.one_hot_suits[suits]
         if torch.cuda.is_available():

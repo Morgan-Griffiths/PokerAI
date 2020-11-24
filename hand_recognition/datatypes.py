@@ -14,6 +14,7 @@ class DataTypes(object):
     PARTIAL = 'partial'
     HANDRANKSFIVE = 'handranksfive'
     HANDRANKSNINE = 'handranksnine'
+    FLATDECK = 'flatdeck'
     SMALLDECK = 'smalldeck'
     FLUSH = 'flush'
 
@@ -44,6 +45,7 @@ class Globals(object):
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.HANDRANKSNINE : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.HANDRANKSFIVE : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.FLATDECK : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.SMALLDECK : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.FLUSH : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.TENCARD : LearningCategories.REGRESSION,
@@ -68,7 +70,8 @@ class Globals(object):
         DataTypes.NINECARD:9,
         DataTypes.HANDRANKSFIVE:7463,
         DataTypes.HANDRANKSNINE:7463,
-        DataTypes.SMALLDECK:7463,
+        DataTypes.SMALLDECK:1820,
+        DataTypes.FLATDECK:7463,
         DataTypes.FLUSH:7463,
         DataTypes.BLOCKERS:1,
         DataTypes.THIRTEENCARD:1,
@@ -84,7 +87,8 @@ class Globals(object):
         DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
-        DataTypes.SMALLDECK: {i:i for i in range(1,7463)},
+        DataTypes.SMALLDECK: {i:i for i in range(0,1820)},
+        DataTypes.FLATDECK: {i:i for i in range(1,7463)},
         DataTypes.FLUSH: {i:i for i in range(1,7463)},
     }
     TARGET_SET = {
@@ -96,7 +100,8 @@ class Globals(object):
         DataTypes.NINECARD:set(range(9)),
         DataTypes.FIVECARD:set(range(9)),
         DataTypes.BLOCKERS:set(range(2)),
-        DataTypes.SMALLDECK:set(range(1,7463)),
+        DataTypes.SMALLDECK:set(range(0,1820)),
+        DataTypes.FLATDECK:set(range(1,7463)),
         DataTypes.FLUSH:set(range(1,7463)),
     }
     # 7462-6185 High card
