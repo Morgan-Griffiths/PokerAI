@@ -942,7 +942,6 @@ class SmalldeckClassification(nn.Module):
         self.device = params['device']
         self.output_dims = output_dims
         self.emb_size = 64
-        self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()

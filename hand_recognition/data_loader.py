@@ -71,7 +71,7 @@ def return_dataloaders(X,y):
     params = {
         'batch_size':1024,
         'shuffle': True,
-        'num_workers':4
+        'num_workers':8
     }
     trainloader = DataLoader(trainset, **params)
     valloader = DataLoader(valset,**params)
