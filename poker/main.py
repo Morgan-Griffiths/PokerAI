@@ -189,7 +189,7 @@ if __name__ == "__main__":
         clean_folder(training_params['actor_path']) 
     # Set processes
     mp.set_start_method('spawn')
-    num_processes = min(mp.cpu_count(),1)
+    num_processes = min(mp.cpu_count(),3)
     print(f'Number of used processes {num_processes}')
     print(f'Training {args.network_type} model')
     if args.network_type == 'combined':
