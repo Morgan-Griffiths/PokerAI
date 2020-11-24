@@ -970,7 +970,7 @@ class SmalldeckClassification(nn.Module):
         self.small_category_out = nn.Linear(128,self.nA)
 
     def forward(self,x):
-        # Expects shape of (B,9)
+        # Expects shape of (B,18)
         x = x.unsqueeze(0)
         B,M,C = x.size()
         ranks,suits = unspool(x)
@@ -1039,9 +1039,11 @@ class SmalldeckClassificationFlat(nn.Module):
         self.small_category_out = nn.Linear(output_dims[-1],self.nA)
 
     def forward(self,x):
-        B = 1
-        M = x.size(0)
-        # cards = flat_unspool(x)
+        # Expects shape of (B,18)
+        x = x.unsqueeze(0)
+        B,M,C = x.size()
+        ranks,suits = unspool(x)
+        cards = (ranks-1)*suits
         # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
         emb_cards = self.card_emb(cards).unsqueeze(0)
         # Shape of B,M,60,5,64

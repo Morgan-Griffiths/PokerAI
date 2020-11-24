@@ -12,7 +12,7 @@ class NetworkConfig(object):
             dt.DataTypes.BLOCKERS : BlockerClassification,
             dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFC,
             dt.DataTypes.HANDRANKSNINE : HandRankClassificationNine,
-            dt.DataTypes.SMALLDECK : SmalldeckClassification,
+            dt.DataTypes.SMALLDECK : SmalldeckClassificationFlat,
             dt.DataTypes.FLATDECK : HandRankClassificationFC,
             dt.DataTypes.FLUSH : HandRankClassificationFC
         }

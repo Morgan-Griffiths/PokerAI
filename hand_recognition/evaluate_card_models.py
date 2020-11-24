@@ -102,7 +102,7 @@ def train_network(id,data_dict,agent_params,training_params):
     if training_params['frozen']:
         conv_path = '../poker/checkpoints/frozen_layers/hand_board_weights_conv'
         fc_path = 'checkpoints/multiclass_categorization/HandRankClassificationFC'
-        copy_weights(net,conv_path)
+        copy_weights(net,fc_path)
     count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DDP(net)
