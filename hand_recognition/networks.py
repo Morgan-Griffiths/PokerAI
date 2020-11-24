@@ -801,13 +801,13 @@ class HandRankClassificationNine(nn.Module):
 
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.suit_conv = nn.Sequential(
-            nn.Conv1d(9, 64, kernel_size=1, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 16, kernel_size=1, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.rank_conv = nn.Sequential(
-            nn.Conv1d(9, 64, kernel_size=5, stride=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(5, 16, kernel_size=5, stride=1),
+            nn.BatchNorm1d(16),
             nn.ReLU(inplace=True),
         )
         self.hidden_layers = nn.ModuleList()
@@ -826,14 +826,11 @@ class HandRankClassificationNine(nn.Module):
         interleaved[:,0::2] = ranks
         interleaved[:,1::2] = suits
         ranks,suits = unspool(interleaved)
-        hot_ranks = self.one_hot_ranks[ranks]
-        hot_suits = self.one_hot_suits[suits]
-        if torch.cuda.is_available():
-            s = self.suit_conv(hot_suits.float().cuda())
-            r = self.rank_conv(hot_ranks.float().cuda())
-        else:
-            s = self.suit_conv(hot_suits.float())
-            r = self.rank_conv(hot_ranks.float())
+        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
+        hot_suits = self.one_hot_suits[suits].float().to(self.device)
+        # (b,60,5,2)
+        s = self.suit_conv(hot_suits)
+        r = self.rank_conv(hot_ranks)
         x = torch.cat((r,s),dim=-1)
         # should be (b,64,88)
         for i,hidden_layer in enumerate(self.hidden_layers):
