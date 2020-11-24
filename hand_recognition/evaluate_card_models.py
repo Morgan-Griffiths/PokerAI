@@ -87,7 +87,7 @@ def load_weights(net,path,rank=0,ddp=False):
                 net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
-        
+
 def train_network(id,data_dict,agent_params,training_params):
     print(f'Process {id}')
     if torch.cuda.device_count() > 1:
@@ -100,7 +100,9 @@ def train_network(id,data_dict,agent_params,training_params):
         print(f"Loading weights from {training_params['load_path']}")
         load_weights(net,training_params['load_path'])
     if training_params['frozen']:
-        copy_weights(net,'checkpoints/multiclass_categorization/HandRankClassificationFC')
+        conv_path = '../poker/checkpoints/frozen_layers/hand_board_weights_conv'
+        fc_path = 'checkpoints/multiclass_categorization/HandRankClassificationFC'
+        copy_weights(net,conv_path)
     count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DDP(net)
@@ -210,10 +212,10 @@ def train_classification(dataset_params,agent_params,training_params):
         'valloader':valloader
         # 'y_handtype_indexes':y_handtype_indexes
     }
-    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}' or dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSNINE}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.FLATDECK}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
-    if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSNINE}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
         training_params['frozen'] = True
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
