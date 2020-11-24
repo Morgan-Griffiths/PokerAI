@@ -3,9 +3,79 @@ import torch.nn as nn
 import torch.nn.functional as F
 from poker_env.datatypes import Globals,SUITS,RANKS,Action,Street,NetworkActions
 import numpy as np
-from models.model_utils import strip_padding,unspool,hardcode_handstrength
+from models.model_utils import strip_padding,unspool,flat_unspool,hardcode_handstrength
 import time
 from functools import lru_cache
+
+
+class HandBoardClassification(nn.Module):
+    def __init__(self,params,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),output_dims=(15360,512,256,127),activation_fc=F.leaky_relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        self.device = params['device']
+        self.output_dims = output_dims
+        self.emb_size = 64
+        self.seed = torch.manual_seed(params['seed'])
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.hand_layers = nn.ModuleList()
+        for i in range(len(hand_dims)-1):
+            self.hand_layers.append(nn.Linear(hand_dims[i],hand_dims[i+1]))
+        self.board_layers = nn.ModuleList()
+        for i in range(len(board_dims)-1):
+            self.board_layers.append(nn.Linear(board_dims[i],board_dims[i+1]))
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(128,self.nA)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+        self.small_category_out = nn.Linear(output_dims[-1],self.nA)
+
+    def forward(self,x):
+        B = 1
+        M = x.size(1)
+        cards = flat_unspool(x)
+        # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
+        emb_cards = self.card_emb(cards)
+        # Shape of B,M,60,5,64
+        raw_activations = []
+        activations = []
+        for i in range(B):
+            raw_combinations = []
+            combinations = []
+            for j in range(M):
+                hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
+                board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
+                for hidden_layer in self.hand_layers:
+                    hero_cards = self.activation_fc(hidden_layer(hero_cards))
+                for hidden_layer in self.board_layers:
+                    board_cards = self.activation_fc(hidden_layer(board_cards))
+                out = torch.cat((hero_cards,board_cards),dim=-1)
+                raw_combinations.append(out)
+                # x (b, 64, 32)
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
+                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            activations.append(torch.stack(combinations))
+            raw_activations.append(torch.stack(raw_combinations))
+        # baseline = hardcode_handstrength(x)
+        results = torch.stack(activations)
+        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # print(best_hand)
+        # print(baseline)
+        raw_results = torch.stack(raw_activations).view(B,M,-1)
+        # (B,M,60,7463)
+        for output_layer in self.output_layers:
+            raw_results = self.activation_fc(output_layer(raw_results))
+        # (B,M,60,512)
+        # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
+        return self.small_category_out(raw_results.view(M,-1))
+
 
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
@@ -109,7 +179,7 @@ class NetworkFunctions(object):
 #              Processing Layers               #
 ################################################
 
-class ProcessHandBoard(nn.Module):
+class ProcessHandBoardConv(nn.Module):
     def __init__(self,params,hand_length,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
         super().__init__()
         self.output_dims = output_dims
@@ -185,6 +255,69 @@ class ProcessHandBoard(nn.Module):
         # (B,M,60,512)
         # o = self.hand_out(raw_results.view(B,M,-1))
         return torch.cat((raw_results,best_hand.float()),dim=-1)
+
+class ProcessHandBoard(nn.Module):
+    def __init__(self,params,hand_length,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),output_dims=(15360,512,256,127),activation_fc=F.leaky_relu):
+        super().__init__()
+        self.params = params
+        self.activation_fc = activation_fc
+        self.maxlen = params['maxlen']
+        self.device = params['device']
+        self.hidden_dims = hidden_dims
+        self.hand_length = hand_length
+        self.output_dims = output_dims
+        self.emb_size = 64
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.hand_layers = nn.ModuleList()
+        for i in range(len(hand_dims)-1):
+            self.hand_layers.append(nn.Linear(hand_dims[i],hand_dims[i+1]))
+        self.board_layers = nn.ModuleList()
+        for i in range(len(board_dims)-1):
+            self.board_layers.append(nn.Linear(board_dims[i],board_dims[i+1]))
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(128,7463)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.output_dims)-1):
+            self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
+
+    def forward(self,x):
+        # Expects shape of (B,M,18)
+        B,M,C = x.size()
+        ranks,suits = unspool(x)
+        cards = ((ranks-1)*suits)
+        emb_cards = self.card_emb(cards)
+        # Shape of B,M,60,5,64
+        raw_activations = []
+        activations = []
+        for i in range(B):
+            raw_combinations = []
+            combinations = []
+            for j in range(M):
+                hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
+                board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
+                for hidden_layer in self.hand_layers:
+                    hero_cards = self.activation_fc(hidden_layer(hero_cards))
+                for hidden_layer in self.board_layers:
+                    board_cards = self.activation_fc(hidden_layer(board_cards))
+                out = torch.cat((hero_cards,board_cards),dim=-1)
+                raw_combinations.append(out)
+                # x (b, 64, 32)
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
+                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            activations.append(torch.stack(combinations))
+            raw_activations.append(torch.stack(raw_combinations))
+        results = torch.stack(activations)
+        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        raw_results = torch.stack(raw_activations).view(B,M,-1)
+        # (B,M,60,7463)
+        for output_layer in self.output_layers:
+            raw_results = self.activation_fc(output_layer(raw_results))
+        # (B,M,60,512)
+        return torch.cat(raw_results.view(M,-1),best_hand(M,-1),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params,activation_fc=F.relu):
