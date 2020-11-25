@@ -11,6 +11,7 @@ import yaml
 import time
 import sys
 import copy
+from pymongo import MongoClient
 from torch import optim
 from random import shuffle
 from collections import deque,OrderedDict
@@ -145,9 +146,9 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-        if id == 0:
-            print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:15]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:15]}')
-            print('targets',targets[:15])
+        # if id == 0:
+        #     print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:15]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:15]}')
+        #     print('targets',targets[:15])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -169,14 +170,14 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", validation sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 10:
+            if i == 100:
                 break
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
         net.train()
         if id == 0 or id == 'cpu':
-            print('\nguesses',torch.argmax(val_preds,dim=-1)[:15])
-            print('targets',targets[:15])
+            # print('\nguesses',torch.argmax(val_preds,dim=-1)[:15])
+            # print('targets',targets[:15])
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
             print(f"Saving weights to {training_params['load_path']}")
             torch.save(net.state_dict(), training_params['load_path'])
@@ -222,7 +223,7 @@ def train_classification(dataset_params,agent_params,training_params):
     # dataset['valY'] = dataset['valY'].long()
     # target = dt.Globals.TARGET_SET[dataset_params['datatype']]
     # y_handtype_indexes = return_ylabel_dict(dataset['valX'],dataset['valY'],target)
-    print(f"Target values, Trainset: {np.unique(dataset['trainY'],return_counts=True)}, Valset: {np.unique(dataset['valY'],return_counts=True)}")
+    # print(f"Target values, Trainset: {np.unique(dataset['trainY'],return_counts=True)}, Valset: {np.unique(dataset['valY'],return_counts=True)}")
     world_size = max(torch.cuda.device_count(),1)
     print(f'World size {world_size}')
     # train_network(0,data_dict,agent_params,training_params)
@@ -280,8 +281,9 @@ def validate_network(dataset_params,params):
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
     print(f'\nNumber of incorrect guesses {len(bad_outputs)}')
-    print(f'\nBad guesses {bad_labels[:10]}')
+    print(f'\nBad guesses {bad_outputs[:10]}')
     print(f'\nMissed labels {bad_labels[:10]}')
+    return bad_outputs,bad_labels
 
 
 def check_network(dataset_params,params):
@@ -460,16 +462,20 @@ if __name__ == "__main__":
         # load config
         with open(os.path.join(os.getcwd(),'network_configs.yaml')) as file:
             yaml_configs = yaml.load(file,Loader=yaml.FullLoader)
-            try:
-                net_configs = yaml_configs[args.datatype]
-                for k,v in net_configs.items():
-                    print(f'Training {k}, with params {v}')
-                    network_params['hidden_dims'] = v['hidden_dims']
-                    network_params['board_dims'] = v['board_dims']
-                    network_params['hand_dims'] = v['hand_dims']
-                    train_classification(dataset_params,agent_params,training_params)
-            except:
-                raise ValueError('Datatype not found')
+            net_configs = yaml_configs[args.datatype]
+            for k,v in net_configs.items():
+                print(f'Training {k}, with params {v}')
+                network_params['hidden_dims'] = v['hidden_dims']
+                network_params['board_dims'] = v['board_dims']
+                network_params['hand_dims'] = v['hand_dims']
+                agent_params['network_params'] = network_params
+                train_classification(dataset_params,agent_params,training_params)
+                bad_guesses,missed_labels = validate_network(dataset_params,agent_params)
+                client = MongoClient('localhost', 27017,maxPoolSize=10000)
+                db = client['poker']
+                state_json = {'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses.tolist(),'missed_labels':missed_labels.tolist(),'num_missed':len(bad_guesses)}
+                db['network_results'].insert_one(state_json)
+                client.close()
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating {network_name} on {args.datatype}, {dataset_params["learning_category"]}')
         if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:
