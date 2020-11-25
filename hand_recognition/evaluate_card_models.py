@@ -268,7 +268,12 @@ def validate_network(dataset_params,params):
         inputs = inputs.to(device)
         targets = targets.to(device)
         outputs = net(inputs)
-        bool_mask = torch.argmax(torch.softmax(outputs,dim=-1),dim=-1) != targets
+        bool_mask = torch.argmax(outputs,dim=-1) != targets
+        # print(torch.argmax(outputs,dim=-1)[:20])
+        # print(targets[:20])
+        # print(bool_mask[:20])
+        # print(bool_mask.any())
+        # print(torch.where(bool_mask == 1))
         if bool_mask.any():
             print(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1)[:10])
             print(targets[bool_mask][:10])
@@ -299,7 +304,8 @@ def check_network(dataset_params,params):
         dt.DataTypes.FIVECARD:{i:i for i in range(9)},
         dt.DataTypes.HANDRANKSNINE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.HANDRANKSFIVE:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
-        dt.DataTypes.SMALLDECK:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
+        dt.DataTypes.SMALLDECK:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(1820)},
+        dt.DataTypes.FLATDECK:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.FLUSH:{i:dt.Globals.HAND_STRENGTH_SAMPLING[i] for i in range(9)},
         dt.DataTypes.THIRTEENCARD:{i:i-1 for i in range(0,3)},
         dt.DataTypes.TENCARD:{i:i-1 for i in range(0,3)},
