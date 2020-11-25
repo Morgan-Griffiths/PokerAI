@@ -79,7 +79,7 @@ def return_latest_baseline_path(path):
     return ''
 
 def remove_frozen_module():
-    path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
+    path = os.path.join(os.getcwd(),'checkpoints/frozen_layers/hand_board_weights')
     layer_weights = torch.load(path,map_location=torch.device('cpu'))
     new_state_dict = OrderedDict()
     for k,v in layer_weights.items():
