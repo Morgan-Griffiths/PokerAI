@@ -280,8 +280,8 @@ def validate_network(dataset_params,params):
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
-    flattened_bad_outputs [item for sublist in bad_outputs for item in sublist]
-    flattened_bad_labels [item for sublist in bad_labels for item in sublist]
+    flattened_bad_outputs = [item for sublist in bad_outputs for item in sublist]
+    flattened_bad_labels = [item for sublist in bad_labels for item in sublist]
     print(f'\nNumber of incorrect guesses {len(flattened_bad_outputs)}')
     print(f'\nBad guesses {flattened_bad_outputs[:10]}')
     print(f'\nMissed labels {flattened_bad_labels[:10]}')
