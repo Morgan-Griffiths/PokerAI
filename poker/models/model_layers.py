@@ -287,7 +287,7 @@ class ProcessHandBoard(nn.Module):
         # Expects shape of (B,M,18)
         B,M,C = x.size()
         ranks,suits = unspool(x)
-        cards = ((ranks-1)*suits)
+        cards = (ranks-1)+((suits-1)*13)
         emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
         raw_activations = []
@@ -312,6 +312,10 @@ class ProcessHandBoard(nn.Module):
             raw_activations.append(torch.stack(raw_combinations))
         results = torch.stack(activations)
         best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        baseline = hardcode_handstrength(x)
+        print('results',results)
+        print('baseline',baseline)
+        print('best_hand',best_hand)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
