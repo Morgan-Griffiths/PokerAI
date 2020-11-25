@@ -274,16 +274,18 @@ def validate_network(dataset_params,params):
         if bool_mask.any():
             # print(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1)[:10])
             # print(targets[bool_mask][:10])
-            bad_outputs.append(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1))
+            bad_outputs.append(torch.argmax(torch.softmax(outputs,dim=-1).detach()[bool_mask],dim=-1))
             bad_labels.append(targets[bool_mask])
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
         sys.stdout.flush()
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
-    print(f'\nNumber of incorrect guesses {len(bad_outputs)}')
-    print(f'\nBad guesses {bad_outputs[:10]}')
-    print(f'\nMissed labels {bad_labels[:10]}')
-    return bad_outputs,bad_labels
+    flattened_bad_outputs [item for sublist in bad_outputs for item in sublist]
+    flattened_bad_labels [item for sublist in bad_labels for item in sublist]
+    print(f'\nNumber of incorrect guesses {len(flattened_bad_outputs)}')
+    print(f'\nBad guesses {flattened_bad_outputs[:10]}')
+    print(f'\nMissed labels {flattened_bad_labels[:10]}')
+    return flattened_bad_labels,flattened_bad_labels
 
 
 def check_network(dataset_params,params):
@@ -471,9 +473,11 @@ if __name__ == "__main__":
                 agent_params['network_params'] = network_params
                 train_classification(dataset_params,agent_params,training_params)
                 bad_guesses,missed_labels = validate_network(dataset_params,agent_params)
+                clean_bad_guesses = [guess.detach().tolist() for guess in bad_guesses]
+                clean_missed_labels = [guess.detach().tolist() for guess in missed_labels]
                 client = MongoClient('localhost', 27017,maxPoolSize=10000)
                 db = client['poker']
-                state_json = {'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses.tolist(),'missed_labels':missed_labels.tolist(),'num_missed':len(bad_guesses)}
+                state_json = {'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses,'missed_labels':missed_labels,'num_missed':len(bad_guesses)}
                 db['network_results'].insert_one(state_json)
                 client.close()
     elif args.mode == dt.Modes.TRAIN:
