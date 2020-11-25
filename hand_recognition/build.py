@@ -302,7 +302,6 @@ class CardDataset(object):
                     flat_hand = np.transpose(sort_hand(np.transpose(h)))
                     print(flat_hand)
                     compressed = to_52_vector(flat_hand) + 1
-                    print(compressed)
                     X.append(compressed)
                     y.append(rank(en_hand))
         X = np.stack(X)
