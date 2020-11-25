@@ -7,6 +7,7 @@ from torch.optim.lr_scheduler import MultiStepLR,StepLR
 import torch
 import numpy as np
 import os
+import yaml
 import time
 import sys
 import copy
@@ -455,6 +456,20 @@ if __name__ == "__main__":
         check_network(dataset_params,agent_params)
     elif args.mode == dt.Modes.VALIDATE:
         validate_network(dataset_params,agent_params)
+    elif args.mode == dt.Modes.MULTITRAIN:
+        # load config
+        with open(os.path.join(os.getcwd(),'network_configs.yaml')) as file:
+            yaml_configs = yaml.load(file,Loader=yaml.FullLoader)
+            try:
+                net_configs = yaml_configs[args.datatype]
+                for k,v in net_configs.items():
+                    print(f'Training {k}, with params {v}')
+                    network_params['hidden_dims'] = v['hidden_dims']
+                    network_params['board_dims'] = v['board_dims']
+                    network_params['hand_dims'] = v['hand_dims']
+                    train_classification(dataset_params,agent_params,training_params)
+            except:
+                raise ValueError('Datatype not found')
     elif args.mode == dt.Modes.TRAIN:
         print(f'Evaluating {network_name} on {args.datatype}, {dataset_params["learning_category"]}')
         if learning_category == dt.LearningCategories.MULTICLASS_CATEGORIZATION or learning_category == dt.LearningCategories.BINARY_CATEGORIZATION:

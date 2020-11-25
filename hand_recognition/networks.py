@@ -891,7 +891,7 @@ class HandRankClassificationFive(nn.Module):
         return self.categorical_output(x.view(M,-1))
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(512,320,320),hand_dims=(128,512,256),board_dims=(192,512,256),activation_fc=F.leaky_relu):
+    def __init__(self,params,activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.device = params['device']
@@ -900,17 +900,20 @@ class HandRankClassificationFC(nn.Module):
         self.emb_size = 64
         self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        self.hidden_dims = params['hidden_dims']
+        self.hand_dims = params['hand_dims']
+        self.board_dims = params['board_dims']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
-        for i in range(len(hand_dims)-1):
-            self.hand_layers.append(nn.Linear(hand_dims[i],hand_dims[i+1]))
+        for i in range(len(self.hand_dims)-1):
+            self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
         self.board_layers = nn.ModuleList()
-        for i in range(len(board_dims)-1):
-            self.board_layers.append(nn.Linear(board_dims[i],board_dims[i+1]))
+        for i in range(len(self.board_dims)-1):
+            self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(320,self.nA)
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(self.hidden_dims[-1],self.nA)
 
     def forward(self,x):
         """

@@ -1,0 +1,17 @@
+flatdeck:
+  network_one:
+    hidden_dims: [512,320,320]
+    hand_dims: [128,512,256]
+    board_dims: [192,512,256]
+  network_two:
+    hidden_dims: [1024,512]
+    hand_dims: [128,512]
+    board_dims: [192,512]
+  network_three:
+    hidden_dims: [1024,512,512,256]
+    hand_dims: [128,512]
+    board_dims: [192,512]
+  network_four:
+    hidden_dims: [320,320,320,320]
+    hand_dims: [128,128,128,128]
+    board_dims: [192,192,192,192]

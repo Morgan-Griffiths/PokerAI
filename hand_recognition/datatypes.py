@@ -4,6 +4,7 @@ class Modes(object):
     TRAIN = 'train'
     EXAMINE = 'examine'
     VALIDATE = 'validate'
+    MULTITRAIN = 'multitrain'
 
 class DataTypes(object):
     THIRTEENCARD = 'thirteencard'
