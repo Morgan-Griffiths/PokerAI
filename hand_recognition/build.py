@@ -305,9 +305,6 @@ class CardDataset(object):
                     print(compressed)
                     X.append(compressed)
                     y.append(rank(en_hand))
-                    break
-                break
-            break
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
