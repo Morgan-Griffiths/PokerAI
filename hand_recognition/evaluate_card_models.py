@@ -269,14 +269,9 @@ def validate_network(dataset_params,params):
         targets = targets.to(device)
         outputs = net(inputs)
         bool_mask = torch.argmax(outputs,dim=-1) != targets
-        # print(torch.argmax(outputs,dim=-1)[:20])
-        # print(targets[:20])
-        # print(bool_mask[:20])
-        # print(bool_mask.any())
-        # print(torch.where(bool_mask == 1))
         if bool_mask.any():
-            print(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1)[:10])
-            print(targets[bool_mask][:10])
+            # print(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1)[:10])
+            # print(targets[bool_mask][:10])
             bad_outputs.append(torch.argmax(torch.softmax(outputs,dim=-1)[bool_mask],dim=-1))
             bad_labels.append(targets[bool_mask])
         sys.stdout.write("[%-60s] %d%%" % ('='*(60*(i+1)//len(trainloader)), (100*(i+1)//len(trainloader))))
@@ -284,8 +279,8 @@ def validate_network(dataset_params,params):
         sys.stdout.write(f", training sample {(i+1):.2f}")
         sys.stdout.flush()
     print(f'\nNumber of incorrect guesses {len(bad_outputs)}')
-    print(f'\nBad guesses {bad_labels}')
-    print(f'\nMissed labels {bad_labels}')
+    print(f'\nBad guesses {bad_labels[:10]}')
+    print(f'\nMissed labels {bad_labels[:10]}')
 
 
 def check_network(dataset_params,params):
