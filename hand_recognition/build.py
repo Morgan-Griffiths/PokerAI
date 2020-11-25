@@ -297,6 +297,7 @@ class CardDataset(object):
             for hand in five_hands:
                 # Run through all padded versions
                 if val:
+                    hand = np.transpose(hand)
                     en_hand = [encode(c) for c in hand]
                     flat_hand = np.transpose(sort_hand(np.transpose(hand)))
                     compressed = to_52_vector(flat_hand) + 1
