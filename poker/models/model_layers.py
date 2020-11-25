@@ -313,9 +313,6 @@ class ProcessHandBoard(nn.Module):
         results = torch.stack(activations)
         best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         baseline = hardcode_handstrength(x)
-        print('results',results)
-        print('baseline',baseline)
-        print('best_hand',best_hand)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
