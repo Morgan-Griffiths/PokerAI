@@ -144,11 +144,9 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 5:
-                break
         if id == 0:
-            print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:10]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:10]}')
-            print('targets',targets[:10])
+            print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:15]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:15]}')
+            print('targets',targets[:15])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
@@ -170,14 +168,14 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", validation sample {(i+1):.2f}")
             sys.stdout.flush()
-            if i == 5:
+            if i == 10:
                 break
         val_window.append(sum(val_losses))
         val_scores.append(np.mean(val_window))
         net.train()
         if id == 0 or id == 'cpu':
-            print('\nguesses',torch.argmax(val_preds,dim=-1)[:10])
-            print('targets',targets[:10])
+            print('\nguesses',torch.argmax(val_preds,dim=-1)[:15])
+            print('targets',targets[:15])
             print(f"\nTraining loss {np.mean(score_window):.4f}, Val loss {np.mean(val_window):.4f}, Epoch {epoch}")
             print(f"Saving weights to {training_params['load_path']}")
             torch.save(net.state_dict(), training_params['load_path'])
