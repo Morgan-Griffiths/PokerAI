@@ -939,7 +939,7 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(3600,512,256,127),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -967,6 +967,10 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
+        self.k_dim = 256
+        self.query = nn.Linear(self.k_dim,self.k_dim)
+        self.keys = nn.Linear(self.k_dim,self.k_dim)
+        self.value = nn.Linear(self.k_dim,self.k_dim)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
@@ -992,7 +996,17 @@ class SmalldeckClassification(nn.Module):
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
-                raw_combinations.append(out)
+                out_flat = out.view(60,-1)
+                # 60,16,16
+                # Self attention
+                q = self.query(out_flat)
+                k = self.keys(out_flat)
+                v = self.value(out_flat)
+                raw = torch.mm(q,k.transpose(0,1)) / math.sqrt(self.k_dim)
+                weights = F.softmax(raw,dim=-1)
+                raw_out = torch.mm(weights,raw)
+                y_hat = torch.mm(raw_out,v)
+                raw_combinations.append(raw_out)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
