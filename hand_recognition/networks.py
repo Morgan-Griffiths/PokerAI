@@ -999,14 +999,14 @@ class SmalldeckClassification(nn.Module):
                 out_flat = out.view(60,-1)
                 # 60,16,16
                 # Self attention
-                q = self.query(out_flat)
-                k = self.keys(out_flat)
-                v = self.value(out_flat)
-                raw = torch.mm(q,k.transpose(0,1)) / math.sqrt(self.k_dim)
-                weights = F.softmax(raw,dim=-1)
-                raw_out = torch.mm(weights,raw)
-                y_hat = torch.mm(raw_out,v)
-                raw_combinations.append(raw_out)
+                # q = self.query(out_flat)
+                # k = self.keys(out_flat)
+                # v = self.value(out_flat)
+                # raw = torch.mm(q,k.transpose(0,1)) / math.sqrt(self.k_dim)
+                # weights = F.softmax(raw,dim=-1)
+                # raw_out = torch.mm(weights,raw)
+                # y_hat = torch.mm(raw_out,v)
+                raw_combinations.append(out_flat)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
