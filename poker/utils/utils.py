@@ -3,6 +3,8 @@ import os
 import pickle
 from torch import where,zeros_like
 import re
+import torch
+from collections import OrderedDict
 
 def bin_by_handstrength(strength):
     if strength > 6185:
@@ -75,6 +77,14 @@ def return_latest_baseline_path(path):
             highest_number = max(highest_number,number)
         return agents[highest_number]
     return ''
+
+def remove_frozen_module():
+    path = '/Users/morgan/Code/PokerAI/poker/checkpoints/frozen_layers/hand_board_weights'
+    layer_weights = torch.load(path,map_location=torch.device('cpu'))
+    new_state_dict = OrderedDict()
+    for k,v in layer_weights.items():
+        new_state_dict[k[7:]] = v
+    torch.save(new_state_dict,path)
 
 def load_paths(folder):
     weight_paths = {}
