@@ -296,13 +296,20 @@ class CardDataset(object):
             five_hands = switcher[category]()
             for hand in five_hands:
                 # Run through all padded versions
-                hero_hands = hero_5_cards(hand)
-                for h in hero_hands:
-                    en_hand = [encode(c) for c in h]
-                    flat_hand = np.transpose(sort_hand(np.transpose(h)))
+                if val:
+                    en_hand = [encode(c) for c in hand]
+                    flat_hand = np.transpose(sort_hand(np.transpose(hand)))
                     compressed = to_52_vector(flat_hand) + 1
                     X.append(compressed)
                     y.append(rank(en_hand))
+                else:
+                    hero_hands = hero_5_cards(hand)
+                    for h in hero_hands:
+                        en_hand = [encode(c) for c in h]
+                        flat_hand = np.transpose(sort_hand(np.transpose(h)))
+                        compressed = to_52_vector(flat_hand) + 1
+                        X.append(compressed)
+                        y.append(rank(en_hand))
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
