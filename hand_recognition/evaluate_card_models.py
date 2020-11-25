@@ -146,9 +146,9 @@ def train_network(id,data_dict,agent_params,training_params):
             sys.stdout.flush()
             sys.stdout.write(f", training sample {(i+1):.2f}")
             sys.stdout.flush()
-        # if id == 0:
-        #     print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:15]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:15]}')
-        #     print('targets',targets[:15])
+        if id == 0:
+            print(f'\nMaximum value {torch.max(torch.softmax(outputs,dim=-1),dim=-1)[0][:15]}, \nLocation {torch.argmax(torch.softmax(outputs,dim=-1),dim=-1)[:15]}')
+            print('targets',targets[:15])
         lr_stepper.step()
         score_window.append(loss.item())
         scores.append(np.mean(score_window))
