@@ -114,7 +114,7 @@ def train_network(id,data_dict,agent_params,training_params):
         print('using category weights')
         criterion = training_params['criterion'](data_dict['category_weights'].to(id),reduction='sum')
     else:
-        criterion = training_params['criterion']()
+        criterion = training_params['criterion'](reduction='sum')
     optimizer = optim.Adam(net.parameters(), lr=agent_params['learning_rate'])
     lr_stepsize = training_params['epochs'] // 5
     lr_stepper = MultiStepLR(optimizer=optimizer,milestones=[lr_stepsize*2,lr_stepsize*3,lr_stepsize*4],gamma=0.1)
