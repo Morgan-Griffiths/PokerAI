@@ -84,6 +84,133 @@ def copy_weights(network,path):
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
 
+class SelfAttentionWide(nn.Module):
+    def __init__(self, emb, heads=8):
+        """
+        :param emb:
+        :param heads:
+        :param mask:
+        """
+
+        super().__init__()
+
+        self.emb = emb
+        self.heads = heads
+
+        self.tokeys = nn.Linear(emb, emb * heads, bias=False)
+        self.toqueries = nn.Linear(emb, emb * heads, bias=False)
+        self.tovalues = nn.Linear(emb, emb * heads, bias=False)
+
+        self.unifyheads = nn.Linear(heads * emb, emb)
+
+    def forward(self, x):
+
+        b, t, e = x.size()
+        h = self.heads
+        assert e == self.emb, f'Input embedding dim ({e}) should match layer embedding dim ({self.emb})'
+
+        keys    = self.tokeys(x)   .view(b, t, h, e)
+        queries = self.toqueries(x).view(b, t, h, e)
+        values  = self.tovalues(x) .view(b, t, h, e)
+
+        # compute scaled dot-product self-attention
+
+        # - fold heads into the batch dimension
+        keys = keys.transpose(1, 2).contiguous().view(b * h, t, e)
+        queries = queries.transpose(1, 2).contiguous().view(b * h, t, e)
+        values = values.transpose(1, 2).contiguous().view(b * h, t, e)
+
+        queries = queries / (e ** (1/4))
+        keys    = keys / (e ** (1/4))
+        # - Instead of dividing the dot products by sqrt(e), we scale the keys and values.
+        #   This should be more memory efficient
+
+        # - get dot product of queries and keys, and scale
+        dot = torch.bmm(queries, keys.transpose(1, 2))
+
+        assert dot.size() == (b*h, t, t)
+
+        dot = F.softmax(dot, dim=2)
+        # - dot now has row-wise self-attention probabilities
+
+        # apply the self attention to the values
+        out = torch.bmm(dot, values).view(b, h, t, e)
+
+        # swap h, t back, unify heads
+        out = out.transpose(1, 2).contiguous().view(b, t, h * e)
+
+        return self.unifyheads(out)
+
+class SelfAttentionNarrow(nn.Module):
+
+    def __init__(self, emb, heads=8):
+        """
+        :param emb:
+        :param heads:
+        :param mask:
+        """
+
+        super().__init__()
+
+        assert emb % heads == 0, f'Embedding dimension ({emb}) should be divisible by nr. of heads ({heads})'
+
+        self.emb = emb
+        self.heads = heads
+
+        s = emb // heads
+        # - We will break the embedding into `heads` chunks and feed each to a different attention head
+
+        self.tokeys    = nn.Linear(s, s, bias=False)
+        self.toqueries = nn.Linear(s, s, bias=False)
+        self.tovalues  = nn.Linear(s, s, bias=False)
+
+        self.unifyheads = nn.Linear(heads * s, emb)
+
+    def forward(self, x):
+
+        b, t, e = x.size()
+        h = self.heads
+        assert e == self.emb, f'Input embedding dim ({e}) should match layer embedding dim ({self.emb})'
+
+        s = e // h
+        x = x.view(b, t, h, s)
+
+        keys    = self.tokeys(x)
+        queries = self.toqueries(x)
+        values  = self.tovalues(x)
+
+        assert keys.size() == (b, t, h, s)
+        assert queries.size() == (b, t, h, s)
+        assert values.size() == (b, t, h, s)
+
+        # Compute scaled dot-product self-attention
+
+        # - fold heads into the batch dimension
+        keys = keys.transpose(1, 2).contiguous().view(b * h, t, s)
+        queries = queries.transpose(1, 2).contiguous().view(b * h, t, s)
+        values = values.transpose(1, 2).contiguous().view(b * h, t, s)
+
+        queries = queries / (e ** (1/4))
+        keys    = keys / (e ** (1/4))
+        # - Instead of dividing the dot products by sqrt(e), we scale the keys and values.
+        #   This should be more memory efficient
+
+        # - get dot product of queries and keys, and scale
+        dot = torch.bmm(queries, keys.transpose(1, 2))
+
+        assert dot.size() == (b*h, t, t)
+
+        dot = F.softmax(dot, dim=2)
+        # - dot now has row-wise self-attention probabilities
+
+        # apply the self attention to the values
+        out = torch.bmm(dot, values).view(b, h, t, s)
+
+        # swap h, t back, unify heads
+        out = out.transpose(1, 2).contiguous().view(b, t, s * h)
+
+        return self.unifyheads(out)
+
 ################################################
 #           13 card winner prediction          #
 ################################################
@@ -967,10 +1094,7 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
-        self.k_dim = 256
-        self.query = nn.Linear(self.k_dim,self.k_dim)
-        self.keys = nn.Linear(self.k_dim,self.k_dim)
-        self.value = nn.Linear(self.k_dim,self.k_dim)
+        self.attention_layer = SelfAttentionNarrow(k_dim,8)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
@@ -996,16 +1120,10 @@ class SmalldeckClassification(nn.Module):
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
-                out_flat = out.view(60,-1)
+                out_flat = out.view(1,60,-1)
                 # 60,16,16
                 # Self attention
-                q = self.query(out_flat)
-                k = self.keys(out_flat)
-                v = self.value(out_flat)
-                raw = torch.mm(q,k.transpose(0,1)) / math.sqrt(self.k_dim)
-                weights = F.softmax(raw,dim=-1)
-                raw_out = torch.mm(weights,raw)
-                y_hat = torch.mm(raw_out,v)
+                y_hat = attention_layer(out_flat)
                 raw_combinations.append(y_hat)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
