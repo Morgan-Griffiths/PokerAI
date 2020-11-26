@@ -939,7 +939,7 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(3600,512,256,127),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
