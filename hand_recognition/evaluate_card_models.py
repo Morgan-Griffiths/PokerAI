@@ -473,8 +473,6 @@ if __name__ == "__main__":
                 agent_params['network_params'] = network_params
                 train_classification(dataset_params,agent_params,training_params)
                 bad_guesses,missed_labels = validate_network(dataset_params,agent_params)
-                clean_bad_guesses = [guess.detach().tolist() for guess in bad_guesses]
-                clean_missed_labels = [guess.detach().tolist() for guess in missed_labels]
                 client = MongoClient('localhost', 27017,maxPoolSize=10000)
                 db = client['poker']
                 state_json = {'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses,'missed_labels':missed_labels,'num_missed':len(bad_guesses)}
