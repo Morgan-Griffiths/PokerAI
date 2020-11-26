@@ -967,7 +967,7 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
-        self.k_dim = 256
+        self.k_dim = 512
         self.query = nn.Linear(self.k_dim,self.k_dim)
         self.keys = nn.Linear(self.k_dim,self.k_dim)
         self.value = nn.Linear(self.k_dim,self.k_dim)
