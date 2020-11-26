@@ -1123,7 +1123,7 @@ class SmalldeckClassification(nn.Module):
                 out_flat = out.view(1,60,-1)
                 # 60,16,16
                 # Self attention
-                y_hat = attention_layer(out_flat)
+                y_hat = self.attention_layer(out_flat)
                 raw_combinations.append(y_hat)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
