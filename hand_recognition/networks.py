@@ -1094,7 +1094,7 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
-        self.attention_layer = SelfAttentionNarrow(k_dim,8)
+        self.attention_layer = SelfAttentionNarrow(256,8)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
