@@ -11,3 +11,12 @@ flatdeck:
     emb_size: 24
 smalldeck:
   network_one:
+    num_heads: 8
+    depth: 2
+    wide: true
+    output_dims: [15360,512,256]
+  network_two:
+    num_heads: 4
+    depth: 1
+    wide: true
+    output_dims: [15360,512]

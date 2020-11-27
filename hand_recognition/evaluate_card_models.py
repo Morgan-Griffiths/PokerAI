@@ -468,10 +468,16 @@ if __name__ == "__main__":
             net_configs = yaml_configs[args.datatype]
             for k,v in net_configs.items():
                 print(f'Training {k}, with params {v}')
-                network_params['hidden_dims'] = v['hidden_dims']
-                network_params['board_dims'] = v['board_dims']
-                network_params['hand_dims'] = v['hand_dims']
-                network_params['emb_size'] = v['emb_size']
+                if args.datatype == dt.DataTypes.SMALLDECK:
+                    network_params['num_heads'] = v['num_heads']
+                    network_params['depth'] = v['depth']
+                    network_params['wide'] = v['wide']
+                    network_params['output_dims'] = v['output_dims']
+                else:
+                    network_params['hidden_dims'] = v['hidden_dims']
+                    network_params['board_dims'] = v['board_dims']
+                    network_params['hand_dims'] = v['hand_dims']
+                    network_params['emb_size'] = v['emb_size']
                 agent_params['network_params'] = network_params
                 train_classification(dataset_params,agent_params,training_params)
                 bad_guesses,missed_labels = validate_network(dataset_params,agent_params)

@@ -84,6 +84,55 @@ def copy_weights(network,path):
             param.data.copy_(layer_weights[name].data)
             param.requires_grad = False
 
+class IdentityBlock(nn.Module):
+    def __init__(self,hidden_dims,activation):
+        """hidden_dims must contain 3 values"""
+        super().__init__()
+        assert len(hidden_dims) == 3
+        self.activation = activation
+        self.fc1 = nn.Linear(hidden_dims[0],hidden_dims[1])
+        self.fc2 = nn.Linear(hidden_dims[1],hidden_dims[2])
+
+    def forward(self,x):
+        out = self.activation(self.fc1(x)) + x
+        out2 = self.activation(self.fc2(out))
+        return out2
+
+class TransformerBlock(nn.Module):
+
+    def __init__(self, emb, heads, seq_length, ff_hidden_mult=4, dropout=0.0, wide=True):
+        super().__init__()
+
+        self.attention = SelfAttentionWide(emb, heads=heads) if wide \
+                    else SelfAttentionNarrow(emb, heads=heads)
+
+        self.norm1 = nn.LayerNorm(emb)
+        self.norm2 = nn.LayerNorm(emb)
+
+        self.ff = nn.Sequential(
+            nn.Linear(emb, ff_hidden_mult * emb),
+            nn.ReLU(),
+            nn.Linear(ff_hidden_mult * emb, emb)
+        )
+
+        self.do = nn.Dropout(dropout)
+
+    def forward(self, x):
+
+        attended = self.attention(x)
+
+        x = self.norm1(attended + x)
+
+        x = self.do(x)
+
+        fedforward = self.ff(x)
+
+        x = self.norm2(fedforward + x)
+
+        x = self.do(x)
+
+        return x
+
 class SelfAttentionWide(nn.Module):
     def __init__(self, emb, heads=8):
         """
@@ -1066,16 +1115,23 @@ class HandRankClassificationFC(nn.Module):
 ################################################
 
 class SmalldeckClassification(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),output_dims=(15360,512,256,127),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         self.device = params['device']
+        self.num_heads = params['num_heads']
         self.output_dims = params['output_dims']
-        self.attention_layer = SelfAttentionNarrow(256,8)
-        # self.attention_layer = SelfAttentionWide(256,8)
+        # if params['identity']:
+        #     self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
+        # self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
+        tblocks = []
+        for i in range(params['depth']):
+            tblocks.append(
+                TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
+        self.tblocks = nn.Sequential(*tblocks)
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
@@ -1099,7 +1155,7 @@ class SmalldeckClassification(nn.Module):
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(128,self.nA)
+        self.small_category_out = nn.Linear(self.output_dims[-1],self.nA)
 
     def forward(self,x):
         # Expects shape of (B,18)
@@ -1123,8 +1179,7 @@ class SmalldeckClassification(nn.Module):
                 out = torch.cat((r,s),dim=-1)
                 out_flat = out.view(1,60,-1)
                 # 60,16,16
-                # Self attention
-                y_hat = self.attention_layer(out_flat)
+                y_hat = self.tblocks(out_flat)
                 raw_combinations.append(y_hat)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
@@ -1144,8 +1199,8 @@ class SmalldeckClassification(nn.Module):
             raw_results = self.activation_fc(output_layer(raw_results))
         # (B,M,60,512)
         # o = self.hand_out(raw_results.view(B,M,-1))
-        final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
-        return self.small_category_out(final_out.view(M,-1))
+        # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
+        return self.small_category_out(raw_results.view(M,-1))
 
 class SmalldeckClassificationFlat(nn.Module):
     def __init__(self,params,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),output_dims=(15360,512,256,127),activation_fc=F.leaky_relu):
