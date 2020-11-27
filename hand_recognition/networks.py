@@ -100,7 +100,7 @@ class IdentityBlock(nn.Module):
 
 class TransformerBlock(nn.Module):
 
-    def __init__(self, emb, heads, seq_length, ff_hidden_mult=2, dropout=0.0, wide=True):
+    def __init__(self, emb, heads, seq_length, ff_hidden_mult=1, dropout=0.0, wide=True):
         super().__init__()
 
         self.attention = SelfAttentionWide(emb, heads=heads) if wide \

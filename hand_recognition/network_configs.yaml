@@ -14,9 +14,9 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: false
-    output_dims: [15360,512,256]
+    output_dims: [15360,512]
   network_two:
-    num_heads: 4
+    num_heads: 2
     depth: 1
     wide: true
     output_dims: [15360,512]
