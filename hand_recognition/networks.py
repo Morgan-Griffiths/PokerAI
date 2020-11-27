@@ -1024,7 +1024,7 @@ class HandRankClassificationFC(nn.Module):
         self.device = params['device']
         self.nA = params['nA']
         self.activation_fc = activation_fc
-        self.emb_size = 64
+        self.emb_size = params['emb_size']
         self.seed = torch.manual_seed(params['seed'])
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         self.hidden_dims = params['hidden_dims']
