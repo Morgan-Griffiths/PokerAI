@@ -1,11 +1,13 @@
 flatdeck:
   network_one:
-    hidden_dims: [320,256]
-    hand_dims: [128,128]
-    board_dims: [192,192]
+    hidden_dims: [256,256]
+    hand_dims: [64,128]
+    board_dims: [96,128]
+    emb_size: 32
   network_two:
-    hidden_dims: [128,128]
-    hand_dims: [128,64]
-    board_dims: [192,64]
+    hidden_dims: [256,128]
+    hand_dims: [48,128]
+    board_dims: [72,128]
+    emb_size: 24
 smalldeck:
   network_one:

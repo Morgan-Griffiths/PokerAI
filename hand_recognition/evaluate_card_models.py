@@ -430,6 +430,7 @@ if __name__ == "__main__":
         'batchnorm':True,
         'conv_layers':1,
         'load_path':network_path,
+        'emb_size':64,
         'device' : torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -470,12 +471,13 @@ if __name__ == "__main__":
                 network_params['hidden_dims'] = v['hidden_dims']
                 network_params['board_dims'] = v['board_dims']
                 network_params['hand_dims'] = v['hand_dims']
+                network_params['emb_size'] = v['emb_size']
                 agent_params['network_params'] = network_params
                 train_classification(dataset_params,agent_params,training_params)
                 bad_guesses,missed_labels = validate_network(dataset_params,agent_params)
                 client = MongoClient('localhost', 27017,maxPoolSize=10000)
                 db = client['poker']
-                state_json = {'datatype':args.datatype,'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses,'missed_labels':missed_labels,'num_missed':len(bad_guesses)}
+                state_json = {'datatype':args.datatype,'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'num_missed':len(bad_guesses)}
                 db['network_results'].insert_one(state_json)
                 client.close()
     elif args.mode == dt.Modes.TRAIN:
