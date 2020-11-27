@@ -1188,7 +1188,7 @@ class SmalldeckClassification(nn.Module):
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
                 if self.identity:
-                    out_flat = self.blocks(out).unsqueeze(0)
+                    out_flat = self.blocks(out.view(60,-1)).unsqueeze(0)
                 else:
                     out_flat = out.view(1,60,-1)
                 # 60,16,16
