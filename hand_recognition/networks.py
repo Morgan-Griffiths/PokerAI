@@ -1073,7 +1073,9 @@ class SmalldeckClassification(nn.Module):
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         self.device = params['device']
-        self.output_dims = output_dims
+        self.output_dims = params['output_dims']
+        self.attention_layer = SelfAttentionNarrow(256,8)
+        # self.attention_layer = SelfAttentionWide(256,8)
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
@@ -1094,7 +1096,6 @@ class SmalldeckClassification(nn.Module):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
         self.categorical_output = nn.Linear(512,7463)
-        self.attention_layer = SelfAttentionNarrow(256,8)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))

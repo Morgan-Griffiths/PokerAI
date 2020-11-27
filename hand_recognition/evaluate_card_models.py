@@ -475,7 +475,7 @@ if __name__ == "__main__":
                 bad_guesses,missed_labels = validate_network(dataset_params,agent_params)
                 client = MongoClient('localhost', 27017,maxPoolSize=10000)
                 db = client['poker']
-                state_json = {'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses,'missed_labels':missed_labels,'num_missed':len(bad_guesses)}
+                state_json = {'datatype':args.datatype,'epochs_trained':args.epochs,'network_arch':v,'network_name':k,'bad_guesses':bad_guesses,'missed_labels':missed_labels,'num_missed':len(bad_guesses)}
                 db['network_results'].insert_one(state_json)
                 client.close()
     elif args.mode == dt.Modes.TRAIN:
