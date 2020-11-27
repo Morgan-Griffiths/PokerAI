@@ -1203,31 +1203,39 @@ class SmalldeckClassification(nn.Module):
         return self.small_category_out(raw_results.view(M,-1))
 
 class SmalldeckClassificationFlat(nn.Module):
-    def __init__(self,params,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),output_dims=(15360,512,256,127),activation_fc=F.leaky_relu):
+    def __init__(self,params,activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         self.device = params['device']
-        self.output_dims = output_dims
-        self.emb_size = 64
+        self.hand_dims = params['hand_dims']
+        self.board_dims = params['board_dims']
+        self.output_dims = params['output_dims']
+        self.emb_size = params['emb_size']
+        self.num_heads = params['num_heads']
+        tblocks = []
+        for _ in range(params['depth']):
+            tblocks.append(
+                TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
+        self.tblocks = nn.Sequential(*tblocks)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
-        for i in range(len(hand_dims)-1):
-            self.hand_layers.append(nn.Linear(hand_dims[i],hand_dims[i+1]))
+        for i in range(len(self.hand_dims)-1):
+            self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
         self.board_layers = nn.ModuleList()
-        for i in range(len(board_dims)-1):
-            self.board_layers.append(nn.Linear(board_dims[i],board_dims[i+1]))
+        for i in range(len(self.board_dims)-1):
+            self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
         self.categorical_output = nn.Linear(128,7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
-        self.small_category_out = nn.Linear(output_dims[-1],self.nA)
+        self.small_category_out = nn.Linear(self.output_dims[-1],self.nA)
 
     def forward(self,x):
         # Expects shape of (B,18)
@@ -1251,7 +1259,8 @@ class SmalldeckClassificationFlat(nn.Module):
                 for hidden_layer in self.board_layers:
                     board_cards = self.activation_fc(hidden_layer(board_cards))
                 out = torch.cat((hero_cards,board_cards),dim=-1)
-                raw_combinations.append(out)
+                raw_out = self.tblocks(out)
+                raw_combinations.append(raw_out)
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
