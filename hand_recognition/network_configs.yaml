@@ -4,13 +4,11 @@ flatdeck:
     hand_dims: [32,128]
     board_dims: [48,128]
     emb_size: 16
-  network_two:
-    hidden_dims: [128,128]
-    hand_dims: [48,64]
-    board_dims: [72,64]
-    emb_size: 24
 smalldeck:
   network_one:
+    tblock: false
+    attention: true
+    identity: true
     num_heads: 4
     depth: 1
     wide: false

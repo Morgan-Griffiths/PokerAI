@@ -469,6 +469,9 @@ if __name__ == "__main__":
             for k,v in net_configs.items():
                 print(f'Training {k}, with params {v}')
                 if args.datatype == dt.DataTypes.SMALLDECK:
+                    network_params['tblock'] = v['tblock']
+                    network_params['attention'] = v['attention']
+                    network_params['identity'] = v['identity']
                     network_params['num_heads'] = v['num_heads']
                     network_params['depth'] = v['depth']
                     network_params['wide'] = v['wide']

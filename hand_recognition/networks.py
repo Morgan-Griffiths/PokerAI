@@ -1124,14 +1124,24 @@ class SmalldeckClassification(nn.Module):
         self.device = params['device']
         self.num_heads = params['num_heads']
         self.output_dims = params['output_dims']
-        # if params['identity']:
-        #     self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
-        # self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
-        tblocks = []
-        for i in range(params['depth']):
-            tblocks.append(
-                TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
-        self.tblocks = nn.Sequential(*tblocks)
+        self.identity = params['identity']
+        self.attention = params['attention']
+        self.tblock = params['tblock']
+        if params['tblock']:
+            tblocks = []
+            for i in range(params['depth']):
+                tblocks.append(
+                    TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
+            self.tblocks = nn.Sequential(*tblocks)
+        elif params['attention']:
+            if params['wide']:
+                self.attention_layer = SelfAttentionWide(256,self.num_heads)
+            else:
+                self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
+        if params['identity']:
+            self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
+
+
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
@@ -1177,10 +1187,16 @@ class SmalldeckClassification(nn.Module):
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
-                out_flat = out.view(1,60,-1)
+                if self.identity:
+                    out_flat = self.blocks(out).unsqueeze(0)
+                else:
+                    out_flat = out.view(1,60,-1)
                 # 60,16,16
-                y_hat = self.tblocks(out_flat)
-                raw_combinations.append(y_hat)
+                if self.attention:
+                    out_flat = self.attention_layer(out_flat)
+                elif self.tblock:
+                    out_flat = self.tblocks(out_flat)
+                raw_combinations.append(out_flat)
                 # out: (b,64,16)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
