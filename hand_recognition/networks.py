@@ -1187,6 +1187,9 @@ class SmalldeckClassification(nn.Module):
                 s = self.suit_conv(hot_suits[i,j,:,:,:])
                 r = self.rank_conv(hot_ranks[i,j,:,:,:])
                 out = torch.cat((r,s),dim=-1)
+                # out: (b,64,16)
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
                 if self.identity:
                     out_flat = self.blocks(out.view(60,-1)).unsqueeze(0)
                 else:
@@ -1196,10 +1199,7 @@ class SmalldeckClassification(nn.Module):
                     out_flat = self.attention_layer(out_flat)
                 elif self.tblock:
                     out_flat = self.tblocks(out_flat)
-                raw_combinations.append(out_flat)
-                # out: (b,64,16)
-                for hidden_layer in self.hidden_layers:
-                    out = self.activation_fc(hidden_layer(out))
+                raw_combinations.append(out_flat.view(60,-1))
                 out = self.categorical_output(out.view(60,-1))
                 combinations.append(torch.argmax(out,dim=-1))
             activations.append(torch.stack(combinations))
@@ -1226,16 +1226,25 @@ class SmalldeckClassificationFlat(nn.Module):
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
         self.device = params['device']
-        self.hand_dims = params['hand_dims']
-        self.board_dims = params['board_dims']
-        self.output_dims = params['output_dims']
-        self.emb_size = params['emb_size']
         self.num_heads = params['num_heads']
-        tblocks = []
-        for _ in range(params['depth']):
-            tblocks.append(
-                TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
-        self.tblocks = nn.Sequential(*tblocks)
+        self.output_dims = params['output_dims']
+        self.identity = params['identity']
+        self.attention = params['attention']
+        self.tblock = params['tblock']
+        if params['tblock']:
+            tblocks = []
+            for i in range(params['depth']):
+                tblocks.append(
+                    TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
+            self.tblocks = nn.Sequential(*tblocks)
+        elif params['attention']:
+            if params['wide']:
+                self.attention_layer = SelfAttentionWide(256,self.num_heads)
+            else:
+                self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
+        if params['identity']:
+            self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
+
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
