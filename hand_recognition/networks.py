@@ -1259,7 +1259,7 @@ class SmalldeckClassification(nn.Module):
         self.hidden_layers = nn.ModuleList()
         for i in range(len(self.hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(128,7463)
+        self.categorical_output = nn.Linear(self.hidden_dims[-1],7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
