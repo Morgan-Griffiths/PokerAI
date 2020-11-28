@@ -1282,7 +1282,7 @@ class SmalldeckClassification(nn.Module):
             for j in range(M):
                 hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
                 board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
-                out_raw = torch.cat((hero_cards,board_cards),dim=-1)
+                # out_raw = torch.cat((hero_cards,board_cards),dim=-1)
                 for hidden_layer in self.hand_layers:
                     hero_cards = self.activation_fc(hidden_layer(hero_cards))
                 for hidden_layer in self.board_layers:
