@@ -1114,7 +1114,7 @@ class HandRankClassificationFC(nn.Module):
 #            Smalldeck Classification          #
 ################################################
 
-class SmalldeckClassification(nn.Module):
+class SmalldeckClassificationConv(nn.Module):
     def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
@@ -1218,7 +1218,7 @@ class SmalldeckClassification(nn.Module):
         # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
         return self.small_category_out(raw_results.view(M,-1))
 
-class SmalldeckClassificationFlat(nn.Module):
+class SmalldeckClassification(nn.Module):
     def __init__(self,params,activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
@@ -1231,6 +1231,10 @@ class SmalldeckClassificationFlat(nn.Module):
         self.identity = params['identity']
         self.attention = params['attention']
         self.tblock = params['tblock']
+        self.emb_size = params['emb_size']
+        self.hand_dims = params['hand_dims']
+        self.board_dims = params['board_dims']
+        self.hidden_dims = params['hidden_dims']
         if params['tblock']:
             tblocks = []
             for i in range(params['depth']):
@@ -1244,7 +1248,6 @@ class SmalldeckClassificationFlat(nn.Module):
                 self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
         if params['identity']:
             self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
-
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
@@ -1279,13 +1282,22 @@ class SmalldeckClassificationFlat(nn.Module):
             for j in range(M):
                 hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
                 board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
+                out_raw = torch.cat((hero_cards,board_cards),dim=-1)
                 for hidden_layer in self.hand_layers:
                     hero_cards = self.activation_fc(hidden_layer(hero_cards))
                 for hidden_layer in self.board_layers:
                     board_cards = self.activation_fc(hidden_layer(board_cards))
                 out = torch.cat((hero_cards,board_cards),dim=-1)
-                raw_out = self.tblocks(out)
-                raw_combinations.append(raw_out)
+                if self.identity:
+                    out_flat = self.blocks(out).unsqueeze(0)
+                else:
+                    out_flat = out.view(1,60,-1)
+                # 60,16,16
+                if self.attention:
+                    out_flat = self.attention_layer(out_flat)
+                elif self.tblock:
+                    out_flat = self.tblocks(out_flat)
+                raw_combinations.append(out_flat)
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))

@@ -13,6 +13,10 @@ smalldeck:
     depth: 1
     wide: false
     output_dims: [30720,512]
+    hidden_dims: [256,256]
+    hand_dims: [32,128]
+    board_dims: [48,128]
+    emb_size: 16
   network_two:
     tblock: false
     attention: true
@@ -21,6 +25,10 @@ smalldeck:
     depth: 1
     wide: true
     output_dims: [30720,512]
+    hidden_dims: [256,256]
+    hand_dims: [32,128]
+    board_dims: [48,128]
+    emb_size: 16
   network_three:
     tblock: false
     attention: false
@@ -29,3 +37,7 @@ smalldeck:
     depth: 1
     wide: true
     output_dims: [30720,512]
+    hidden_dims: [256,256]
+    hand_dims: [32,128]
+    board_dims: [48,128]
+    emb_size: 16

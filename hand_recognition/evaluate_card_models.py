@@ -105,7 +105,7 @@ def train_network(id,data_dict,agent_params,training_params):
         print('Loading frozen layer')
         conv_path = '../poker/checkpoints/frozen_layers/hand_board_weights_conv'
         fc_path = 'checkpoints/multiclass_categorization/HandRankClassificationFC'
-        copy_weights(net,conv_path)
+        copy_weights(net,fc_path)
     count_parameters(net)
     if torch.cuda.device_count() > 1:
         net = DDP(net)
@@ -476,6 +476,10 @@ if __name__ == "__main__":
                     network_params['depth'] = v['depth']
                     network_params['wide'] = v['wide']
                     network_params['output_dims'] = v['output_dims']
+                    network_params['hidden_dims'] = v['hidden_dims']
+                    network_params['board_dims'] = v['board_dims']
+                    network_params['hand_dims'] = v['hand_dims']
+                    network_params['emb_size'] = v['emb_size']
                 else:
                     network_params['hidden_dims'] = v['hidden_dims']
                     network_params['board_dims'] = v['board_dims']
