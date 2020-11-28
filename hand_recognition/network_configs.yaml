@@ -12,7 +12,7 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: false
-    output_dims: [15360,512]
+    output_dims: [30720,512]
   network_two:
     tblock: false
     attention: true
@@ -20,7 +20,7 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: true
-    output_dims: [15360,512]
+    output_dims: [30720,512]
   network_three:
     tblock: false
     attention: false
@@ -28,4 +28,4 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: true
-    output_dims: [15360,512]
+    output_dims: [30720,512]
