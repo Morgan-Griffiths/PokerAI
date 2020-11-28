@@ -6,13 +6,13 @@ flatdeck:
     emb_size: 16
 smalldeck:
   network_one:
-    tblock: false
+    tblock: true
     attention: false
     identity: false
     num_heads: 4
     depth: 1
     wide: false
-    output_dims: [15360,512]
+    output_dims: [15360,512,512]
     hidden_dims: [256,256]
     hand_dims: [32,128]
     board_dims: [48,128]
@@ -24,7 +24,7 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: true
-    output_dims: [15360,512]
+    output_dims: [15360,512,512]
     hidden_dims: [256,256]
     hand_dims: [32,128]
     board_dims: [48,128]
@@ -36,7 +36,7 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: true
-    output_dims: [15360,512]
+    output_dims: [15360,512,512]
     hidden_dims: [256,256]
     hand_dims: [32,128]
     board_dims: [48,128]
