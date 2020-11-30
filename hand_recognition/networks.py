@@ -1250,15 +1250,15 @@ class SmalldeckClassification(nn.Module):
             self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
-        self.hand_layers = nn.ModuleList()
+        self.hand_fcs = nn.ModuleList()
         for i in range(len(self.hand_dims)-1):
-            self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
-        self.board_layers = nn.ModuleList()
+            self.hand_fcs.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
+        self.board_fcs = nn.ModuleList()
         for i in range(len(self.board_dims)-1):
-            self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
+            self.board_fcs.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        for i in range(len(self.hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        # for i in range(len(self.hidden_dims)-1):
+        #     self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
         self.categorical_output = nn.Linear(self.hidden_dims[-1],7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
@@ -1282,16 +1282,16 @@ class SmalldeckClassification(nn.Module):
             for j in range(M):
                 hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
                 board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
-                out_raw = torch.cat((hero_cards,board_cards),dim=-1)
-                for hidden_layer in self.hand_layers:
+                # out_raw = torch.cat((hero_cards,board_cards),dim=-1)
+                for hidden_layer in self.hand_fcs:
                     hero_cards = self.activation_fc(hidden_layer(hero_cards))
-                for hidden_layer in self.board_layers:
+                for hidden_layer in self.board_fcs:
                     board_cards = self.activation_fc(hidden_layer(board_cards))
                 out = torch.cat((hero_cards,board_cards),dim=-1)
                 if self.identity:
-                    out_flat = self.blocks(out_raw).unsqueeze(0)
+                    out_flat = self.blocks(out).unsqueeze(0)
                 else:
-                    out_flat = out_raw.view(1,60,-1)
+                    out_flat = out.view(1,60,-1)
                 # 60,16,16
                 if self.attention:
                     out_flat = self.attention_layer(out_flat)
@@ -1299,14 +1299,14 @@ class SmalldeckClassification(nn.Module):
                     out_flat = self.tblocks(out_flat)
                 raw_combinations.append(out_flat)
                 # x (b, 64, 32)
-                for hidden_layer in self.hidden_layers:
-                    out = self.activation_fc(hidden_layer(out))
-                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
-            activations.append(torch.stack(combinations))
+                # for hidden_layer in self.hidden_layers:
+                #     out = self.activation_fc(hidden_layer(out))
+                # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            # activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
         # baseline = hardcode_handstrength(x)
-        results = torch.stack(activations)
-        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # results = torch.stack(activations)
+        # best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         # print(best_hand)
         # print(baseline)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
