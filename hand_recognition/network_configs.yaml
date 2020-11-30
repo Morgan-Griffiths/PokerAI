@@ -12,32 +12,10 @@ smalldeck:
     num_heads: 4
     depth: 1
     wide: true
-    output_dims: [15360,512,512]
+    output_dims: [1024,512,512]
     hidden_dims: [256,256]
     hand_dims: [32,128]
     board_dims: [48,128]
-    emb_size: 16
-  network_three:
-    tblock: false
-    attention: false
-    identity: true
-    num_heads: 4
-    depth: 1
-    wide: true
-    output_dims: [15360,512,512]
-    hidden_dims: [256,256]
-    hand_dims: [32,128]
-    board_dims: [48,128]
-    emb_size: 16
-  network_four:
-    tblock: false
-    attention: false
-    identity: false
-    num_heads: 4
-    depth: 1
-    wide: true
-    output_dims: [15360,1024,256]
-    hidden_dims: [256,256]
-    hand_dims: [32,128]
-    board_dims: [48,128]
+    hand_stack_dims: [7680,512]
+    board_stack_dims: [7680,512]
     emb_size: 16
