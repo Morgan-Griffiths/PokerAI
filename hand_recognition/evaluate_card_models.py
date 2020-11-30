@@ -37,8 +37,15 @@ def setup_world(rank,world_size):
 def cleanup():
     dist.destroy_process_group()
 
+def load_path(path):
+    if torch.cuda.is_available():
+        state_dict = torch.load(path)
+    else:
+        state_dict = torch.load(path,map_location=torch.device('cpu'))
+    return state_dict
+
 def strip_module(path):
-    state_dict = torch.load(path)
+    state_dict = load_path(path)
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
         if k[:7] == 'module.':
@@ -49,7 +56,7 @@ def strip_module(path):
     return new_state_dict
 
 def add_module(path):
-    state_dict = torch.load(path)
+    state_dict = load_path(path)
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
         name = 'module.'+k
@@ -58,7 +65,7 @@ def add_module(path):
 
 def is_path_ddp(path):
     is_ddp = False
-    state_dict = torch.load(path)
+    state_dict = load_path(path)
     for k in state_dict.keys():
         if k[:7] == 'module.':
             is_ddp = True
@@ -89,6 +96,18 @@ def load_weights(net,path,rank=0,ddp=False):
                 net.load_state_dict(strip_module(path))
     else: 
         net.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
+
+def copy_weights(network,path):
+    if is_path_ddp(path):
+        layer_weights = strip_module(path)
+    else:
+        layer_weights = load_path(path)
+    for name, param in network.named_parameters():
+        print(name)
+        if name in layer_weights:
+            print('copying weights',name)
+            param.data.copy_(layer_weights[name].data)
+            param.requires_grad = False
 
 def train_network(id,data_dict,agent_params,training_params):
     print(f'Process {id}')

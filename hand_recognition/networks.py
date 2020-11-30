@@ -73,17 +73,6 @@ def unspool(X):
     # sequence_suits = swap_batch_suits(sequence_suits)
     return sequence_ranks,sequence_suits
 
-def copy_weights(network,path):
-    if torch.cuda.is_available():
-        layer_weights = torch.load(path)
-    else:
-        layer_weights = torch.load(path,map_location=torch.device('cpu'))
-    for name, param in network.named_parameters():
-        if name in layer_weights:
-            print('copying weights',name)
-            param.data.copy_(layer_weights[name].data)
-            param.requires_grad = False
-
 class IdentityBlock(nn.Module):
     def __init__(self,hidden_dims,activation):
         """hidden_dims must contain 3 values"""
