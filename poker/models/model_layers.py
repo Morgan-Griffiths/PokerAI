@@ -257,7 +257,7 @@ class ProcessHandBoardConv(nn.Module):
         return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,255),activation_fc=F.leaky_relu):
+    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,256),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.activation_fc = activation_fc
@@ -294,10 +294,10 @@ class ProcessHandBoard(nn.Module):
         emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
         raw_activations = []
-        activations = []
+        # activations = []
         for i in range(B):
             raw_combinations = []
-            combinations = []
+            # combinations = []
             for j in range(M):
                 hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
                 board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
@@ -306,23 +306,24 @@ class ProcessHandBoard(nn.Module):
                 for hidden_layer in self.board_layers:
                     board_cards = self.activation_fc(hidden_layer(board_cards))
                 out = torch.cat((hero_cards,board_cards),dim=-1)
-                raw_combinations.append(out)
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
-            activations.append(torch.stack(combinations))
+                raw_combinations.append(out)
+                # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            # activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
-        results = torch.stack(activations)
+        # results = torch.stack(activations)
         # baseline = hardcode_handstrength(x)
         # best_hand = torch.flip(torch.min(results,dim=-1)[0].unsqueeze(-1),dims=(0,1))
-        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
             raw_results = self.activation_fc(output_layer(raw_results))
+        return raw_results
         # (B,M,60,512)
-        return torch.cat((raw_results.view(B,M,-1),best_hand.view(B,M,-1).float()),dim=-1)
+        # return torch.cat((raw_results,best_hand.view(B,M,-1).float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params,activation_fc=F.relu):
