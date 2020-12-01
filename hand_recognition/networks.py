@@ -1295,7 +1295,6 @@ class SmalldeckClassification(nn.Module):
         suits = x[:,:,1::2]
         cards = (ranks-1) * suits
         emb_cards = self.card_emb(cards.long()).squeeze(0)
-        print('emb_cards',emb_cards.size())
         hand = emb_cards[:,:4,:].view(M,-1)
         board = emb_cards[:,4:,:].view(M,-1)
         for hidden_layer in self.hand_embs:
@@ -1310,10 +1309,10 @@ class SmalldeckClassification(nn.Module):
         hidden_hand = torch.cat((hand,board),dim=-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
-            hidden_hand = self.activation_fc(output_layer(hidden_hand))
+            hand = self.activation_fc(output_layer(hand))
         # (B,M,60,512)
         # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
-        return self.small_category_out(hidden_hand.view(M,-1))
+        return self.small_category_out(hand.view(M,-1))
 
 ################################################
 #            Partial hand regression           #
