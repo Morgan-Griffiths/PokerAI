@@ -257,7 +257,7 @@ class ProcessHandBoardConv(nn.Module):
         return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(256,256,128),hand_dims=(128,512,128),board_dims=(192,512,128),output_dims=(15360,512,256,127),activation_fc=F.leaky_relu):
+    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,127),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.activation_fc = activation_fc
@@ -266,7 +266,7 @@ class ProcessHandBoard(nn.Module):
         self.hidden_dims = hidden_dims
         self.hand_length = hand_length
         self.output_dims = output_dims
-        self.emb_size = 64
+        self.emb_size = 16
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
@@ -278,7 +278,7 @@ class ProcessHandBoard(nn.Module):
         self.hidden_layers = nn.ModuleList()
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-        self.categorical_output = nn.Linear(128,7463)
+        self.categorical_output = nn.Linear(256,7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
             self.output_layers.append(nn.Linear(self.output_dims[i],self.output_dims[i+1]))
@@ -287,7 +287,10 @@ class ProcessHandBoard(nn.Module):
         # Expects shape of (B,M,18)
         B,M,C = x.size()
         ranks,suits = unspool(x)
-        cards = (ranks-1)+((suits-1)*13)
+        # Flatten cards
+        ranks[ranks>0] -= 1
+        suits[suits>0] = (suits[suits>0] -1) * 13
+        cards = ranks + suits
         emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
         raw_activations = []
@@ -311,8 +314,9 @@ class ProcessHandBoard(nn.Module):
             activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
         results = torch.stack(activations)
+        # baseline = hardcode_handstrength(x)
+        # best_hand = torch.flip(torch.min(results,dim=-1)[0].unsqueeze(-1),dims=(0,1))
         best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
-        baseline = hardcode_handstrength(x)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
