@@ -257,7 +257,7 @@ class ProcessHandBoardConv(nn.Module):
         return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,256),activation_fc=F.leaky_relu):
+    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,255),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.activation_fc = activation_fc
