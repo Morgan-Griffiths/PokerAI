@@ -1226,6 +1226,8 @@ class SmalldeckClassification(nn.Module):
         self.hand_dims = params['hand_dims']
         self.board_dims = params['board_dims']
         self.hidden_dims = params['hidden_dims']
+        self.hand_emb_dims = params['hand_emb_dims']
+        self.board_emb_dims = params['board_emb_dims']
         if params['tblock']:
             tblocks = []
             for i in range(params['depth']):
@@ -1241,18 +1243,18 @@ class SmalldeckClassification(nn.Module):
             self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
-        self.hand_fcs = nn.ModuleList()
+        self.hand_embs = nn.ModuleList()
+        for i in range(len(self.hand_emb_dims)-1):
+            self.hand_embs.append(nn.Linear(self.hand_emb_dims[i],self.hand_emb_dims[i+1]))
+        self.board_embs = nn.ModuleList()
+        for i in range(len(self.board_emb_dims)-1):
+            self.board_embs.append(nn.Linear(self.board_emb_dims[i],self.board_emb_dims[i+1]))
+        self.hand_layers = nn.ModuleList()
         for i in range(len(self.hand_dims)-1):
-            self.hand_fcs.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
-        self.board_fcs = nn.ModuleList()
+            self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
+        self.board_layers = nn.ModuleList()
         for i in range(len(self.board_dims)-1):
-            self.board_fcs.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
-        self.hand_stack = nn.ModuleList()
-        for i in range(len(self.hand_stack_dims)-1):
-            self.hand_stack.append(nn.Linear(self.hand_stack_dims[i],self.hand_stack_dims[i+1]))
-        self.board_stack = nn.ModuleList()
-        for i in range(len(self.board_stack_dims)-1):
-            self.board_stack.append(nn.Linear(self.board_stack_dims[i],self.board_stack_dims[i+1]))
+            self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
         # for i in range(len(self.hidden_dims)-1):
         #     self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
@@ -1271,55 +1273,47 @@ class SmalldeckClassification(nn.Module):
         # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
         emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
-        raw_activations = []
         activations = []
         for i in range(B):
-            raw_combinations = []
             combinations = []
             for j in range(M):
                 hero_cards = emb_cards[i,j,:,:2,:].view(60,-1)
                 board_cards = emb_cards[i,j,:,2:,:].view(60,-1)
                 # out_raw = torch.cat((hero_cards,board_cards),dim=-1)
-                for hidden_layer in self.hand_fcs:
+                for hidden_layer in self.hand_layers:
                     hero_cards = self.activation_fc(hidden_layer(hero_cards))
-                for hidden_layer in self.board_fcs:
+                for hidden_layer in self.board_layers:
                     board_cards = self.activation_fc(hidden_layer(board_cards))
-                hand_flat = hero_cards.view(-1)
-                board_flat = board_cards.view(-1)
-                for hidden_layer in self.hand_stack:
-                    hand_flat = self.activation_fc(hidden_layer(hand_flat))
-                for hidden_layer in self.board_stack:
-                    board_flat = self.activation_fc(hidden_layer(board_flat))
                 # Process hand group
-                out = torch.cat((hand_flat,board_flat),dim=-1)
-                # if self.identity:
-                #     out_flat = self.blocks(out).unsqueeze(0)
-                # else:
-                #     out_flat = out.view(1,60,-1)
-                # # 60,16,16
-                # if self.attention:
-                #     out_flat = self.attention_layer(out_flat)
-                # elif self.tblock:
-                #     out_flat = self.tblocks(out_flat)
-                raw_combinations.append(out)
+                out = torch.cat((hero_cards,board_cards),dim=-1)
                 # x (b, 64, 32)
-                # for hidden_layer in self.hidden_layers:
-                #     out = self.activation_fc(hidden_layer(out))
-                # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
-            # activations.append(torch.stack(combinations))
-            raw_activations.append(torch.stack(raw_combinations))
+                for hidden_layer in self.hidden_layers:
+                    out = self.activation_fc(hidden_layer(out))
+                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            activations.append(torch.stack(combinations))
+        ranks = x[:,:,::2]
+        suits = x[:,:,1::2]
+        cards = (ranks-1) * suits
+        emb_cards = self.card_emb(cards.long()).squeeze(0)
+        print('emb_cards',emb_cards.size())
+        hand = emb_cards[:,:4,:].view(M,-1)
+        board = emb_cards[:,4:,:].view(M,-1)
+        for hidden_layer in self.hand_embs:
+            hand = self.activation_fc(hidden_layer(hand))
+        for hidden_layer in self.board_embs:
+            board = self.activation_fc(hidden_layer(board))
         # baseline = hardcode_handstrength(x)
-        # results = torch.stack(activations)
-        # best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        results = torch.stack(activations)
+        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         # print(best_hand)
         # print(baseline)
-        raw_results = torch.stack(raw_activations).view(B,M,-1)
+        hidden_hand = torch.cat((hand,board),dim=-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
-            raw_results = self.activation_fc(output_layer(raw_results))
+            hidden_hand = self.activation_fc(output_layer(hidden_hand))
         # (B,M,60,512)
         # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
-        return self.small_category_out(raw_results.view(M,-1))
+        return self.small_category_out(hidden_hand.view(M,-1))
 
 ################################################
 #            Partial hand regression           #
