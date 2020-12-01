@@ -1223,13 +1223,9 @@ class SmalldeckClassification(nn.Module):
         self.attention = params['attention']
         self.tblock = params['tblock']
         self.emb_size = params['emb_size']
-        self.hand_stack_dims = params['hand_stack_dims']
-        self.board_stack_dims = params['board_stack_dims']
         self.hand_dims = params['hand_dims']
         self.board_dims = params['board_dims']
         self.hidden_dims = params['hidden_dims']
-        self.hand_emb_dims = params['hand_emb_dims']
-        self.board_emb_dims = params['board_emb_dims']
         if params['tblock']:
             tblocks = []
             for i in range(params['depth']):
@@ -1245,12 +1241,6 @@ class SmalldeckClassification(nn.Module):
             self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
-        self.hand_embs = nn.ModuleList()
-        for i in range(len(self.hand_emb_dims)-1):
-            self.hand_embs.append(nn.Linear(self.hand_emb_dims[i],self.hand_emb_dims[i+1]))
-        self.board_embs = nn.ModuleList()
-        for i in range(len(self.board_emb_dims)-1):
-            self.board_embs.append(nn.Linear(self.board_emb_dims[i],self.board_emb_dims[i+1]))
         self.hand_layers = nn.ModuleList()
         for i in range(len(self.hand_dims)-1):
             self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
@@ -1258,8 +1248,8 @@ class SmalldeckClassification(nn.Module):
         for i in range(len(self.board_dims)-1):
             self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        # for i in range(len(self.hidden_dims)-1):
-        #     self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
         self.categorical_output = nn.Linear(self.hidden_dims[-1],7463)
         self.output_layers = nn.ModuleList()
         for i in range(len(self.output_dims)-1):
