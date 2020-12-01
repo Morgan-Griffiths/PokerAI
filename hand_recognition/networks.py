@@ -23,11 +23,6 @@ def count_parameters(model):
 
 UNSPOOL_INDEX = np.array([h + b for h in combinations(range(0,4), 2) for b in combinations(range(4,9), 3)])
 
-def torch_where(condition,vec):
-    mask = torch.where(condition,vec,torch.zeros_like(vec))
-    mask[mask>0]= 1
-    return mask
-
 def flat_unspool(X):
     """
     Takes a flat (B,M,18) tensor vector of alternating ranks and suits, 
