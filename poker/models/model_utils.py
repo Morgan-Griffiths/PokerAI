@@ -137,7 +137,6 @@ def copy_weights(network,path):
     else:
         layer_weights = torch.load(path,map_location=torch.device('cpu'))
     for name, param in network.process_input.hand_board.named_parameters():
-        print(name)
         if name in layer_weights:
             print('copying weights',name)
             param.data.copy_(layer_weights[name].data)
