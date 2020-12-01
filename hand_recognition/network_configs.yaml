@@ -18,6 +18,6 @@ smalldeck:
     hand_stack_dims: [7680,512]
     board_stack_dims: [7680,512]
     emb_size: 16
-    hand_emb_dims: [64,128]
+    hand_emb_dims: [64,256]
     board_emb_dims: [80,128]
     output_dims: [256,256]
