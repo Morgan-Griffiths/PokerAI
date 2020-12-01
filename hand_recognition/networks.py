@@ -29,9 +29,10 @@ def flat_unspool(X):
     sorts them with hand and board, and returns (B,M,60,5) vector
     """
     # Size of (B,M,18)
-    ranks = X[:,:,::2]
-    suits = X[:,:,1::2]
-    cards = (ranks-1) * suits
+    ranks = X[:,:,::2].long()
+    suits = X[:,:,1::2].long()
+    cards = ranks + (13 * suits)
+    print('cards',cards)
     hand = cards[:,:,:4]
     board = cards[:,:,4:]
     # sort hand and board
@@ -40,6 +41,7 @@ def flat_unspool(X):
     hand_sorted = torch.gather(hand,-1,hand_index)
     board_sorted = torch.gather(board,-1,board_index)
     combined = torch.cat((hand_sorted,board_sorted),dim=-1).squeeze(-1).long()
+    print('combined',combined)
     # B,5
     sequence = combined[:,UNSPOOL_INDEX]
     return sequence
@@ -1268,8 +1270,7 @@ class SmalldeckClassification(nn.Module):
         # Expects shape of (B,18)
         x = x.unsqueeze(0)
         B,M,C = x.size()
-        ranks,suits = unspool(x)
-        cards = ((ranks-1)*suits)
+        cards = x[:,:,UNSPOOL_INDEX].long()
         # cards = ((x[:,:,0]+1) * x[:,:,1]).long()
         emb_cards = self.card_emb(cards)
         # Shape of B,M,60,5,64
@@ -1289,30 +1290,27 @@ class SmalldeckClassification(nn.Module):
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+                # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+                combinations.append(out)
             activations.append(torch.stack(combinations))
-        ranks = x[:,:,::2]
-        suits = x[:,:,1::2]
-        cards = (ranks-1) * suits
-        emb_cards = self.card_emb(cards.long()).squeeze(0)
-        hand = emb_cards[:,:4,:].view(M,-1)
-        board = emb_cards[:,4:,:].view(M,-1)
-        for hidden_layer in self.hand_embs:
-            hand = self.activation_fc(hidden_layer(hand))
-        for hidden_layer in self.board_embs:
-            board = self.activation_fc(hidden_layer(board))
+        # hand = emb_cards[:,:4,:].view(M,-1)
+        # board = emb_cards[:,4:,:].view(M,-1)
+        # for hidden_layer in self.hand_embs:
+        #     hand = self.activation_fc(hidden_layer(hand))
+        # for hidden_layer in self.board_embs:
+        #     board = self.activation_fc(hidden_layer(board))
         # baseline = hardcode_handstrength(x)
-        results = torch.stack(activations)
-        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        results = torch.stack(activations).view(M,-1)
+        # best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         # print(best_hand)
         # print(baseline)
-        hidden_hand = torch.cat((hand,board),dim=-1)
+        # hidden_hand = torch.cat((hand,board),dim=-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
-            hand = self.activation_fc(output_layer(hand))
+            results = self.activation_fc(output_layer(results))
         # (B,M,60,512)
         # final_out = torch.cat((raw_results,best_hand.float()),dim=-1)
-        return self.small_category_out(hand.view(M,-1))
+        return self.small_category_out(results)
 
 ################################################
 #            Partial hand regression           #

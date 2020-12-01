@@ -267,14 +267,15 @@ class CardDataset(object):
     def build_smalldeck(self):
         """Complete dataset for preflop all the way to river for classifying all 5 card hands."""
         smalldeck = []
-        for r in range(2,10):
-            for s in range(1,3):
-                smalldeck.append([r,s])
+        for r in range(1,17):
+            # for s in range(1,3):
+            smalldeck.append([r])
         hero_hands = np.array(list(combinations(smalldeck,4)))
-        assert len(hero_hands) == 1820
-        zero_padding = np.zeros((1820,5,2))
-        X = np.concatenate([hero_hands,zero_padding],axis=1).reshape(1820,-1)
-        y = np.arange(1820)
+        M = hero_hands.shape[0]
+        zero_padding = np.zeros((M,5,1))
+        X = np.concatenate([hero_hands,zero_padding],axis=1)
+        X = X.reshape(M,-1)
+        y = np.arange(M)
         return X,y
 
     def build_flatdeck(self,val=False):
