@@ -257,7 +257,7 @@ class ProcessHandBoardConv(nn.Module):
         return torch.cat((raw_results,best_hand.float()),dim=-1)
 
 class ProcessHandBoard(nn.Module):
-    def __init__(self,params,hand_length,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,255),activation_fc=F.leaky_relu):
+    def __init__(self,params,hand_length,critic,hidden_dims=(256,256),hand_dims=(32,128),board_dims=(48,128),output_dims=(15360,255),activation_fc=F.leaky_relu):
         super().__init__()
         self.params = params
         self.activation_fc = activation_fc
@@ -310,20 +310,20 @@ class ProcessHandBoard(nn.Module):
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
                 raw_combinations.append(out)
-                combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
-            activations.append(torch.stack(combinations))
+                # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
+            # activations.append(torch.stack(combinations))
             raw_activations.append(torch.stack(raw_combinations))
-        results = torch.stack(activations)
+        # results = torch.stack(activations)
         # baseline = hardcode_handstrength(x)
         # best_hand = torch.flip(torch.min(results,dim=-1)[0].unsqueeze(-1),dims=(0,1))
-        best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
+        # best_hand = torch.min(results,dim=-1)[0].unsqueeze(-1)
         raw_results = torch.stack(raw_activations).view(B,M,-1)
         # (B,M,60,7463)
         for output_layer in self.output_layers:
             raw_results = self.activation_fc(output_layer(raw_results))
-        # return raw_results
+        return raw_results
         # (B,M,60,512)
-        return torch.cat((raw_results,best_hand.view(B,M,-1).float()),dim=-1)
+        # return torch.cat((raw_results,best_hand.view(B,M,-1).float()),dim=-1)
 
 class ProcessOrdinal(nn.Module):
     def __init__(self,critic,params,activation_fc=F.relu):
@@ -419,9 +419,24 @@ class PreProcessLayer(nn.Module):
         self.obs_mapping = params['obs_mapping']
         self.device = params['device']
         hand_length = Globals.HAND_LENGTH_DICT[params['game']]
-        self.hand_board = ProcessHandBoard(params,hand_length)
+        self.hand_board = ProcessHandBoard(params,hand_length,critic)
         self.continuous = ProcessContinuous(critic,params)
         self.ordinal = ProcessOrdinal(critic,params)
+        if critic:
+            self.winner = nn.Sequential(
+                nn.Linear(255*2, 255),
+                nn.ReLU(),
+                nn.Linear(255, 1),
+                nn.Tanh()
+            )
+        else:
+            self.hand_strength = nn.Sequential(
+                nn.Linear(255, 255),
+                nn.ReLU(),
+                nn.Linear(255, 1),
+                nn.Tanh()
+            )
+
 
     def set_device(self,device):
         self.device = device
@@ -432,11 +447,14 @@ class PreProcessLayer(nn.Module):
         if self.critic:
             h1 = self.hand_board(x[:,:,self.obs_mapping['hand_board']].float())
             h2 = self.hand_board(x[:,:,self.obs_mapping['villain_board']].float())
-            h = h1 - h2
+            victor = self.winner(torch.cat((h1,h2),dim=-1))
+            h = torch.cat((h1,victor),dim=-1)
             o = self.ordinal(x[:,:,self.obs_mapping['ordinal']].to(self.device))
             c = self.continuous(x[:,:,self.obs_mapping['continuous']].to(self.device))
         else:
-            h = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
+            h1 = self.hand_board(x[:,:,self.state_mapping['hand_board']].float())
+            hh = self.hand_strength(h1)
+            h = torch.cat((h1,hh),dim=-1)
             o = self.ordinal(x[:,:,self.state_mapping['ordinal']].to(self.device))
             c = self.continuous(x[:,:,self.state_mapping['continuous']].to(self.device))
         combined = torch.cat((h,o,c),dim=-1)
