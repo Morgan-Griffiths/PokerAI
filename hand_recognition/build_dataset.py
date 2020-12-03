@@ -82,8 +82,8 @@ if __name__ == "__main__":
         valX,valY = dataset.build_flatdeck(val=True)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSNINE:
-        trainX,trainY = dataset.build_hand_ranks_nine(200)
-        valX,valY = dataset.build_hand_ranks_nine(20)
+        trainX,trainY = dataset.build_hand_ranks_nine(500)
+        valX,valY = dataset.build_hand_ranks_nine(50)
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSFIVE:
         trainX,trainY = dataset.build_hand_ranks_five()

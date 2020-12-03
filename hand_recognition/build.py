@@ -388,8 +388,17 @@ class CardDataset(object):
         for category in dt.Globals.HAND_TYPE_DICT.keys():
             for _ in range(Number_of_examples[category] * multiplier):
                 hand,board,hand_strength = self.create_ninecard_handtypes(category)
-                X.append(np.concatenate([hand,board],axis=0))
-                y.append(hand_strength)
+                for i in range(4):
+                    if i == 0:
+                        new_board = np.zeros((5,2))
+                    elif i == 1:
+                        new_board = np.concatenate([board[:3,:],np.zeros((2,2))],axis=0)
+                    elif i == 2:
+                        new_board = np.concatenate([board[:4,:],np.zeros((1,2))],axis=0)
+                    else:
+                        new_board = board
+                    X.append(np.concatenate([hand,new_board],axis=0))
+                    y.append(hand_strength)
         X = np.stack(X)
         y = np.stack(y)
         return X,y
