@@ -956,56 +956,50 @@ class BlockerClassification(nn.Module):
 ################################################
 
 class HandRankClassificationNine(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(256,256,256),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
         self.activation_fc = activation_fc
         self.seed = torch.manual_seed(params['seed'])
-        
-        self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
-        self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
-
+        self.hidden_dims = params['hidden_dims']
+        self.hand_dims = params['hand_dims']
+        self.board_dims = params['board_dims']
+        self.emb_size = params['emb_size']
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
-        self.suit_conv = nn.Sequential(
-            nn.Conv1d(5, 16, kernel_size=1, stride=1),
-            nn.BatchNorm1d(16),
-            nn.ReLU(inplace=True),
-        )
-        self.rank_conv = nn.Sequential(
-            nn.Conv1d(5, 16, kernel_size=5, stride=1),
-            nn.BatchNorm1d(16),
-            nn.ReLU(inplace=True),
-        )
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.hand_layers = nn.ModuleList()
+        for i in range(len(self.hand_dims)-1):
+            self.hand_layers.append(nn.Linear(self.hand_dims[i],self.hand_dims[i+1]))
+        self.board_layers = nn.ModuleList()
+        for i in range(len(self.board_dims)-1):
+            self.board_layers.append(nn.Linear(self.board_dims[i],self.board_dims[i+1]))
         self.hidden_layers = nn.ModuleList()
-        self.bn_layers = nn.ModuleList()
-        for i in range(len(hidden_dims)-1):
-            self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
-            # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(2048,self.nA)
+        for i in range(len(self.hidden_dims)-1):
+            self.hidden_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        self.categorical_output = nn.Linear(self.hidden_dims[-1],self.nA)
+
 
     def forward(self,x):
         # Input is (b,9,2)
         B,c,h = x.size()
         ranks = x[:,:,0]
         suits = x[:,:,1]
-        interleaved = torch.empty((B,c*h))
-        interleaved[:,0::2] = ranks
-        interleaved[:,1::2] = suits
-        ranks,suits = unspool(interleaved)
-        hot_ranks = self.one_hot_ranks[ranks].float().to(self.device)
-        hot_suits = self.one_hot_suits[suits].float().to(self.device)
-        # (b,60,5,2)
-        for i in range(B):
-            s = self.suit_conv(hot_suits)
-            r = self.rank_conv(hot_ranks)
-            x = torch.cat((r,s),dim=-1)
-            # should be (b,64,88)
-            for i,hidden_layer in enumerate(self.hidden_layers):
-                x = self.activation_fc(hidden_layer(x))
-            x = x.view(M,-1)
-            self.categorical_output(x)
-        return 
+        ranks[ranks>0] -= 1
+        suits[suits>0] = (suits[suits>0] -1) * 13
+        cards = ranks + suits
+        emb_cards = self.card_emb(cards.long())
+        hand = emb_cards[:,:4,:].view(B,-1)
+        board = emb_cards[:,4:,:].view(B,-1)
+        for hidden_layer in self.hand_layers:
+            hand = self.activation_fc(hidden_layer(hand))
+        for hidden_layer in self.board_layers:
+            board = self.activation_fc(hidden_layer(board))
+        out = torch.cat((hand,board),dim=-1)
+        for hidden_layer in self.hidden_layers:
+            out = self.activation_fc(hidden_layer(out))
+        return self.categorical_output(out.view(B,-1))
 
 class HandRankClassificationFive(nn.Module):
     def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):

@@ -449,7 +449,10 @@ if __name__ == "__main__":
         'batchnorm':True,
         'conv_layers':1,
         'load_path':network_path,
-        'emb_size':64,
+        'emb_size':16,
+        'hidden_dims': [256,256],
+        'hand_dims': [64,128],
+        'board_dims': [80,128],
         'device' : torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu1': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         'gpu2': torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
