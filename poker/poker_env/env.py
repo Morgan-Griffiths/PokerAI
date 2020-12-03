@@ -434,7 +434,7 @@ class Poker(object):
     @property
     @lru_cache(maxsize=1,typed=False)
     def state_space(self):
-        return 31 + self.n_players * 4
+        return 31 + self.n_players * self.cards_per_player
     
     @property
     @lru_cache(maxsize=1,typed=False)
@@ -444,7 +444,7 @@ class Poker(object):
     @property
     @lru_cache(maxsize=1,typed=False)
     def observation_space(self):
-        return 21 + self.n_players * 4 + self.n_players * 10
+        return 21 + self.n_players * self.cards_per_player + self.n_players * (6 + self.cards_per_player)
 
     @property
     @lru_cache(maxsize=1,typed=False)
