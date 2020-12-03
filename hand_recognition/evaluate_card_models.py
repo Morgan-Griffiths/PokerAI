@@ -235,7 +235,7 @@ def train_classification(dataset_params,agent_params,training_params):
     if dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSFIVE}' or dataset_params['datatype'] == f'{dt.DataTypes.FLATDECK}':
         category_weights = generate_category_weights()
         data_dict['category_weights'] = category_weights
-    if dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}':
+    if dataset_params['datatype'] == f'{dt.DataTypes.SMALLDECK}' or dataset_params['datatype'] == f'{dt.DataTypes.HANDRANKSNINE}':
         training_params['frozen'] = True
     print('Data shapes',dataset['trainX'].shape,dataset['trainY'].shape,dataset['valX'].shape,dataset['valY'].shape)
     # dataset['trainY'] = dataset['trainY'].long()
