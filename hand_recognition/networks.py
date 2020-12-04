@@ -964,6 +964,7 @@ class HandRankClassificationNine(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         self.hidden_dims = params['hidden_dims']
         self.emb_size = params['emb_size']
+        self.device = params['device']
         self.positional_emb = nn.Embedding(1,self.emb_size)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
@@ -981,7 +982,7 @@ class HandRankClassificationNine(nn.Module):
         ranks[ranks>0] -= 1
         suits[suits>0] = (suits[suits>0] -1) * 13
         cards = ranks + suits
-        hand_positions = torch.zeros((B,4)).long()
+        hand_positions = torch.zeros((B,4)).long().to(self.device)
         emb_cards = self.card_emb(cards.long())
         hand = (emb_cards[:,:4,:] + self.positional_emb(hand_positions)).view(B,-1)
         board = emb_cards[:,4:,:].view(B,-1)
