@@ -1114,8 +1114,6 @@ class SmalldeckClassificationConv(nn.Module):
                 self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
         if params['identity']:
             self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
-
-
         self.one_hot_suits = torch.nn.functional.one_hot(torch.arange(0,dt.SUITS.HIGH))
         self.one_hot_ranks = torch.nn.functional.one_hot(torch.arange(0,dt.RANKS.HIGH))
 
@@ -1202,26 +1200,10 @@ class SmalldeckClassification(nn.Module):
         self.device = params['device']
         self.num_heads = params['num_heads']
         self.output_dims = params['output_dims']
-        self.identity = params['identity']
-        self.attention = params['attention']
-        self.tblock = params['tblock']
         self.emb_size = params['emb_size']
         self.hand_dims = params['hand_dims']
         self.board_dims = params['board_dims']
         self.hidden_dims = params['hidden_dims']
-        if params['tblock']:
-            tblocks = []
-            for i in range(params['depth']):
-                tblocks.append(
-                    TransformerBlock(emb=256, heads=self.num_heads, seq_length=60, dropout=0, wide=params['wide']))
-            self.tblocks = nn.Sequential(*tblocks)
-        elif params['attention']:
-            if params['wide']:
-                self.attention_layer = SelfAttentionWide(256,self.num_heads)
-            else:
-                self.attention_layer = SelfAttentionNarrow(256,self.num_heads)
-        if params['identity']:
-            self.blocks = IdentityBlock(hidden_dims=[256,256,256],activation=F.leaky_relu)
         self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
         # Input is (b,4,2) -> (b,4,4) and (b,4,13)
         self.hand_layers = nn.ModuleList()
@@ -1268,15 +1250,6 @@ class SmalldeckClassification(nn.Module):
                 # x (b, 64, 32)
                 for hidden_layer in self.hidden_layers:
                     out = self.activation_fc(hidden_layer(out))
-                if self.identity:
-                    out = self.blocks(out.view(60,-1)).unsqueeze(0)
-                else:
-                    out = out.view(1,60,-1)
-                # 60,16,16
-                if self.attention:
-                    out = self.attention_layer(out)
-                elif self.tblock:
-                    out = self.tblocks(out)
                 # combinations.append(torch.argmax(self.categorical_output(out),dim=-1))
                 raw_combinations.append(out)
             # activations.append(torch.stack(combinations))
