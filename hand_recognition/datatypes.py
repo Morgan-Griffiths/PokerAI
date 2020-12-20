@@ -15,6 +15,7 @@ class DataTypes(object):
     PARTIAL = 'partial'
     HANDRANKSFIVE = 'handranksfive'
     HANDRANKSNINE = 'handranksnine'
+    HANDRANKSTHIRTEEN = 'handranksthirteen'
     FLATDECK = 'flatdeck'
     SMALLDECK = 'smalldeck'
     FLUSH = 'flush'
@@ -46,6 +47,7 @@ class Globals(object):
         DataTypes.NINECARD : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.HANDRANKSNINE : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.HANDRANKSFIVE : LearningCategories.MULTICLASS_CATEGORIZATION,
+        DataTypes.HANDRANKSTHIRTEEN : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.FLATDECK : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.SMALLDECK : LearningCategories.MULTICLASS_CATEGORIZATION,
         DataTypes.FLUSH : LearningCategories.MULTICLASS_CATEGORIZATION,
@@ -71,6 +73,7 @@ class Globals(object):
         DataTypes.NINECARD:9,
         DataTypes.HANDRANKSFIVE:7463,
         DataTypes.HANDRANKSNINE:7463,
+        DataTypes.HANDRANKSTHIRTEEN:7463,
         DataTypes.SMALLDECK:1820,
         DataTypes.FLATDECK:7463,
         DataTypes.FLUSH:7463,
@@ -85,6 +88,7 @@ class Globals(object):
         DataTypes.NINECARD : HAND_TYPE_DICT,
         DataTypes.HANDRANKSNINE : {i:i for i in range(1,7463)},
         DataTypes.HANDRANKSFIVE : {i:i for i in range(1,7463)},
+        DataTypes.HANDRANKSTHIRTEEN : {i:i for i in range(1,7463)},
         DataTypes.TENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.THIRTEENCARD : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
         DataTypes.PARTIAL : {-1:'Player 2 wins',0:'Tie',1:'Player 1 wins'},
@@ -98,6 +102,7 @@ class Globals(object):
         DataTypes.PARTIAL:set(range(-1,2)),
         DataTypes.HANDRANKSFIVE:set(range(1,7463)),
         DataTypes.HANDRANKSNINE:set(range(1,7463)),
+        DataTypes.HANDRANKSTHIRTEEN:set(range(1,7463)),
         DataTypes.NINECARD:set(range(9)),
         DataTypes.FIVECARD:set(range(9)),
         DataTypes.BLOCKERS:set(range(2)),
