@@ -954,6 +954,59 @@ class BlockerClassification(nn.Module):
 ################################################
 #           Hand Rank categorization           #
 ################################################
+class HandRankClassificationThirteen(nn.Module):
+    def __init__(self,params,hidden_dims=(144,256,256),activation_fc=F.relu):
+        super().__init__()
+        self.params = params
+        self.nA = params['nA']
+        self.activation_fc = activation_fc
+        self.seed = torch.manual_seed(params['seed'])
+        self.hidden_dims = params['hidden_dims']
+        self.emb_size = params['emb_size']
+        self.device = params['device']
+        self.positional_emb = nn.Embedding(1,self.emb_size)
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.card_emb = nn.Embedding(53,self.emb_size,padding_idx=0)
+        # Input is (b,4,2) -> (b,4,4) and (b,4,13)
+        self.output_layers = nn.ModuleList()
+        for i in range(len(self.hidden_dims)-1):
+            self.output_layers.append(nn.Linear(self.hidden_dims[i],self.hidden_dims[i+1]))
+        self.categorical_hero = nn.Linear(self.hidden_dims[-1],self.nA)
+        self.villain_distribution = nn.Sequential(
+            nn.Linear(144,256),
+            nn.LeakyReLU(),
+            nn.Linear(256,256),
+            nn.LeakyReLU()
+        )
+        self.perceived_distribution = nn.Sequential(
+            nn.Linear(80,256),
+            nn.LeakyReLU(),
+            nn.Linear(256,256),
+            nn.LeakyReLU()
+        )
+        self.categorical_villain = nn.Linear(256,self.nA)
+        self.categorical_board = nn.Linear(256,self.nA)
+
+    def forward(self,x):
+        # Input is (b,2,13)
+        B,c,h = x.size()
+        ranks = x[:,0,:]
+        suits = x[:,1,:]
+        ranks[ranks>0] -= 1
+        suits[suits>0] = (suits[suits>0] -1) * 13
+        cards = ranks + suits
+        hand_positions = torch.zeros((B,4)).long().to(self.device)
+        emb_cards = self.card_emb(cards.long())
+        hand = (emb_cards[:,:4,:] + self.positional_emb(hand_positions)).view(B,-1)
+        vil_hand = (emb_cards[:,4:8,:] + self.positional_emb(hand_positions)).view(B,-1)
+        board = emb_cards[:,8:,:].view(B,-1)
+        hero_out = torch.cat((hand,board),dim=-1)
+        villain_out = torch.cat((hand,board),dim=-1)
+        for hidden_layer in self.output_layers:
+            hero_out = self.activation_fc(hidden_layer(hero_out))
+        villain_dist = self.villain_distribution(villain_out).view(B,-1)
+        board_dist = self.perceived_distribution(board).view(B,-1)
+        return self.categorical_hero(hero_out.view(B,-1)),self.categorical_villain(villain_dist),self.categorical_board(board_dist)
 
 class HandRankClassificationNine(nn.Module):
     def __init__(self,params,hidden_dims=(144,256,256),activation_fc=F.relu):
