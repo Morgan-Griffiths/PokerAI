@@ -73,6 +73,10 @@ if __name__ == "__main__":
         trainX,trainY = dataset.build_flush()
         valX,valY = dataset.build_flush()
         save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
+    elif dataset_params['datatype'] == dt.DataTypes.HANDRANKSTHIRTEEN:
+        trainX,trainY = dataset.build_thirteencard_handtypes(500)
+        valX,valY = dataset.build_thirteencard_handtypes(50)
+        save_all(trainX,trainY,valX,valY,dataset_params['save_dir'],y_dtype='int32')
     elif dataset_params['datatype'] == dt.DataTypes.SMALLDECK:
         trainX,trainY = dataset.build_smalldeck()
         valX,valY = dataset.build_smalldeck()

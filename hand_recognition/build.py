@@ -164,6 +164,80 @@ class CardDataset(object):
             hand_type = CardDataset.find_strength(hand_strength)
         return hand,board,hand_strength
 
+    def create_thirteen_handtypes(self,category):
+        """
+        Grab 5 cards representing that handtype, then split into hand/board and add cards, 
+        if handtype hasn't changed store hand.
+        """
+        initial_cards = self.create_handtypes(category)
+        flat_card_vector = to_52_vector(initial_cards)
+        remaining_deck = list(set(self.deck) - set(flat_card_vector))
+        extra_cards_52 = np.random.choice(remaining_deck,4,replace=False)
+        extra_cards_2d = to_2d(extra_cards_52)
+        hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
+        board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+        assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
+        en_hand = [encode(c) for c in hand]
+        en_board = [encode(c) for c in board]
+        hand_strength = hand_rank(en_hand,en_board)
+        hand_type = CardDataset.find_strength(hand_strength)
+        while hand_type != category:
+            extra_cards_52 = np.random.choice(remaining_deck,4,replace=False)
+            extra_cards_2d = to_2d(extra_cards_52)
+            hand = np.concatenate([initial_cards[:2],extra_cards_2d[:2]],axis=0)
+            board = np.concatenate([initial_cards[2:],extra_cards_2d[2:]],axis=0)
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in hand]),f'hand outside range {hand}'
+            assert(False not in [(s[1]  > dt.SUITS.LOW-1 and s[1] < dt.SUITS.HIGH) == True for s in board]),f'board outside range {board}'
+            en_hand = [encode(c) for c in hand]
+            en_board = [encode(c) for c in board]
+            hand_strength = hand_rank(en_hand,en_board)
+            hand_type = CardDataset.find_strength(hand_strength)
+        print(remaining_deck,type(remaining_deck))
+        print(extra_cards_52,type(extra_cards_52))
+        print(remaining_deck - extra_cards_52)
+        return hand,board,hand_strength
+
+    def build_thirteencard_handtypes(self,multiplier):
+        """
+        Hero hand, villain hand and board in various configurations. 
+        E.G. board from all street stages. Designed for training hand distribution nets.
+        """
+        switcher = {
+            0: straight_flushes,
+            1: quads,
+            2: full_houses,
+            3: flushes,
+            4: straights,
+            5: trips,
+            6: two_pairs,
+            7: one_pairs,
+            8: high_cards
+        }
+        X = []
+        y = []
+        for category in range(0,9):
+            five_hands = switcher[category]()
+            for hand in five_hands:
+                deck = np.arange(1,53)
+                # convert five to 52
+                flat_hand = (hand[0]-1)+(13*(hand[1]-1))
+                remainder_deck = np.array(list(set(deck) - set(flat_hand)))
+                hero_hands = hero_5_cards(hand)
+                for h in hero_hands:
+                    combined,handtype,hero_rank,vil_rank = CardDataset.sample_hand_board(remainder_deck,np.transpose(h))
+                    while handtype != category:
+                        combined,handtype,hero_rank,vil_rank = CardDataset.sample_hand_board(remainder_deck,np.transpose(h))
+                    # print(combined)
+                    X.append(combined)
+                    y.append((hero_rank,vil_rank))
+                break
+            break
+        X = np.stack(X)
+        y = np.stack(y)
+        mask = np.random.shuffle(np.arange(len(y)))
+        return X[mask,:].reshape(X.shape),y[mask].reshape(y.shape)
+
     def build_blockers(self,iterations):
         """
         board always flush. Hand either has A blocker or A no blocker. Never has flush
@@ -389,6 +463,7 @@ class CardDataset(object):
             for _ in range(Number_of_examples[category] * multiplier):
                 hand,board,hand_strength = self.create_ninecard_handtypes(category)
                 for i in range(4):
+                    np.random.shuffle(board)
                     if i == 0:
                         new_board = np.zeros((5,2))
                     elif i == 1:
@@ -568,6 +643,21 @@ class CardDataset(object):
         if strength > 10:
             return 1
         return 0
+
+    @staticmethod
+    def sample_hand_board(remainder_deck,fivecards):
+        remainder_cards = np.random.choice(remainder_deck,8,replace=False)
+        test_cards = np.transpose(to_2d(remainder_cards-1))
+        hand = np.concatenate([fivecards[:,:2],test_cards[:,:2]],axis=-1)
+        board = np.concatenate([fivecards[:,2:],test_cards[:,2:4]],axis=-1)
+        vil_hand = test_cards[:,4:]
+        en_vil = [encode(c) for c in np.transpose(vil_hand)]
+        en_hand = [encode(c) for c in np.transpose(hand)]
+        en_board = [encode(c) for c in np.transpose(board)]
+        hand_strength = hand_rank(en_hand,en_board)
+        vil_strength = hand_rank(en_vil,en_board)
+        hand_type = CardDataset.find_strength(hand_strength)
+        return np.concatenate([hand,vil_hand,board],axis=-1),hand_type,hand_strength,vil_strength
 
 
     @staticmethod
