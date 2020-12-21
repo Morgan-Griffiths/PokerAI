@@ -231,8 +231,6 @@ class CardDataset(object):
                     # print(combined)
                     X.append(combined)
                     y.append((hero_rank,vil_rank))
-                break
-            break
         X = np.stack(X)
         y = np.stack(y)
         mask = np.random.shuffle(np.arange(len(y)))
