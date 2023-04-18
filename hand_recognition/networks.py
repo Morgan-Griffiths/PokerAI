@@ -758,7 +758,7 @@ class HandBoard(nn.Module):
         board_rank = ranks[:, 4:].long()
         board_suit = suits[:, 4:].long()
 
-        hand_suit = self.suit_emb(hand_suit)
+        hand_suit = self.suit_emb(hand_suit.cuda())
         hand_rank = self.rank_emb(hand_rank)
         board_suit = self.suit_emb(board_suit)
         board_rank = self.rank_emb(board_rank)
