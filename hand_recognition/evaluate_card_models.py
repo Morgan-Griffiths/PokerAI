@@ -64,10 +64,10 @@ def train_network(data_dict,agent_params,training_params):
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos
-            if training_params['five_card_conversion'] == True:
-                inputs = unspool(inputs)
-            if training_params['one_hot'] == True:
-                inputs = torch.nn.functional.one_hot(inputs)
+            # if training_params['five_card_conversion'] == True:
+            #     inputs = unspool(inputs)
+            # if training_params['one_hot'] == True:
+            #     inputs = torch.nn.functional.one_hot(inputs)
             outputs = net(inputs)
             loss = criterion(outputs, targets)
             loss.backward()
