@@ -751,6 +751,7 @@ class HandBoard(nn.Module):
         )
 
     def forward(self, state: torch.tensor):
+        state = state.cpu()
         ranks = state[:, :, 0].long() - 1
         suits = state[:, :, 1].long()
         hand_rank = ranks[:, :4].long()
@@ -758,14 +759,10 @@ class HandBoard(nn.Module):
         board_rank = ranks[:, 4:].long()
         board_suit = suits[:, 4:].long()
 
-        hand_suit = self.suit_emb(hand_suit.cuda())
-        hand_rank = self.rank_emb(hand_rank.cuda())
-        board_suit = self.suit_emb(board_suit.cuda())
-        board_rank = self.rank_emb(board_rank.cuda())
-        hand_suit = hand_suit.cpu()
-        hand_rank = hand_rank.cpu()
-        board_suit = board_suit.cpu()
-        board_rank = board_rank.cpu()
+        hand_suit = self.suit_emb(hand_suit)
+        hand_rank = self.rank_emb(hand_rank)
+        board_suit = self.suit_emb(board_suit)
+        board_rank = self.rank_emb(board_rank)
         B, _, _ = state.shape
         M = 1
         hand = torch.cat((hand_suit, hand_rank), dim=-1)
