@@ -752,6 +752,7 @@ class HandBoard(nn.Module):
 
     def forward(self, state: torch.tensor):
         # display which device state is on
+        state = state.cuda()
         print(state.device)
         print(self.suit_emb.weight.device)
         print(self.rank_emb.weight.device)
