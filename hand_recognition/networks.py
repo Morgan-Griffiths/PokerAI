@@ -755,23 +755,27 @@ class HandBoard(nn.Module):
         ranks = state[:,:,0].long() - 1
         suits = state[:,:,1].long()
         # Input is (b,9,2)
-        hand_rank = ranks[:,:4]
-        hand_suit = suits[:,:4]
-        board_rank = ranks[:,4:]
-        board_suit = suits[:,4:]
-        B, _, _ = state.shape
-        M = 1
 
         if torch.cuda.is_available():
-            hand_suit = self.suit_emb(hand_suit.long().cuda())
-            hand_rank = self.rank_emb(hand_rank.long().cuda())
-            board_suit = self.suit_emb(board_suit.long().cuda())
-            board_rank = self.rank_emb(board_rank.long().cuda())
+            hand_rank = ranks[:,:4].long().cuda()
+            hand_suit = suits[:,:4].long().cuda()
+            board_rank = ranks[:,4:].long().cuda()
+            board_suit = suits[:,4:].long().cuda()
+            hand_suit = self.suit_emb(hand_suit)
+            hand_rank = self.rank_emb(hand_rank)
+            board_suit = self.suit_emb(board_suit)
+            board_rank = self.rank_emb(board_rank)
         else:
+            hand_rank = ranks[:,:4]
+            hand_suit = suits[:,:4]
+            board_rank = ranks[:,4:]
+            board_suit = suits[:,4:]
             hand_suit = self.suit_emb(hand_suit.long())
             hand_rank = self.rank_emb(hand_rank.long())
             board_suit = self.suit_emb(board_suit.long())
             board_rank = self.rank_emb(board_rank.long())
+        B, _, _ = state.shape
+        M = 1
         # hand size (B, M, 4, 8)
         # board size (B, M, 5, 8)
         hand = torch.cat((hand_suit, hand_rank), dim=-1)
