@@ -726,6 +726,7 @@ class HandBoard(nn.Module):
     def __init__(self,params) -> None:
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.seed = torch.manual_seed(params['seed'])
         self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
         self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
         self.process_hand = nn.Sequential(
