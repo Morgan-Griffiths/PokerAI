@@ -52,7 +52,7 @@ class datasetLoader(Dataset):
 def return_trainloader(X,y,category):
     data = memDatasetLoader(X,y,category)
     params = {
-        'batch_size':4096,
+        'batch_size':256,
         'shuffle': True,
         'num_workers':8
     }
@@ -69,7 +69,7 @@ def return_dataloaders(X,y):
     testset = datasetLoader(X_test,y_test)
 
     params = {
-        'batch_size':2048,
+        'batch_size':256,
         'shuffle': True,
         'num_workers':2
     }
