@@ -759,10 +759,17 @@ class HandBoard(nn.Module):
         board_rank = ranks[:,4:].long()
         board_suit = suits[:,4:].long()
 
-        hand_suit = self.suit_emb(hand_suit)
-        hand_rank = self.rank_emb(hand_rank)
-        board_suit = self.suit_emb(board_suit)
-        board_rank = self.rank_emb(board_rank)
+        if torch.cuda.is_available():
+            hand_suit = self.suit_emb(hand_suit.cuda())
+            hand_rank = self.rank_emb(hand_rank.cuda())
+            board_suit = self.suit_emb(board_suit.cuda())
+            board_rank = self.rank_emb(board_rank.cuda())
+        else:
+            hand_suit = self.suit_emb(hand_suit)
+            hand_rank = self.rank_emb(hand_rank)
+            board_suit = self.suit_emb(board_suit)
+            board_rank = self.rank_emb(board_rank)
+
         B, _, _ = state.shape
         M = 1
         # hand size (B, M, 4, 8)
