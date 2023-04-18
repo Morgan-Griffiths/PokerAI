@@ -729,6 +729,8 @@ class HandBoard(nn.Module):
         self.seed = torch.manual_seed(params['seed'])
         self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
         self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
+        self.suit_emb = self.suit_emb.to(self.device)
+        self.rank_emb = self.rank_emb.to(self.device)
         self.process_hand = nn.Sequential(
             nn.Linear(64, 64),
             nn.LeakyReLU(),
@@ -757,14 +759,14 @@ class HandBoard(nn.Module):
         # Input is (b,9,2)
 
         if torch.cuda.is_available():
-            hand_rank = ranks[:,:4].long()
-            hand_suit = suits[:,:4].long()
-            board_rank = ranks[:,4:].long()
-            board_suit = suits[:,4:].long()
-            hand_suit = self.suit_emb(hand_suit.cuda())
-            hand_rank = self.rank_emb(hand_rank.cuda())
-            board_suit = self.suit_emb(board_suit.cuda())
-            board_rank = self.rank_emb(board_rank.cuda())
+            hand_rank = ranks[:,:4].long().to(self.device)
+            hand_suit = suits[:,:4].long().to(self.device)
+            board_rank = ranks[:,4:].long().to(self.device)
+            board_suit = suits[:,4:].long().to(self.device)
+            hand_suit = self.suit_emb(hand_suit)
+            hand_rank = self.rank_emb(hand_rank)
+            board_suit = self.suit_emb(board_suit)
+            board_rank = self.rank_emb(board_rank)
         else:
             hand_rank = ranks[:,:4]
             hand_suit = suits[:,:4]
