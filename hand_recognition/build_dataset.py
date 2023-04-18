@@ -17,7 +17,7 @@ if __name__ == "__main__":
         """)
 
     parser.add_argument('-d','--datatype',
-                        default='handtype',type=str,
+                        default=dt.DataTypes.HANDRANKSNINE,type=str,
                         metavar=f"[{dt.DataTypes.THIRTEENCARD},{dt.DataTypes.TENCARD},{dt.DataTypes.NINECARD},{dt.DataTypes.FIVECARD},{dt.DataTypes.PARTIAL},{dt.DataTypes.BLOCKERS},{dt.DataTypes.HANDRANKSFIVE},{dt.DataTypes.HANDRANKSNINE}]",
                         help='Which dataset to train or build')
     parser.add_argument('-O','--datapath',

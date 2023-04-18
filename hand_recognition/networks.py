@@ -190,6 +190,7 @@ class ThirteenCardV3(nn.Module):
 #           Nine Card categorization           #
 ################################################
 
+
 class HandClassification(nn.Module):
     def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
         super(HandClassification,self).__init__()
@@ -720,6 +721,69 @@ class BlockerClassification(nn.Module):
 ################################################
 #           Hand Rank categorization           #
 ################################################
+
+class HandBoard(nn.Module):
+    def __init__(self,params) -> None:
+        super().__init__()
+        self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
+        self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
+        self.process_hand = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 64),
+        )
+        self.process_board = nn.Sequential(
+            nn.Linear(80, 80),
+            nn.LeakyReLU(),
+            nn.Linear(80, 80),
+            nn.LeakyReLU(),
+            nn.Linear(80, 80),
+        )
+        self.process_hand_board = nn.Sequential(
+            nn.Linear(144, 144),
+            nn.LeakyReLU(),
+            nn.Linear(144, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, params['nA']),
+        )
+
+    def forward(self,state:torch.tensor):
+        ranks = state[:,:,0].long() - 1
+        suits = state[:,:,1].long()
+        # Input is (b,9,2)
+        hand_rank = ranks[:,:4]
+        hand_suit = suits[:,:4]
+        board_rank = ranks[:,4:]
+        board_suit = suits[:,4:]
+        B, _, _ = state.shape
+        M = 1
+        # print(B,M)
+        hand_suit = self.suit_emb(hand_suit.long())
+        hand_rank = self.rank_emb(hand_rank.long())
+        # size (B, M, 4, 8)
+        board_suit = self.suit_emb(board_suit.long())
+        board_rank = self.rank_emb(board_rank.long())
+        # size (B, M, 5, 8)
+        hand = torch.cat((hand_suit, hand_rank), dim=-1)
+        # size (B, M, 4, 16)
+        board = torch.cat((board_suit, board_rank), dim=-1)
+        # size (B, M, 5, 16)
+        hand = hand.unsqueeze(1)
+        board = board.unsqueeze(1)
+        # print(hand.shape)
+        hand = self.process_hand(hand.view(B,M, 64))
+        # size (B, M, 64)
+        # print(board.shape)
+        board = self.process_board(board.view(B,M, 80))
+        # size (B, M, 80)
+        hand_board = torch.cat((hand, board), dim=-1)
+        # print(hand_board.shape)
+        # size (B, M, 144)
+        out = self.process_hand_board(hand_board).squeeze(1)
+        # print(out.shape)
+        return out
 
 class HandRankClassificationNine(nn.Module):
     def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
