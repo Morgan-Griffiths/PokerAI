@@ -751,7 +751,14 @@ class HandBoard(nn.Module):
         )
 
     def forward(self, state: torch.tensor):
-        state = state.cpu()
+        # display which device state is on
+        print(state.device)
+        print(self.suit_emb.weight.device)
+        print(self.rank_emb.weight.device)
+        # display which deivce the process_hand is on
+        print(self.process_hand[0].weight.device)
+        print(self.process_board[0].weight.device)
+        print(self.process_hand_board[0].weight.device)
         ranks = state[:, :, 0].long() - 1
         suits = state[:, :, 1].long()
         hand_rank = ranks[:, :4].long()
