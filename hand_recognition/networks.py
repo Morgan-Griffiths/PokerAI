@@ -887,7 +887,7 @@ class HandRankClassificationFive(nn.Module):
 
 
 class HandRankClassificationFC(nn.Module):
-    def __init__(self,params,hidden_dims=(16,32,32),activation_fc=F.relu):
+    def __init__(self,params,hidden_dims=(128,32,32),activation_fc=F.relu):
         super().__init__()
         self.params = params
         self.nA = params['nA']
@@ -902,7 +902,7 @@ class HandRankClassificationFC(nn.Module):
         for i in range(len(hidden_dims)-1):
             self.hidden_layers.append(nn.Linear(hidden_dims[i],hidden_dims[i+1]))
             # self.bn_layers.append(nn.BatchNorm1d(64))
-        self.categorical_output = nn.Linear(4096,self.nA)
+        self.categorical_output = nn.Linear(288,self.nA)
 
     def forward(self,x):
         """
