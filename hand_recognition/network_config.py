@@ -1,7 +1,6 @@
 import datatypes as dt
-from hand_recognition.networks import HandRankClassificationNine
 from torch.nn import CrossEntropyLoss,BCELoss,SmoothL1Loss
-from networks import FiveCardClassification,HandClassification,TenCardClassificationV2,ThirteenCardV2,PartialHandRegression,BlockerClassification,HandRankClassificationFive,HandBoard
+from networks import HandRankClassificationNine,FiveCardClassification,HandClassification,TenCardClassificationV2,ThirteenCardV2,PartialHandRegression,BlockerClassification,HandRankClassificationFive,HandBoard
 
 class NetworkConfig(object):
     DataModels = {
