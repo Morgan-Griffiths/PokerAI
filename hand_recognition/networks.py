@@ -726,11 +726,10 @@ class HandBoard(nn.Module):
     def __init__(self,params) -> None:
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
         self.seed = torch.manual_seed(params['seed'])
         self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
         self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
-        self.suit_emb = self.suit_emb.to(self.device)
-        self.rank_emb = self.rank_emb.to(self.device)
         self.process_hand = nn.Sequential(
             nn.Linear(64, 64),
             nn.LeakyReLU(),
@@ -754,28 +753,19 @@ class HandBoard(nn.Module):
         )
 
     def forward(self,state:torch.tensor):
+        state = state.to(self.device)
         ranks = state[:,:,0].long() - 1
         suits = state[:,:,1].long()
         # Input is (b,9,2)
+        hand_rank = ranks[:,:4].long()
+        hand_suit = suits[:,:4].long()
+        board_rank = ranks[:,4:].long()
+        board_suit = suits[:,4:].long()
 
-        if torch.cuda.is_available():
-            hand_rank = ranks[:,:4].long().to(self.device)
-            hand_suit = suits[:,:4].long().to(self.device)
-            board_rank = ranks[:,4:].long().to(self.device)
-            board_suit = suits[:,4:].long().to(self.device)
-            hand_suit = self.suit_emb(hand_suit)
-            hand_rank = self.rank_emb(hand_rank)
-            board_suit = self.suit_emb(board_suit)
-            board_rank = self.rank_emb(board_rank)
-        else:
-            hand_rank = ranks[:,:4]
-            hand_suit = suits[:,:4]
-            board_rank = ranks[:,4:]
-            board_suit = suits[:,4:]
-            hand_suit = self.suit_emb(hand_suit.long())
-            hand_rank = self.rank_emb(hand_rank.long())
-            board_suit = self.suit_emb(board_suit.long())
-            board_rank = self.rank_emb(board_rank.long())
+        hand_suit = self.suit_emb(hand_suit)
+        hand_rank = self.rank_emb(hand_rank)
+        board_suit = self.suit_emb(board_suit)
+        board_rank = self.rank_emb(board_rank)
         B, _, _ = state.shape
         M = 1
         # hand size (B, M, 4, 8)
