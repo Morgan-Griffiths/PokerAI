@@ -60,7 +60,7 @@ def train_network(data_dict,agent_params,training_params):
             sys.stdout.write('\r')
             # get the inputs; data is a list of [inputs, targets]
             inputs, targets = data.values()
-            targets = targets.to(device)#.cuda() if torch.cuda.is_available() else targets
+            targets = targets.cuda() if torch.cuda.is_available() else targets
             # zero the parameter gradients
             optimizer.zero_grad()
             # unspool hand into 60,5 combos

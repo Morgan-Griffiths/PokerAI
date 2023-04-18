@@ -725,6 +725,7 @@ class BlockerClassification(nn.Module):
 class HandBoard(nn.Module):
     def __init__(self,params) -> None:
         super().__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
         self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
         self.process_hand = nn.Sequential(
@@ -750,9 +751,6 @@ class HandBoard(nn.Module):
         )
 
     def forward(self,state:torch.tensor):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        state = state.to(device)
-        self.to(device)
         ranks = state[:,:,0].long() - 1
         suits = state[:,:,1].long()
         # Input is (b,9,2)
