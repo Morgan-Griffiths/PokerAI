@@ -726,8 +726,8 @@ class HandBoard(nn.Module):
     def __init__(self,params) -> None:
         super().__init__()
         self.seed = torch.manual_seed(params['seed'])
-        self.suit_emb = nn.Embedding(6, 8, padding_idx=0)
-        self.rank_emb = nn.Embedding(15, 8, padding_idx=0)
+        self.suit_emb = nn.Embedding(5, 8, padding_idx=0)
+        self.rank_emb = nn.Embedding(14, 8, padding_idx=0)
         self.process_hand = nn.Sequential(
             nn.Linear(64, 64),
             nn.LeakyReLU(),
@@ -750,47 +750,34 @@ class HandBoard(nn.Module):
             nn.Linear(64, params['nA']),
         )
 
-    def forward(self,state:torch.tensor):
-        ranks = state[:,:,0].long() - 1
-        suits = state[:,:,1].long()
-        # Input is (b,9,2)
-        hand_rank = ranks[:,:4].long()
-        hand_suit = suits[:,:4].long()
-        board_rank = ranks[:,4:].long()
-        board_suit = suits[:,4:].long()
+    def forward(self, state: torch.tensor):
+        ranks = state[:, :, 0].long() - 1
+        suits = state[:, :, 1].long()
+        hand_rank = ranks[:, :4].long()
+        hand_suit = suits[:, :4].long()
+        board_rank = ranks[:, 4:].long()
+        board_suit = suits[:, 4:].long()
 
-        if torch.cuda.is_available():
-            hand_suit = self.suit_emb(hand_suit.cuda()).cpu()
-            hand_rank = self.rank_emb(hand_rank.cuda()).cpu()
-            board_suit = self.suit_emb(board_suit.cuda()).cpu()
-            board_rank = self.rank_emb(board_rank.cuda()).cpu()
-        else:
-            hand_suit = self.suit_emb(hand_suit)
-            hand_rank = self.rank_emb(hand_rank)
-            board_suit = self.suit_emb(board_suit)
-            board_rank = self.rank_emb(board_rank)
+        hand_suit = self.suit_emb(hand_suit)
+        hand_rank = self.rank_emb(hand_rank)
+        board_suit = self.suit_emb(board_suit)
+        board_rank = self.rank_emb(board_rank)
 
         B, _, _ = state.shape
         M = 1
-        # hand size (B, M, 4, 8)
-        # board size (B, M, 5, 8)
         hand = torch.cat((hand_suit, hand_rank), dim=-1)
-        hand = hand.view(B,M, 64)
-        # size (B, M, 4, 16)
+        hand = hand.view(B, M, 64)
         board = torch.cat((board_suit, board_rank), dim=-1)
-        board = board.view(B,M, 80)
-        # size (B, M, 5, 16)
-        # print(hand.shape)
-        hand = self.process_hand(hand.cuda())
-        # size (B, M, 64)
-        # print(board.shape)
-        board = self.process_board(board.cuda())
-        # size (B, M, 80)
+        board = board.view(B, M, 80)
+
+        hand = self.process_hand(hand)
+        board = self.process_board(board)
         hand_board = torch.cat((hand, board), dim=-1)
-        # print(hand_board.shape)
-        # size (B, M, 144)
         out = self.process_hand_board(hand_board).squeeze(1)
-        # print(out.shape)
+        
+        if torch.cuda.is_available():
+            out = out.cuda()
+
         return out
 
 class HandRankClassificationNine(nn.Module):
