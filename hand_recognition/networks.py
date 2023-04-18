@@ -917,11 +917,11 @@ class HandRankClassificationFC(nn.Module):
         # hot_ranks is (b,5,15)
         # hot_ranks is (b,5,5)
         if torch.cuda.is_available():
-            s = self.suit_conv(suits.float().cuda())
-            r = self.rank_conv(ranks.float().cuda())
+            s = self.suits_emb(suits.long().cuda())
+            r = self.rank_emb(ranks.long().cuda())
         else:
-            s = self.suit_conv(suits.float())
-            r = self.rank_conv(ranks.float())
+            s = self.suits_emb(suits.long())
+            r = self.rank_emb(ranks.long())
         x = torch.cat((r,s),dim=-1)
         # x (b, 64, 16)
         for i,hidden_layer in enumerate(self.hidden_layers):
