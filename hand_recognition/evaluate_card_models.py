@@ -21,6 +21,7 @@ from networks import *
 from network_config import NetworkConfig
 from data_utils import load_data,return_ylabel_dict,load_handtypes,return_handtype_data_shapes,unspool,generate_category_weights
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 """
 Creating a hand dataset for training and evaluating networks.
 Full deck
