@@ -11,7 +11,7 @@ class NetworkConfig(object):
             dt.DataTypes.PARTIAL : PartialHandRegression,
             dt.DataTypes.BLOCKERS : BlockerClassification,
             dt.DataTypes.HANDRANKSFIVE : HandRankClassificationFive,
-            dt.DataTypes.HANDRANKSNINE : HandRankClassificationFC
+            dt.DataTypes.HANDRANKSNINE : HandBoard
         }
     LossFunctions = {
         dt.LearningCategories.MULTICLASS_CATEGORIZATION:CrossEntropyLoss,
